@@ -1,5 +1,26 @@
 %{
-    // TODO: C declarations
+    // TODO: C++ declarations
+    #include "ast.hpp"
+    #include <memory>
+    #include <vector>
+    using namespace std;
+
+    // Root of the AST
+    unique_ptr<ClassDecl> root;
+}
+
+// AST node types
+%union {
+    int ival;
+    char* sval;
+    unique_ptr<Expr> expr;
+    unique_ptr<Stmt> stmt;
+    vector<unique_ptr<Stmt>>* stmts;
+    unique_ptr<ClassDecl> class_decl;
+    unique_ptr<FieldDecl> field_decl;
+    unique_ptr<MethodDecl> method_decl;
+    vector<unique_ptr<FieldDecl>>* fields;
+    vector<unique_ptr<MethodDecl>>* methods;
 }
 
 // TODO: Bison declarations
@@ -40,79 +61,113 @@
 %token BOOLEAN INT CHAR BYTE SHORT
 
 // TODO: Grammar rules
+
 %%
 
 //////////////////// Params ////////////////////
 
 // method(int arg1, bool arg2, ...)
-params: 
-    | param_list
+params:
+    param_list { $$ = std::move($1); }
+    | /* Empty */ { $$ = std::vector<std::pair<std::string, std::string>>{}; }
 ;
 
-param_list: param
-    | param COMMA param_list
+param_list:
+    param { $$ = std::vector<std::pair<std::string, std::string>>{$1}; }
+    | param_list COMMA param {
+        $1.push_back($3);
+        $$ = std::move($1);
+    }
 ;
 
-param: type ID
+param:
+    type ID { $$ = std::make_pair($1, $2); }
 ;
 
 //////////////////// Class Structure (Program Structure) ////////////////////
 
 // Program Structure
-program: package_decl import_decls type_decl
+program:
+    package_decl import_decls type_decl {
+        root = std::unique_ptr<ClassDecl>($3);
+    }
 ;
 
 // Package Declaration
 // package my.package;
-package_decl: 
-    | PACKAGE qualified_name SEMI
+package_decl:
+    PACKAGE qualified_name SEMI
+    | /* Empty */
 ;
 
 // Import Declarations (could be multiple)
 // import java.util.Vector;
-import_decls: 
-    | import_decl import_decls
+import_decls:
+    import_decl import_decls
+    | /* Empty */
 ;
 
-import_decl: IMPORT qualified_name SEMI
+import_decl:
+    IMPORT qualified_name SEMI
 ;
 
-qualified_name: ID
-    | qualified_name DOT ID
-    | qualified_name DOT STAR
+qualified_name:
+    ID { $$ = new std::string($1); }
+    | qualified_name DOT ID { $$ = new std::string(*$1 + "." + $3); delete $1; }
 ;
 
 // Class and Interface Declarations
-type_decl: class_decl
-    | interface_decl
+type_decl:
+    class_decl { $$ = std::move($1); }
+    | interface_decl { $$ = std::move($1); }
 ;
 
 // Class Declaration
 // public final class B extends A implements InterfaceA, InterfaceB {}
-class_decl: modifiers CLASS ID superclass interfaces LBRACE class_body RBRACE;
+class_decl:
+    modifiers CLASS ID superclass interfaces LBRACE class_body RBRACE {
+        $$ = std::make_unique<ClassDecl>(
+            $3, // Class name
+            $4 ? *$4 : "", // Superclass
+            $5 ? *$5 : std::vector<std::string>{}, // Interfaces
+            std::move($7.fields), // Fields
+            std::move($7.methods) // Methods
+        );
+    }
+;
 
 // Modifiers
 modifiers:
-    | PUBLIC modifier_list
+    PUBLIC { $$ = new std::vector<std::string>{"public"}; }
+    | ABSTRACT { $$ = new std::vector<std::string>{"abstract"}; }
+    | FINAL { $$ = new std::vector<std::string>{"final"}; }
+    | PUBLIC ABSTRACT { $$ = new std::vector<std::string>{"public", "abstract"}; }
 ;
 
 modifier_list: 
-    | ABSTRACT
+    ABSTRACT
     | FINAL
 ;
 
 // Superclass
 superclass:
-    | EXTENDS qualified_name
+    EXTENDS qualified_name { $$ = $2; }
+    | /* Empty */ { $$ = nullptr; }
 ;
 
 // Interfaces
 interfaces:
-    | IMPLEMENTS interface_list
+    IMPLEMENTS interface_list { $$ = $2; }
+    | /* Empty */ { $$ = nullptr; }
 ;
 
-interface_list: qualified_name
-    | interface_list COMMA qualified_name
+interface_list:
+    qualified_name { $$ = new std::vector<std::string>{*$1}; delete $1; }
+    | interface_list COMMA qualified_name {
+        $1->push_back(*$3);
+        $$ = $1;
+        delete $3;
+    }
 ;
 
 // Interface Declaration
@@ -121,13 +176,17 @@ interface_decl: PUBLIC INTERFACE ID LBRACE interface_body RBRACE
 ;
 
 // Class Body
-class_body: 
-    | class_body_decl class_body
+class_body:
+    | class_body_decl class_body {
+        $$ = std::move($2);
+        $$->fields.insert($$->fields.end(), std::move($1.fields.begin()), std::move($1.fields.end()));
+        $$->methods.insert($$->methods.end(), std::move($1.methods.begin()), std::move($1.methods.end()));
+    }
 ;
 
-class_body_decl: field_decl
-    | method_decl
-    | constructor_decl
+class_body_decl:
+    field_decl { $$ = {std::move($1), nullptr}; }
+    | method_decl { $$ = {nullptr, std::move($1)}; }
 ;
 
 // Interface Body
@@ -142,11 +201,14 @@ public int x;
 protected static int y = 42;
 int z;
 */
-field_decl: field_modifiers type ID field_initializer SEMI
+field_decl:
+    field_modifiers type ID field_initializer SEMI {
+        $$ = std::make_unique<FieldDecl>($3, $2, std::move($4));
+    }
 ;
 
 field_modifiers:
-    | PUBLIC
+    PUBLIC
     | PROTECTED
     | STATIC
     | PUBLIC STATIC
@@ -154,7 +216,8 @@ field_modifiers:
 ;
 
 field_initializer:
-    | BECOMES expr
+    BECOMES expr { $$ = std::move($2); }
+    | /* Empty */ { $$ = nullptr; }
 ;
 
 // Method Declarations
@@ -162,12 +225,20 @@ field_initializer:
 protected abstract void compute();
 public static void main(String[] args) {}
 */
-method_decl: method_modifiers type ID LPAREN params RPAREN method_body
+method_decl:
+    method_modifiers type ID LPAREN params RPAREN method_body {
+        $$ = std::make_unique<MethodDecl>(
+            $3, // Method name
+            $2, // Return type
+            std::move($5), // Parameters
+            std::move($7) // Body
+        );
+    }
 ;
 
 // did i miss anything?
 method_modifiers:
-    | PUBLIC
+    PUBLIC
     | PROTECTED 
     | PUBLIC STATIC
     | PROTECTED STATIC
@@ -177,8 +248,9 @@ method_modifiers:
     | PROTECTED FINAL
 ;
 
-method_body: LBRACE statements RBRACE
-    | SEMI
+method_body:
+    LBRACE statements RBRACE { $$ = std::make_unique<BlockStmt>(std::move($2)); }
+    | SEMI { $$ = nullptr; } // Abstract or native methods
 ;
 
 // Constructor Declarations
@@ -241,13 +313,16 @@ chars:
 //////////////////// Block ////////////////////
 
 // { ... }
-block: LBRACE statements RBRACE
+block:
+    LBRACE statements RBRACE { $$ = std::make_unique<BlockStmt>(std::move($2)); }
+;
 ;
 
 //////////////////// Statements ////////////////////
 
 statements:
-    | statement statements
+    | statement statements { $2->push_back(std::move($1)); $$ = $2; }
+    | /* Empty */ { $$ = new std::vector<std::unique_ptr<Stmt>>(); }
 ;
 
 statement: block
