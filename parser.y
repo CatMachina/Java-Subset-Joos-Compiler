@@ -5,6 +5,19 @@
 // TODO: Bison declarations
 
 
+// TODO: Token declarationns
+
+// Tokens (Lowest to Highest)
+%left BECOMES
+%left AND OR
+%left AMP VERT
+%left EQ NE
+%left LT GT LE GE INSTANCEOF
+%left PLUS MINUS
+%left STAR SLASH PCT
+%left UMINUS NOT
+%precedence ID NUM TRUE FALSE NULL THIS DOT LPAREN RPAREN LBRACK RBRACK
+
 // TODO: Grammar rules
 %%
 
@@ -263,7 +276,7 @@ test: expr LT expr             // <
 expr: ID
     | NUM
     | TRUE
-    | FALS
+    | FALSE
     | NULL
     | THIS
     | expr DOT ID                       // Field access
@@ -275,8 +288,7 @@ expr: ID
 ;
 
 // Unary operators
-expr: PLUS expr                 // +x
-    | MINUS expr                // -x
+expr: '-' expr %prec UMINUS     // -x
     | NOT expr                  // !x
     | LPAREN type RPAREN expr   // (type) cast
 ;
@@ -312,7 +324,7 @@ expr: expr AMP expr             // &
 
 // Logical (lazy)
 expr: expr AND expr             // &&
-    | expr OR expr             // ||
+    | expr OR expr              // ||
 ;
 
 // Assignment (Lowest precedence)
