@@ -5,9 +5,12 @@
 // TODO: Bison declarations
 
 
-// TODO: Token declarationns
+// TODO: Token declarations
 
-// Tokens (Lowest to Highest)
+// Separators
+%token COMMA SEMI
+
+// Literals, Names and Operations (Lowest to Highest)
 %left BECOMES
 %left AND OR
 %left AMP VERT
@@ -16,7 +19,25 @@
 %left PLUS MINUS
 %left STAR SLASH PCT
 %left UMINUS NOT
-%precedence ID NUM TRUE FALSE NULL THIS DOT LPAREN RPAREN LBRACK RBRACK
+%precedence ID NUM TRUE FALSE NULL THIS SINGLECHAR ESCAPESEQ DOT LPAREN RPAREN LBRACK RBRACK
+
+// Class Structure
+%token NEW CLASS EXTENDS IMPLEMENTS STATIC IMPORT PACKAGE PUBLIC INTEFACE PROTECTED ABSTRACT FINAL
+
+// Method and Field Access
+%token LENGTH
+
+// Modifiers (most covered in Class Structure)
+%token NATIVE
+
+// Method Structure
+%token RETURN VOID
+
+// Control Flow
+%token IF ELSE WHILE FOR
+
+// Types
+%token BOOLEAN INT CHAR BYTE SHORT
 
 // TODO: Grammar rules
 %%
