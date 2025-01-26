@@ -15,11 +15,10 @@ void process_token(const std::string& token_name, const std::string& token_value
 %%
 "//".*
 
-"/*"                                { BEGIN(COMMENT); }
-<COMMENT>"*/"                       { BEGIN(INITIAL); }
-<COMMENT>[^*]+                      { }
-<COMMENT>"*"[^/]                    { }
-<COMMENT>"*"                        { }
+"/*"                              { BEGIN(COMMENT); }
+<COMMENT>"*/"                     { BEGIN(INITIAL); }
+<COMMENT>.                        { }
+<COMMENT>\n                       { }
 
 "abstract"                          { process_token("KEYWORD", yytext); }
 "if"                                { process_token("KEYWORD", yytext); }
@@ -106,6 +105,8 @@ void process_token(const std::string& token_name, const std::string& token_value
 "<<="                               { process_token("OPERATOR", yytext); }
 ">>="                               { process_token("OPERATOR", yytext); }
 ">>>="                              { process_token("OPERATOR", yytext); }
+
+[0-9]+                             { process_token("INTEGER_LITERAL", yytext); }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
     process_token("IDENTIFIER", yytext);
