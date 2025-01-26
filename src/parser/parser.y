@@ -1,30 +1,32 @@
 %{
     // TODO: C++ declarations
-    #include "ast.hpp"
+    #include "src/ast/ast.hpp"
+    #include "src/lexer/lex.yy.c"
     #include <memory>
     #include <vector>
     using namespace std;
-
+    int yylex (void);
     // Root of the AST
-    unique_ptr<ClassDecl> root;
-}
+    ASTNode* root;
+%}
 
 // AST node types
-%union {
-    int ival;
-    char* sval;
-    unique_ptr<Expr> expr;
-    unique_ptr<Stmt> stmt;
-    vector<unique_ptr<Stmt>>* stmts;
-    unique_ptr<ClassDecl> class_decl;
-    unique_ptr<FieldDecl> field_decl;
-    unique_ptr<MethodDecl> method_decl;
-    vector<unique_ptr<FieldDecl>>* fields;
-    vector<unique_ptr<MethodDecl>>* methods;
-}
+// %union {
+    // int ival;
+    // char* sval;
+    // unique_ptr<Expr> expr;
+    // unique_ptr<Stmt> stmt;
+    // vector<unique_ptr<Stmt>>* stmts;
+    // unique_ptr<ClassDecl> class_decl;
+    // unique_ptr<FieldDecl> field_decl;
+    // unique_ptr<MethodDecl> method_decl;
+    // vector<unique_ptr<FieldDecl>>* fields;
+    // vector<unique_ptr<MethodDecl>>* methods;
+    // ASTNode* node
+// }
 
 // TODO: Bison declarations
-
+%define api.value.type {ASTNode*}
 
 // TODO: Token declarations
 
@@ -35,15 +37,15 @@
 %left BECOMES
 %left AND OR
 %left AMP VERT
-%left EQ NE
-%left LT GT LE GE INSTANCEOF
+%nonassoc LT GT LE GE INSTANCEOF EQ NE
 %left PLUS MINUS
 %left STAR SLASH PCT
 %left UMINUS NOT
-%precedence ID NUM TRUE FALSE NULL THIS SINGLECHAR ESCAPESEQ DOT LPAREN RPAREN LBRACK RBRACK
+%left DOT
+%nonassoc ID NUM TRUE FALSE NULL THIS SINGLECHAR ESCAPESEQ LPAREN RPAREN LBRACK RBRACK SQUOTE DQUOTE
 
 // Class Structure
-%token NEW CLASS EXTENDS IMPLEMENTS STATIC IMPORT PACKAGE PUBLIC INTEFACE PROTECTED ABSTRACT FINAL
+%token NEW CLASS EXTENDS IMPLEMENTS STATIC IMPORT PACKAGE PUBLIC INTERFACE PROTECTED ABSTRACT FINAL LBRACE RBRACE
 
 // Method and Field Access
 %token LENGTH
@@ -64,46 +66,28 @@
 
 %%
 
-//////////////////// Params ////////////////////
-
-// method(int arg1, bool arg2, ...)
-params:
-    param_list { $$ = std::move($1); }
-    | /* Empty */ { $$ = std::vector<std::pair<std::string, std::string>>{}; }
-;
-
-param_list:
-    param { $$ = std::vector<std::pair<std::string, std::string>>{$1}; }
-    | param_list COMMA param {
-        $1.push_back($3);
-        $$ = std::move($1);
-    }
-;
-
-param:
-    type ID { $$ = std::make_pair($1, $2); }
-;
-
 //////////////////// Class Structure (Program Structure) ////////////////////
 
 // Program Structure
 program:
-    package_decl import_decls type_decl {
-        root = std::unique_ptr<ClassDecl>($3);
+    package_decls import_decls type_decl {
+        root = std::make_unique<ClassDecl>($3);
     }
 ;
 
 // Package Declaration
 // package my.package;
-package_decl:
-    PACKAGE qualified_name SEMI
+package_decls:
+    package_decls package_decl
     | /* Empty */
+
+package_decl: PACKAGE qualified_name SEMI   
 ;
 
 // Import Declarations (could be multiple)
 // import java.util.Vector;
 import_decls:
-    import_decl import_decls
+    import_decls import_decl
     | /* Empty */
 ;
 
@@ -112,8 +96,9 @@ import_decl:
 ;
 
 qualified_name:
-    ID { $$ = new std::string($1); }
-    | qualified_name DOT ID { $$ = new std::string(*$1 + "." + $3); delete $1; }
+    qualified_name DOT ID { $$ = new std::string(*$1 + "." + $3); delete $1; }
+    | ID DOT STAR { $$ = new std::string($1 + "." + $3); } // On-demand declaration
+    | ID { $$ = new std::string($1); }
 ;
 
 // Class and Interface Declarations
@@ -138,15 +123,12 @@ class_decl:
 
 // Modifiers
 modifiers:
-    PUBLIC { $$ = new std::vector<std::string>{"public"}; }
+    PUBLIC ABSTRACT { $$ = new std::vector<std::string>{"public", "abstract"}; }
+    | PUBLIC FINAL { $$ = new std::vector<std::string>{"public", "final"}; }
+    | PUBLIC { $$ = new std::vector<std::string>{"public"}; }
     | ABSTRACT { $$ = new std::vector<std::string>{"abstract"}; }
     | FINAL { $$ = new std::vector<std::string>{"final"}; }
-    | PUBLIC ABSTRACT { $$ = new std::vector<std::string>{"public", "abstract"}; }
-;
-
-modifier_list: 
-    ABSTRACT
-    | FINAL
+    | /* Empty - Can a class not be public? */
 ;
 
 // Superclass
@@ -218,6 +200,26 @@ field_modifiers:
 field_initializer:
     BECOMES expr { $$ = std::move($2); }
     | /* Empty */ { $$ = nullptr; }
+;
+
+//////////////////// Params ////////////////////
+
+// method(int arg1, bool arg2, ...)
+params:
+    param_list { $$ = std::move($1); }
+    | /* Empty */ { $$ = std::vector<std::pair<std::string, std::string>>{}; }
+;
+
+param_list:
+    param { $$ = std::vector<std::pair<std::string, std::string>>{$1}; }
+    | param_list COMMA param {
+        $1.push_back($3);
+        $$ = std::move($1);
+    }
+;
+
+param:
+    type ID { $$ = std::make_pair($1, $2); }
 ;
 
 // Method Declarations
@@ -316,7 +318,6 @@ chars:
 block:
     LBRACE statements RBRACE { $$ = std::make_unique<BlockStmt>(std::move($2)); }
 ;
-;
 
 //////////////////// Statements ////////////////////
 
@@ -330,11 +331,11 @@ statement: block
     | RETURN SEMI
     | RETURN expr SEMI
     | expr
-    | IF LPARAN test RPARAN statement
-	| IF LPARAN test RPARAN statement_no_short_if ELSE statement
-	| WHILE LPARAN test RPARAN statement
-	| WHILE LPARAN test RPARAN statement_no_short_if
-	| FOR LPAREN for_init SEMI test SEMI for_update RPAREN statement
+    | IF LPAREN test RPAREN statement
+    | IF LPAREN test RPAREN statement_no_short_if ELSE statement
+    | WHILE LPAREN test RPAREN statement
+    | WHILE LPAREN test RPAREN statement_no_short_if
+    | FOR LPAREN for_init SEMI test SEMI for_update RPAREN statement
 ;
 
 statement_no_short_if: block
@@ -342,14 +343,17 @@ statement_no_short_if: block
     | RETURN SEMI
     | RETURN expr SEMI
     | expr
-    | IF LPARAN test RPARAN statement_no_short_if ELSE statement_no_short_if
-	| WHILE LPARAN test RPARAN statement_no_short_if
+    | IF LPAREN test RPAREN statement_no_short_if ELSE statement_no_short_if
+	  | WHILE LPAREN test RPAREN statement_no_short_if
     | FOR LPAREN for_init SEMI test SEMI for_update RPAREN statement_no_short_if
 ;
 
 for_init: 
     | decl
     | expr
+;
+
+decl: type ID BECOMES expr
 ;
 
 for_update:
@@ -363,8 +367,8 @@ test: expr LT expr             // <
     | expr INSTANCEOF type     // instanceof
     | expr EQ expr             // ==
     | expr NE expr             // !=
-    | expr && expr             // &&
-    | expr || expr             // ||
+    | expr AND expr             // &&
+    | expr OR expr             // ||
 ;
 
 //////////////////// Expressions ////////////////////
@@ -382,6 +386,11 @@ expr: ID
     | NEW type LBRACK expr RBRACK       // Array creation
     | LPAREN expr RPAREN                // Parentheses
 ;
+
+args:
+    | args COMMA expr
+    | expr
+    | /* Empty */
 
 // Unary operators
 expr: '-' expr %prec UMINUS     // -x
@@ -408,12 +417,12 @@ expr: expr LT expr             // <
     | expr INSTANCEOF type     // instanceof
 ;
 
-// Equalit
+// Equality
 expr: expr EQ expr             // ==
     | expr NE expr             // !=
 ;
 
-// Bitwise operators
+// Eager Boolean
 expr: expr AMP expr             // &
     | expr VERT expr            // |
 ;
@@ -425,6 +434,9 @@ expr: expr AND expr             // &&
 
 // Assignment (Lowest precedence)
 expr: lvalue BECOMES expr       // =
+;
+
+lvalue: ID
 ;
 
 %%
