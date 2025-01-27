@@ -1,32 +1,24 @@
-%{
-    // TODO: C++ declarations
-    #include "src/ast/ast.hpp"
-    #include "src/lexer/lex.yy.c"
-    #include <memory>
-    #include <vector>
-    using namespace std;
-    int yylex (void);
-    // Root of the AST
-    ASTNode* root;
-%}
+%code top {
+    #include <iostream>
+    #include "parser.h"
+    #include "parseTree/parseTree.hpp"
+    #include "parser/myBisonParser.hpp"
 
-// AST node types
-// %union {
-    // int ival;
-    // char* sval;
-    // unique_ptr<Expr> expr;
-    // unique_ptr<Stmt> stmt;
-    // vector<unique_ptr<Stmt>>* stmts;
-    // unique_ptr<ClassDecl> class_decl;
-    // unique_ptr<FieldDecl> field_decl;
-    // unique_ptr<MethodDecl> method_decl;
-    // vector<unique_ptr<FieldDecl>>* fields;
-    // vector<unique_ptr<MethodDecl>>* methods;
-    // ASTNode* node
-// }
+    extern int yylex(YYSTYPE*, myFlexLexer&);
+    static void yyerror(YYLTYPE*, myFlexLexer&, const char*);
+}
 
-// TODO: Bison declarations
-%define api.value.type {ASTNode*}
+%code requires {
+    #include "parsetree/parseTree.h"
+    namespace pt = parseTree;
+    using NodeType = parsetree::Node::Type;
+    class myFlexLexer;
+}
+
+%define api.pure full
+%define api.value.type { pt::Node* }
+%parse-param { pt::Node** res }
+%param { myFlexLexer& lexer }
 
 // TODO: Token declarations
 
@@ -71,17 +63,18 @@
 // Program Structure
 program:
     package_decls import_decls type_decl {
-        root = std::make_unique<ClassDecl>($3);
+        (void) yynerrs;
+        *ret = lexer.make_node(NodeType::ProgramDecl, $1, $2, $3);
     }
 ;
 
 // Package Declaration
 // package my.package;
 package_decls:
-    package_decls package_decl
-    | /* Empty */
+    package_decl
+    | %empty { $$ = nullptr; }
 
-package_decl: PACKAGE qualified_name SEMI   
+package_decl: PACKAGE qualified_name SEMI    { $$ = lexer.make_node(NodeType::PackageDeclaration, $2); } 
 ;
 
 // Import Declarations (could be multiple)

@@ -1,5 +1,5 @@
 
-#line 2 "lex.yy.c"
+#line 3 "lex.yy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -592,9 +592,9 @@ void process_token(const std::string& token_name, const std::string& token_value
     std::cout << "Token: " << token_name << ", Value: \"" << token_value << "\"" << std::endl;
 }
 
-#line 595 "lex.yy.c"
+#line 596 "lex.yy.c"
 
-#line 597 "lex.yy.c"
+#line 598 "lex.yy.c"
 
 #define INITIAL 0
 #define COMMENT 1
@@ -814,7 +814,7 @@ YY_DECL
 	{
 #line 15 "lexer.l"
 
-#line 817 "lex.yy.c"
+#line 818 "lex.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1322,7 +1322,7 @@ YY_RULE_SETUP
 #line 119 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 1325 "lex.yy.c"
+#line 1326 "lex.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(COMMENT):
 	yyterminate();

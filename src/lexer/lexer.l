@@ -1,14 +1,24 @@
+%option never-interactive
+%option c++ yyclass="myFlexLexer"
+%option noyywrap
+
 %{
 #include <iostream>
 #include <string>
+#include "parseTree/parseTree.hpp"
+#include "myFlexLexer.hpp"
 
-void process_token(const std::string& token_name, const std::string& token_value) {
+void print_token(const std::string& token_name, const std::string& token_value) {
     std::cout << "Token: " << token_name << ", Value: \"" << token_value << "\"" << std::endl;
 }
 
+using literalType = parsetree::Literal::Type;
+using operatorType = parsetree::Operator::Type;
+using modifierType = parsetree::Modifier::Type;
+using basicType = parsetree::BasicType::Type;
+
 %}
 
-%option noyywrap
 
 %x COMMENT
 
@@ -20,105 +30,95 @@ void process_token(const std::string& token_name, const std::string& token_value
 <COMMENT>.                        { }
 <COMMENT>\n                       { }
 
-"abstract"                          { process_token("KEYWORD", yytext); }
-"if"                                { process_token("KEYWORD", yytext); }
-"this"                              { process_token("KEYWORD", yytext); }
-"boolean"                           { process_token("KEYWORD", yytext); }
-"do"                                { process_token("KEYWORD", yytext); }
-"implements"                        { process_token("KEYWORD", yytext); }
-"protected"                         { process_token("KEYWORD", yytext); }
-"import"                            { process_token("KEYWORD", yytext); }
-"public"                            { process_token("KEYWORD", yytext); }
-"byte"                              { process_token("KEYWORD", yytext); }
-"else"                              { process_token("KEYWORD", yytext); }
-"instanceof"                        { process_token("KEYWORD", yytext); }
-"return"                            { process_token("KEYWORD", yytext); }
-"extends"                           { process_token("KEYWORD", yytext); }
-"int"                               { process_token("KEYWORD", yytext); }
-"short"                             { process_token("KEYWORD", yytext); }
-"final"                             { process_token("KEYWORD", yytext); }
-"interface"                         { process_token("KEYWORD", yytext); }
-"static"                            { process_token("KEYWORD", yytext); }
-"void"                              { process_token("KEYWORD", yytext); }
-"char"                              { process_token("KEYWORD", yytext); }
-"class"                             { process_token("KEYWORD", yytext); }
-"native"                            { process_token("KEYWORD", yytext); }
-"while"                             { process_token("KEYWORD", yytext); }
-"const"                             { process_token("KEYWORD", yytext); }
-"for"                               { process_token("KEYWORD", yytext); }
-"package"                           { process_token("KEYWORD", yytext); }
+"abstract"                          { yylval = make_modifier(modifierType::Abstract); print_token("KEYWORD", yytext); return ABSTRACT ; }
+"if"                                { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IF ; }
+"this"                              { yylval = make_identifier(yytext); print_token("KEYWORD", yytext); return THIS; }
+"boolean"                           { yylval = make_basic_type(BasicType::Boolean); print_token("KEYWORD", yytext); return BOOLEAN ; }
+"do"                                { yylval = make_corrupted(); print_token("KEYWORD", yytext); return DO ; }
+"implements"                        { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IMPLEMENTS ; }
+"protected"                         { yylval = make_modifier(modifierType::Protected); print_token("KEYWORD", yytext); return PROTECTED ; }
+"import"                            { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IMPORT ; }
+"public"                            { yylval = make_modifier(modifierType::Public); print_token("KEYWORD", yytext); return PUBLIC ; }
+"byte"                              { yylval = make_basic_type(pbtt::Byte); print_token("KEYWORD", yytext); return BYTE ; }
+"else"                              { yylval = make_corrupted(); print_token("KEYWORD", yytext); return ELSE ; }
+"instanceof"                        { yylval = make_operator(operatorType::InstanceOf); print_token("KEYWORD", yytext); return INSTANCEOF ; }
+"return"                            { yylval = make_corrupted(); print_token("KEYWORD", yytext); return RETURN ; }
+"extends"                           { yylval = make_corrupted(); print_token("KEYWORD", yytext); return EXTENDS ; }
+"int"                               { yylval = make_basic_type(BasicType::Int); print_token("KEYWORD", yytext); return INT ; }
+"short"                             { yylval = make_basic_type(BasicType::Short); print_token("KEYWORD", yytext); return SHORT ; }
+"final"                             { yylval = make_modifier(modifierType::Final); print_token("KEYWORD", yytext); return FINAL ; }
+"interface"                         { yylval = make_corrupted(); print_token("KEYWORD", yytext); return INTERFACE ; }
+"static"                            { yylval = make_basic_type(BasicType::Static); print_token("KEYWORD", yytext); return STATIC ; }
+"void"                              { yylval = make_corrupted(); print_token("KEYWORD", yytext); return VOID ; }
+"char"                              { yylval = make_basic_type(BasicType::Char); print_token("KEYWORD", yytext); return CHAR ; }
+"class"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return CLASS ; }
+"while"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return WHILE ; }
+"const"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return CONST ; }
+"for"                               { yylval = make_corrupted(); print_token("KEYWORD", yytext); return FOR ; }
+"package"                           { yylval = make_corrupted(); print_token("KEYWORD", yytext); return PACKAGE ; }
 
-"true"                              { process_token("BOOLEAN_LITERAL", yytext); }
-"false"                             { process_token("BOOLEAN_LITERAL", yytext); }
+"true"                              { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
+"false"                             { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
 
-\'[^\'\\]\'                         { process_token("CHARACTER_LITERAL", yytext); }
-\\[btnfr\'\"\\]                     { process_token("CHARACTER_LITERAL", yytext); }
+\'[^\'\\]\'                         { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
+\\[btnfr\'\"\\]                     { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
 
-\"([^\"\\]|\\[btnfr\'\"\\])*\"      { process_token("STRING_LITERAL", yytext); }
+\"([^\"\\]|\\[btnfr\'\"\\])*\"      { yylval = make_literal(literalType::String, yytext); print_token("STRING_LITERAL", yytext); return LITERAL ; }
 
-"null"                              { process_token("NULL_LITERAL", yytext); }
+"null"                              { yylval = make_literal(literalType::Null, yytext); print_token("NULL_LITERAL", yytext); return LITERAL ; }
 
-"("                                 { process_token("SEPARATOR", yytext); }
-")"                                 { process_token("SEPARATOR", yytext); }
-"{"                                 { process_token("SEPARATOR", yytext); }
-"}"                                 { process_token("SEPARATOR", yytext); }
-"["                                 { process_token("SEPARATOR", yytext); }
-"]"                                 { process_token("SEPARATOR", yytext); }
-";"                                 { process_token("SEPARATOR", yytext); }
-","                                 { process_token("SEPARATOR", yytext); }
-"."                                 { process_token("SEPARATOR", yytext); }
+"("                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '(' ; }
+")"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return ')' ; }
+"{"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '{' ; }
+"}"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '}' ; }
+"["                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '[' ; }
+"]"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return ']' ; }
+";"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return ';' ; }
+","                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return ',' ; }
+"."                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '.' ; }
 
-"="                                 { process_token("OPERATOR", yytext); }
-">"                                 { process_token("OPERATOR", yytext); }
-"<"                                 { process_token("OPERATOR", yytext); }
-"!"                                 { process_token("OPERATOR", yytext); }
-"~"                                 { process_token("OPERATOR", yytext); }
-"?"                                 { process_token("OPERATOR", yytext); }
-":"                                 { process_token("OPERATOR", yytext); }
-"=="                                { process_token("OPERATOR", yytext); }
-"<="                                { process_token("OPERATOR", yytext); }
-">="                                { process_token("OPERATOR", yytext); }
-"!="                                { process_token("OPERATOR", yytext); }
-"&&"                                { process_token("OPERATOR", yytext); }
-"||"                                { process_token("OPERATOR", yytext); }
-"++"                                { process_token("OPERATOR", yytext); }
-"--"                                { process_token("OPERATOR", yytext); }
-"+"                                 { process_token("OPERATOR", yytext); }
-"-"                                 { process_token("OPERATOR", yytext); }
-"*"                                 { process_token("OPERATOR", yytext); }
-"/"                                 { process_token("OPERATOR", yytext); }
-"&"                                 { process_token("OPERATOR", yytext); }
-"|"                                 { process_token("OPERATOR", yytext); }
-"^"                                 { process_token("OPERATOR", yytext); }
-"%"                                 { process_token("OPERATOR", yytext); }
-"<<"                                { process_token("OPERATOR", yytext); }
-">>"                                { process_token("OPERATOR", yytext); }
-">>>"                               { process_token("OPERATOR", yytext); }
-"+="                                { process_token("OPERATOR", yytext); }
-"-="                                { process_token("OPERATOR", yytext); }
-"*="                                { process_token("OPERATOR", yytext); }
-"/="                                { process_token("OPERATOR", yytext); }
-"&="                                { process_token("OPERATOR", yytext); }
-"|="                                { process_token("OPERATOR", yytext); }
-"^="                                { process_token("OPERATOR", yytext); }
-"%="                                { process_token("OPERATOR", yytext); }
-"<<="                               { process_token("OPERATOR", yytext); }
-">>="                               { process_token("OPERATOR", yytext); }
-">>>="                              { process_token("OPERATOR", yytext); }
+"="                                 { yylval = make_operator(operatorType::Assign); print_token("OPERATOR", yytext); return OP_ASSIGN ; }
+">"                                 { yylval = make_operator(operatorType::GreaterThan); print_token("OPERATOR", yytext); return OP_GT ; }
+"<"                                 { yylval = make_operator(operatorType::LessThan); print_token("OPERATOR", yytext); return OP_LT ; }
+"!"                                 { yylval = make_operator(operatorType::Not); print_token("OPERATOR", yytext); return OP_NOT ; }
+"=="                                { yylval = make_operator(operatorType::Equal); print_token("OPERATOR", yytext); return OP_EQ ; }
+"<="                                { yylval = make_operator(operatorType::LessThanOrEqual); print_token("OPERATOR", yytext); return OP_LTE ; }
+">="                                { yylval = make_operator(operatorType::GreaterThanOrEqual); print_token("OPERATOR", yytext); return OP_GTE ; }
+"!="                                { yylval = make_operator(operatorType::NotEqual); print_token("OPERATOR", yytext); return OP_NEQ ; }
+"&&"                                { yylval = make_operator(operatorType::And); print_token("OPERATOR", yytext); return OP_AND ; }
+"||"                                { yylval = make_operator(operatorType::Or); print_token("OPERATOR", yytext); return OP_OR ; }
+"+"                                 { yylval = make_operator(operatorType::Plus); print_token("OPERATOR", yytext); return OP_PLUS ; }
+"-"                                 { yylval = make_operator(operatorType::Minus); print_token("OPERATOR", yytext); return OP_MINUS ; }
+"*"                                 { yylval = make_operator(operatorType::Multiply); print_token("OPERATOR", yytext); return OP_MOD ; }
+"/"                                 { yylval = make_operator(operatorType::Divide); print_token("OPERATOR", yytext); return OP_DIV ; }
+"&"                                 { yylval = make_operator(operatorType::BitwiseAnd); print_token("OPERATOR", yytext); return OP_BIT_AND ; }
+"|"                                 { yylval = make_operator(operatorType::BitwiseOr); print_token("OPERATOR", yytext); return OP_BIT_OR ; }
+"%"                                 { yylval = make_operator(operatorType::Modulo); print_token("OPERATOR", yytext); return OP_MOD ; }
 
-[0-9]+                             { process_token("INTEGER_LITERAL", yytext); }
+[0-9]+                             { yylval = make_literal(literalType::Integer, yytext);; print_token("INTEGER_LITERAL", yytext); return LITERAL ; }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
-    process_token("IDENTIFIER", yytext);
+    make_identifier(yytext);
+    print_token("IDENTIFIER", yytext);
+    return IDENTIFIER;
 }
 
 [ \t\n\r]+
 
-.                                   { std::cout << "Unrecognized character: " << yytext << std::endl; }
+.                                   { std::cout << "Unrecognized character: " << yytext << std::endl; return YYUNDEF; }
 
 %%
 
-int main() {
-    yylex();
-    return 0;
+int yylex(YYSTYPE* lvalp, myFlexLexer& lexer) {
+    return lexer.bison_lex(lvalp);
+}
+
+int myFlexLexer::bison_lex(YYSTYPE *lvalp) {
+    auto res = yylex();
+    *lvalp = yylval;
+    return res;
+}
+
+static void yyerror(const char* s) {
+    std::cerr << "Lexing error! : " << s << std::endl;
 }
