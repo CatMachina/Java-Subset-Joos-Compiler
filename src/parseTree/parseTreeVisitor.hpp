@@ -36,21 +36,21 @@ void visitListPattern(Node* node, std::vector<T>& list) {
 
 // Compilation unit visitors ///////////////////////////////////////////////////
 
-std::unique_ptr<ast::ProgramDecl> visitProgramDecl(Node* node);
-std::unique_ptr<ast::QualifiedIdentifier> visitPackageDeclaration(Node* node);
+std::shared_ptr<ast::ProgramDecl> visitProgramDecl(Node* node);
+std::shared_ptr<ast::QualifiedIdentifier> visitPackageDeclaration(Node* node);
 
 template <>
 ast::ImportDeclaration visit<pty::ImportDeclarationList>(Node* node);
 
 // Classes & interfaces visitors ///////////////////////////////////////////////
 
-std::unique_ptr<ast::ClassDecl> visitClassDeclaration(Node* node);
-std::unique_ptr<ast::InterfaceDecl> visitInterfaceDeclaration(Node* node);
-std::unique_ptr<ast::QualifiedIdentifier> visitSuperOpt(Node* node);
-std::unique_ptr<ast::FieldDecl> visitFieldDeclaration(Node* node);
-std::unique_ptr<ast::MethodDecl> visitMethodDeclaration(Node* node);
-std::unique_ptr<ast::MethodDecl> visitConstructorDeclaration(Node* node);
-std::unique_ptr<ast::MethodDecl> visitAbstractMethodDeclaration(Node* node);
+std::shared_ptr<ast::ClassDecl> visitClassDeclaration(Node* node);
+std::shared_ptr<ast::InterfaceDecl> visitInterfaceDeclaration(Node* node);
+std::shared_ptr<ast::QualifiedIdentifier> visitSuperOpt(Node* node);
+std::shared_ptr<ast::FieldDecl> visitFieldDeclaration(Node* node);
+std::shared_ptr<ast::MethodDecl> visitMethodDeclaration(Node* node);
+std::shared_ptr<ast::MethodDecl> visitConstructorDeclaration(Node* node);
+std::shared_ptr<ast::MethodDecl> visitAbstractMethodDeclaration(Node* node);
 
 template <>
 ast::Decl* visit<pty::ClassBodyDeclarationList>(Node* node);
@@ -63,15 +63,15 @@ ast::Decl* visit<pty::InterfaceMemberDeclarationList>(Node* node);
 
 // Statements visitors /////////////////////////////////////////////////////////
 
-std::unique_ptr<ast::Stmt> visitBlock(Node* node);
+std::shared_ptr<ast::Stmt> visitBlock(Node* node);
 
 // Leaf node visitors //////////////////////////////////////////////////////////
 
-std::unique_ptr<ast::QualifiedIdentifier> visitQualifiedIdentifier(
-    Node* node, std::unique_ptr<ast::QualifiedIdentifier> ast_node = nullptr);
+std::shared_ptr<ast::QualifiedIdentifier> visitQualifiedIdentifier(
+    Node* node, std::shared_ptr<ast::QualifiedIdentifier> ast_node = nullptr);
 std::string visitIdentifier(Node* node);
 ast::Modifiers visitModifierList(Node* node, ast::Modifiers modifiers = ast::Modifiers{});
 Modifier visitModifier(Node* node);
-std::unique_ptr<ast::Type> visitType(Node* node);
+std::shared_ptr<ast::Type> visitType(Node* node);
 
 } // namespace parsetree

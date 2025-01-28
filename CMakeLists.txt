@@ -47,27 +47,22 @@ add_library(CompilerLib
     # flex bison
     "${LEXER_OUT}"
     "${PARSER_OUT}"
+    # 3rd party
+    "src/3rd_party/magic_enum.hpp"
     # ast
-    # "src/ast/Decl.cpp"
-    # "src/ast/DeclContext.cpp"
-    # "src/ast/Expr.cpp"
-    # "src/ast/Stmt.cpp"
-    # "src/ast/Modifiers.cpp"
+
     # parser
-    "src/lexer/myFlexLexer.hpp"
+    "src/lexer/joos1w.cpp"
     # parseTree
     "src/parseTree/parseTree.hpp"
-    # "src/parseTree/parseTreeVisitor.cpp"
-    # "src/parseTree/visitClassInterface.cpp"
-    # "src/parseTree/visitExpression.cpp"
-    # "src/parseTree/visitLeaf.cpp"
-    # "src/parseTree/visitStatement.cpp"
+
 )
 target_include_directories(
     CompilerLib
     PUBLIC
     "lib"
     "${PARSER_DIR}"
+    "src/3rd_party"
 )
 
 ################################################################################

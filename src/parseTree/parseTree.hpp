@@ -7,11 +7,9 @@
 #include <string_view>
 #include <stdexcept>
 #include <cassert>
-
-#include <array>
-#include <string_view>
-#include <stdexcept>
-#include <cassert>
+#include <memory>
+#include <climits>
+#include <magic_enum.hpp>
 
 class myFlexLexer;
 class myBisonParser;
@@ -32,118 +30,84 @@ struct Node {
 
    // Enum for node types
    enum class Type {
-        // Leaf nodes
-        Literal,
-        Identifier,
-        QualifiedName,
-        Operator,
-        ArrayType,
-        Type, // All Types
-        Corrupted,
-        ArrayCastType,
+      Type,
+      BasicType,
+      ArrayType,
+      Variable,
+      QualifiedName,
 
-        // Program structure
+      Modifier,
+      Operator,
+      Identifier,
+      Corrupted,
+      Literal,
+
         ProgramDeclaration,
         PackageDeclaration,
+
         SingleImportDeclaration,
         MultiImportDeclaration,
-        LocalDeclaration,
 
-        // Type Declarations
-        TypeDeclaration,
         ClassDeclaration,
-        InterfaceDeclaration,
-        AbstractMethodDeclaration,
-
-        // Modifiers
-        ModifierList,
-
-        // Class-specific constructs
-        ClassBody,
-        ClassBodyDeclarationList,
         FieldDeclaration,
         MethodDeclaration,
         ConstructorDeclaration,
-        SuperClass,
+        AbstractMethodDeclaration,
+        LocalDeclaration,
+
+        ModifierList,
         InterfaceTypeList,
-
-        // Interface-specific constructs
-        InterfaceBody,
+        ClassBodyDeclarationList,
         InterfaceBodyDeclarationList,
-
-        // Method-specific constructs
-        MethodHeader,
         ParameterList,
-        Parameter,
-        VoidType,
-
-        // Statements
-        Statement,
-        Block,
         StatementList,
-        IfStatement,
-        IfElseStatement,
-        WhileStatement,
-        ForStatement,
-        ReturnStatement,
-        EmptyStatement, // SEMI
-        ExpressionStatement,
-
-        // Variable Declarations
-        FieldInitializer,
-        LocalVariableDeclaration,
-        VariableDeclaratorList,
-        FieldInitializer,
-
-        // Expressions
-        Expression,
         ArgumentList,
-        FieldAccess,
-        ArrayAccess,
-        ArrayCreate,
-        CastExpression,
-        MethodInvocation,
-        ClassCreation,
 
-        // Literals
-        NumLiteral, // NUM
-        CharLiteral, // SQUOTE char SQUOTE
-        StringLiteral, // DQUOTE chars DQUOTE
-        BooleanLiteral, // TRUE, FALSE
-        NullLiteral, // NULL
+        SuperClass,
+        Parameter,
+        Block,
+         Statement,
+         ReturnStatement,
+         IfStatement,
+         WhileStatement,
+         ForStatement,
 
-        // Test (used in control flows like IF, WHILE)
-        TestExpression, // For comparison expressions like <, >, ==, !=, etc.
+         Expression,
+         ArrayCreate,
+         ArrayAccess,
+         ArrayCastType,
 
-        // Control Flows
-        IfStatement,
-        WhileStatement,
-        ForStatement
+         ClassCreation,
+         FieldAccess,
+         MethodInvocation,
+
     };
 
    /// leaf nodes
-   explicit Node(Type type) : type{type}, args{nullptr}, num_args{0} {}
+    Node(Type type) : type{type}, args{nullptr}, num_args{0} {}
 
    // Non leaf nodes
    template <typename... Args_>
     Node(Type type, Args_&&... args_)
         : type{type},
-          args{std::make_unique<Node*[]>(sizeof...(Args_))},
-          num_args{sizeof...(Args_)} {
-        static_assert(sizeof...(Args_) > 0, "Must have at least one child");
-        static_assert((std::is_convertible_v<Args_, Node*> && ...),
-                      "All arguments must be convertible to Node*");
+          args{std::shared_ptr<std::shared_ptr<Node>[]>(
+            new std::shared_ptr<Node>[sizeof...(Args_)],
+            std::default_delete<std::shared_ptr<Node>[]>() )},
+         num_args{sizeof...(Args_)} {
+      static_assert(sizeof...(Args_) > 0, "Must have at least one child");
+      static_assert((std::is_convertible_v<Args_, std::shared_ptr<Node>> && ...),
+                     "All arguments must be convertible to std::shared_ptr<Node>");
 
-        Node* temp_args[] = {std::forward<Args_>(args_)...};
-        for (std::size_t i = 0; i < num_args; ++i) {
-            args[i] = temp_args[i];
-        }
-    }
+      std::shared_ptr<Node> temp_args[] = {std::forward<Args_>(args_)...};
+      for (std::size_t i = 0; i < num_args; ++i) {
+         args[i] = temp_args[i];
+      }
+   }
 
    size_t get_num_children() const { return num_args; }
 
    // Gets the child at index i of this child
-   Node* child_at(size_t i) const { return args[i]; }
+   std::shared_ptr<Node> child_at(size_t i) const { return args[i]; }
 
    // Gets node type
    Type get_node_type() const { return type; }
@@ -158,16 +122,26 @@ struct Node {
       return false;
    }
 
-   virtual std::ostream& print(std::ostream& os) const;
+   virtual std::ostream& print(std::ostream& os) const {
+      os << "(" << magic_enum::enum_name(type);
+
+      for (size_t i = 0; i < num_args; ++i) {
+         os << " ";
+         if (!args[i]) {
+               os << "ε";
+         } else {
+               args[i]->print(os);
+         }
+      }
+      os << ")";
+      return os;
+   }
 
 private:
    Type type;
-   Node** args;
+   std::shared_ptr<std::shared_ptr<Node>[]> args;
    size_t num_args;
 };
-
-// Output stream operator for a parse tree node
-std::ostream& operator<<(std::ostream& os, Node const& n);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -186,25 +160,42 @@ public:
       Null
    };
 
-private:
    // Constructor for Literal
    Literal(Type type, char const* value)
          : Node{Node::Type::Literal},
            type{type},
            isNegative{false},
-           value{value, alloc} {}
+           value{value} {}
 
-public:
    // Override printing for this leaf node
    std::ostream& print(std::ostream& os) const override {
-      os << "Literal(Type: " << type << ", Value: " << value;
+      os << "Literal(Type: " << magic_enum::enum_name(type) << ", Value: " << value;
       if (isNegative) os << ", Negative: true";
       os << ")";
       return os;
    }
 
    void setNegative() { isNegative = true; }
-   bool isValid() const;
+   bool isValid() const {
+    if (type != Type::Integer) {
+         return true;
+      }
+      errno = 0;
+      try {
+         const auto x = std::stoll(value);
+
+         if (x > INT_MAX && !isNegative) {
+               return false;
+         }
+         if (x < -INT_MAX - 1 && isNegative) {
+               return false;
+         }
+      } catch (const std::exception&) {
+         return false;
+      }
+      return true;
+   }
+
 
 private:
    Type type;
@@ -219,11 +210,10 @@ class Identifier : public Node {
    friend class ::myFlexLexer;
    friend class ::myBisonParser;
 
-private:
-   Identifier(char const* name)
-         : Node{Node::Type::Identifier}, name{name} {}
-
 public:
+   Identifier(std::string name)
+         : Node{Node::Type::Identifier}, name{std::move(name)} {}
+
    const char* get_name() const { return name.c_str(); }
 
    std::ostream& print(std::ostream& os) const override {
@@ -267,13 +257,11 @@ public:
       InstanceOf
    };
 
-private:
    // Constructor for Operator
-   explicit Operator(Type type) : Node{Node::Type::Operator}, type{type} {}
+    Operator(Type type) : Node{Node::Type::Operator}, type{type} {}
 
-public:
    std::ostream& print(std::ostream& os) const override {
-      return os << type;
+      return os << magic_enum::enum_name(type);
    }
 
 private:
@@ -297,17 +285,15 @@ public:
       Final
    };
 
-private:
    // Constructor for Modifier
-   explicit Modifier(Type type) : Node{Node::Type::Modifier}, type{type} {}
+    Modifier(Type type) : Node{Node::Type::Modifier}, type{type} {}
 
-public:
    // Get the type of the modifier
    Type get_type() const { return type; }
 
    // Print the string representation of the modifier
    std::ostream& print(std::ostream& os) const override {
-      os << "Modifier(Type: " << type << ")";
+      os << "Modifier(Type: " << magic_enum::enum_name(type) << ")";
       return os;
    }
 
@@ -332,16 +318,14 @@ public:
       Boolean
    };
 
-private:
    // Constructor for BasicType
-   explicit BasicType(Type type) : Node{Node::Type::BasicType}, type{type} {}
+    BasicType(Type type) : Node{Node::Type::BasicType}, type{type} {}
 
-public:
    Type get_type() const { return type; }
 
    // Print the string representation of the basic type
    std::ostream& print(std::ostream& os) const override {
-      os << "BasicType(Type: " << type << ")";
+      os << "BasicType(Type: " << magic_enum::enum_name(type) << ")";
       return os;
    }
 

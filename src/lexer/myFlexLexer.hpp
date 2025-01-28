@@ -1,13 +1,14 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 
-#include "parsetree/parseTree.hpp"
+// #include "parsetree/parseTree.hpp"
+#include "../src/parseTree/parseTree.hpp"
 
-// Only include FlexLexer.h if it hasn't been already included
-#if ! defined(yyFlexLexerOnce)
-#include <FlexLexer.h>
-#endif
+#include "parser.tab.h"
+
+class myBisonParser;
 
 class myFlexLexer : public yyFlexLexer {
     using Node = parsetree::Node;
@@ -16,6 +17,7 @@ class myFlexLexer : public yyFlexLexer {
     using Identifier = parsetree::Identifier;
     using Modifier = parsetree::Modifier;
     using BasicType = parsetree::BasicType;
+    friend class myBisonParser;
 
 public:
     // generated Flex lexer function
@@ -24,49 +26,25 @@ public:
     int bison_lex(YYSTYPE* lvalp);
 
     template <typename... Args>
-    std::unique_ptr<Node> make_node(Args&&... args) {
-        auto nodePtr = std::make_unique<Node>(std::forward<Args>(args)...);
-        nodes.push_back(nodePtr.get());
-        return nodePtr.release();
-    }
-
-    std::unique_ptr<Node> make_corrupted() {
-        auto nodePtr = std::make_unique<Node>(Node::Type::Corrupted);
-        nodes.push_back(nodePtr.get());
+    std::shared_ptr<Node> make_node(Args&&... args) {
+        auto nodePtr = std::make_shared<Node>(std::forward<Args>(args)...);
+        nodes.push_back(nodePtr);
         return nodePtr;
     }
 
-    std::unique_ptr<Node> make_operator(Operator::Type type) {
-        auto nodePtr = std::make_unique<Operator>(type);
-        nodes.push_back(nodePtr.get());
-        return nodePtr;
-    }
+    std::shared_ptr<Node> make_corrupted();
 
-    std::unique_ptr<Node> make_literal(Literal::Type type, const char* value) {
-        auto nodePtr = std::make_unique<Literal>(type, value);
-        nodes.push_back(nodePtr.get());
-        return nodePtr;
-    }
+    std::shared_ptr<Node> make_operator(Operator::Type type);
 
-    std::unique_ptr<Node> make_identifier(const char* name) {
-        auto nodePtr = std::make_unique<Identifier>(name);
-        nodes.push_back(nodePtr.get());
-        return nodePtr;
-    }
+    std::shared_ptr<Node> make_literal(Literal::Type type, const char* value);
 
-    std::unique_ptr<Node> make_modifier(Modifier::Type type) {
-        auto nodePtr = std::make_unique<Modifier>(type);
-        nodes.push_back(nodePtr.get());
-        return nodePtr;
-    }
+    std::shared_ptr<Node> make_identifier(const char* name);
 
-    std::unique_ptr<Node> make_basic_type(BasicType::Type type) {
-        auto nodePtr = std::make_unique<BasicType>(type);
-        nodes.push_back(nodePtr.get());
-        return nodePtr;
-    }
+    std::shared_ptr<Node> make_modifier(Modifier::Type type);
+
+    std::shared_ptr<Node> make_basic_type(BasicType::Type type);
 
 private:
     YYSTYPE yylval;
-    std::vector<Node*> nodes;
+    std::vector<std::shared_ptr<Node>> nodes;
 };

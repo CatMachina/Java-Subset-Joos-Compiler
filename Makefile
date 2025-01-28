@@ -11,12 +11,8 @@ LEXER_HEADER = $(PARSER_DIR)/lexer.yy.h
 PARSER_HEADER = $(PARSER_DIR)/parser.tab.h
 
 JOOSC_SRCS = \
-  src/ast/Declaration.cpp src/ast/Expr.cpp \
-  src/ast/Stmt.cpp src/ast/Modifiers.cpp\
-  src/parser/myBisonParser.cpp src/ast/parseTree/parseTree.cpp \
-  src/ast/parseTree/parseTreeVisitor.cpp src/ast/parseTree/visitClassInterface.cpp \
-  src/ast/parseTree/visitExpression.cpp src/ast/parseTree/visitLeaf.cpp \
-  src/ast/parseTree/visitStatement.cpp driver/joosc/main.cpp \
+  src/parser/myBisonParser.cpp src/parseTree/parseTree.cpp \
+  driver/joosc/main.cpp \
   ${LEXER_OUT} ${PARSER_OUT}
 
 all: joosc

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 
-#include "parser/myBisonParser.hpp"
+#include "../src/parser/myBisonParser.hpp"
 
 extern std::string parser_resolve_token(int yysymbol);
 

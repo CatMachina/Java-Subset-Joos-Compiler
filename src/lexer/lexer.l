@@ -5,8 +5,14 @@
 %{
 #include <iostream>
 #include <string>
-#include "parsetree/parseTree.hpp"
-#include "myFlexLexer.hpp"
+#include <cerrno>
+#include <cstdlib>
+#include <iostream>
+#include "parser.tab.h"
+// #include "parseTree/parseTree.hpp"
+// #include "lexer/myFlexLexer.hpp"
+#include "../src/parseTree/parseTree.hpp"
+#include "../src/lexer/myFlexLexer.hpp"
 
 void print_token(const std::string& token_name, const std::string& token_value) {
     std::cout << "Token: " << token_name << ", Value: \"" << token_value << "\"" << std::endl;
@@ -33,24 +39,23 @@ using basicType = parsetree::BasicType::Type;
 "abstract"                          { yylval = make_modifier(modifierType::Abstract); print_token("KEYWORD", yytext); return ABSTRACT ; }
 "if"                                { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IF ; }
 "this"                              { yylval = make_identifier(yytext); print_token("KEYWORD", yytext); return THIS; }
-"boolean"                           { yylval = make_basic_type(BasicType::Boolean); print_token("KEYWORD", yytext); return BOOLEAN ; }
-"do"                                { yylval = make_corrupted(); print_token("KEYWORD", yytext); return DO ; }
+"boolean"                           { yylval = make_basic_type(basicType::Boolean); print_token("KEYWORD", yytext); return BOOLEAN ; }
 "implements"                        { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IMPLEMENTS ; }
 "protected"                         { yylval = make_modifier(modifierType::Protected); print_token("KEYWORD", yytext); return PROTECTED ; }
 "import"                            { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IMPORT ; }
 "public"                            { yylval = make_modifier(modifierType::Public); print_token("KEYWORD", yytext); return PUBLIC ; }
-"byte"                              { yylval = make_basic_type(pbtt::Byte); print_token("KEYWORD", yytext); return BYTE ; }
+"byte"                              { yylval = make_basic_type(basicType::Byte); print_token("KEYWORD", yytext); return BYTE ; }
 "else"                              { yylval = make_corrupted(); print_token("KEYWORD", yytext); return ELSE ; }
 "instanceof"                        { yylval = make_operator(operatorType::InstanceOf); print_token("KEYWORD", yytext); return INSTANCEOF ; }
 "return"                            { yylval = make_corrupted(); print_token("KEYWORD", yytext); return RETURN ; }
 "extends"                           { yylval = make_corrupted(); print_token("KEYWORD", yytext); return EXTENDS ; }
-"int"                               { yylval = make_basic_type(BasicType::Int); print_token("KEYWORD", yytext); return INT ; }
-"short"                             { yylval = make_basic_type(BasicType::Short); print_token("KEYWORD", yytext); return SHORT ; }
+"int"                               { yylval = make_basic_type(basicType::Int); print_token("KEYWORD", yytext); return INT ; }
+"short"                             { yylval = make_basic_type(basicType::Short); print_token("KEYWORD", yytext); return SHORT ; }
 "final"                             { yylval = make_modifier(modifierType::Final); print_token("KEYWORD", yytext); return FINAL ; }
 "interface"                         { yylval = make_corrupted(); print_token("KEYWORD", yytext); return INTERFACE ; }
-"static"                            { yylval = make_basic_type(BasicType::Static); print_token("KEYWORD", yytext); return STATIC ; }
+"static"                            { yylval = make_modifier(modifierType::Static); print_token("KEYWORD", yytext); return STATIC ; }
 "void"                              { yylval = make_corrupted(); print_token("KEYWORD", yytext); return VOID ; }
-"char"                              { yylval = make_basic_type(BasicType::Char); print_token("KEYWORD", yytext); return CHAR ; }
+"char"                              { yylval = make_basic_type(basicType::Char); print_token("KEYWORD", yytext); return CHAR ; }
 "class"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return CLASS ; }
 "while"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return WHILE ; }
 "const"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return CONST ; }
@@ -115,7 +120,7 @@ int yylex(YYSTYPE* lvalp, myFlexLexer& lexer) {
 
 int myFlexLexer::bison_lex(YYSTYPE *lvalp) {
     auto res = yylex();
-    *lvalp = yylval;
+    *lvalp = std::move(yylval);
     return res;
 }
 
