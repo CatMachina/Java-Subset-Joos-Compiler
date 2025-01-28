@@ -1,49 +1,52 @@
-%{
-    // TODO: C++ declarations
-    #include "ast.hpp"
+%code top {
+    #include <iostream>
     #include <memory>
-    #include <vector>
-    using namespace std;
+    #include "parser.tab.h"
+    // #include "parsetree/parseTree.hpp"
+    // #include "parser/myBisonParser.hpp"
+    #include "../src/parseTree/parseTree.hpp"
+    #include "../src/parser/myBisonParser.hpp"
 
-    // Root of the AST
-    unique_ptr<ClassDecl> root;
+    extern int yylex(YYSTYPE*, myFlexLexer&);
+    static void yyerror(YYSTYPE*, myFlexLexer&, const char*);
 }
 
-// AST node types
-%union {
-    int ival;
-    char* sval;
-    unique_ptr<Expr> expr;
-    unique_ptr<Stmt> stmt;
-    vector<unique_ptr<Stmt>>* stmts;
-    unique_ptr<ClassDecl> class_decl;
-    unique_ptr<FieldDecl> field_decl;
-    unique_ptr<MethodDecl> method_decl;
-    vector<unique_ptr<FieldDecl>>* fields;
-    vector<unique_ptr<MethodDecl>>* methods;
+%code requires {
+    // #include "parsetree/parseTree.h"
+    #include "../src/parseTree/parseTree.hpp"
+    #include <memory>
+    namespace pt = parsetree;
+    using NodeType = pt::Node::Type;
+    class myFlexLexer;
 }
 
-// TODO: Bison declarations
+%define api.pure full
+%define api.value.type { std::shared_ptr<pt::Node> }
+%parse-param { std::shared_ptr<pt::Node>* ret }
+%param { myFlexLexer& lexer }
 
-
-// TODO: Token declarations
 
 // Separators
 %token COMMA SEMI
+
+// Literals
+%token LITERAL
+%token ID
+%token THIS
 
 // Literals, Names and Operations (Lowest to Highest)
 %left BECOMES
 %left AND OR
 %left AMP VERT
-%left EQ NE
-%left LT GT LE GE INSTANCEOF
+%nonassoc LT GT LE GE INSTANCEOF EQ NE
 %left PLUS MINUS
 %left STAR SLASH PCT
 %left UMINUS NOT
-%precedence ID NUM TRUE FALSE NULL THIS SINGLECHAR ESCAPESEQ DOT LPAREN RPAREN LBRACK RBRACK
+%left DOT
+%nonassoc NUM TRUE FALSE SINGLECHAR ESCAPESEQ LPAREN RPAREN LBRACK RBRACK SQUOTE DQUOTE
 
 // Class Structure
-%token NEW CLASS EXTENDS IMPLEMENTS STATIC IMPORT PACKAGE PUBLIC INTEFACE PROTECTED ABSTRACT FINAL
+%token NEW CLASS EXTENDS IMPLEMENTS STATIC IMPORT PACKAGE PUBLIC INTERFACE PROTECTED ABSTRACT FINAL LBRACE RBRACE CONST
 
 // Method and Field Access
 %token LENGTH
@@ -60,140 +63,182 @@
 // Types
 %token BOOLEAN INT CHAR BYTE SHORT
 
-// TODO: Grammar rules
+%initial-action {
+    (void) yynerrs;
+    *ret = nullptr;
+}
+
+%start program
 
 %%
-
-//////////////////// Params ////////////////////
-
-// method(int arg1, bool arg2, ...)
-params:
-    param_list { $$ = std::move($1); }
-    | /* Empty */ { $$ = std::vector<std::pair<std::string, std::string>>{}; }
-;
-
-param_list:
-    param { $$ = std::vector<std::pair<std::string, std::string>>{$1}; }
-    | param_list COMMA param {
-        $1.push_back($3);
-        $$ = std::move($1);
-    }
-;
-
-param:
-    type ID { $$ = std::make_pair($1, $2); }
-;
 
 //////////////////// Class Structure (Program Structure) ////////////////////
 
 // Program Structure
 program:
-    package_decl import_decls type_decl {
-        root = std::unique_ptr<ClassDecl>($3);
+    package_decls import_decls_opt type_decl {
+        (void) yynerrs;
+        *ret = lexer.make_node(NodeType::ProgramDeclaration, std::move($1), std::move($2), std::move($3));
     }
 ;
 
 // Package Declaration
 // package my.package;
-package_decl:
-    PACKAGE qualified_name SEMI
-    | /* Empty */
+package_decls:
+    %empty { $$ = nullptr; }
+    | package_decl
+;
+
+package_decl: PACKAGE qualified_name SEMI    { $$ = lexer.make_node(NodeType::PackageDeclaration, std::move($2)); } 
 ;
 
 // Import Declarations (could be multiple)
 // import java.util.Vector;
+import_decls_opt:
+    %empty { $$ = nullptr; }
+    | import_decls
+;
+
 import_decls:
-    import_decl import_decls
-    | /* Empty */
+    import_decl
+    | import_decls import_decl
 ;
 
 import_decl:
-    IMPORT qualified_name SEMI
-;
-
-qualified_name:
-    ID { $$ = new std::string($1); }
-    | qualified_name DOT ID { $$ = new std::string(*$1 + "." + $3); delete $1; }
+    IMPORT qualified_name SEMI { $$ = lexer.make_node(NodeType::SingleImportDeclaration, std::move($2)); }
+    | IMPORT qualified_name '.' STAR ';' { $$ = lexer.make_node(NodeType::MultiImportDeclaration, std::move($2)); }
 ;
 
 // Class and Interface Declarations
 type_decl:
-    class_decl { $$ = std::move($1); }
-    | interface_decl { $$ = std::move($1); }
+    %empty { $$ = nullptr; }
+    | class_decl
+    | interface_decl
 ;
 
 // Class Declaration
 // public final class B extends A implements InterfaceA, InterfaceB {}
 class_decl:
-    modifiers CLASS ID superclass interfaces LBRACE class_body RBRACE {
-        $$ = std::make_unique<ClassDecl>(
-            $3, // Class name
-            $4 ? *$4 : "", // Superclass
-            $5 ? *$5 : std::vector<std::string>{}, // Interfaces
-            std::move($7.fields), // Fields
-            std::move($7.methods) // Methods
-        );
+    modifiers_opt CLASS ID superclass interfaces LBRACE class_body RBRACE {
+        $$ = lexer.make_node(NodeType::ClassDeclaration, std::move($1), std::move($3), std::move($4), std::move($5), std::move($7) );
     }
 ;
 
 // Modifiers
-modifiers:
-    PUBLIC { $$ = new std::vector<std::string>{"public"}; }
-    | ABSTRACT { $$ = new std::vector<std::string>{"abstract"}; }
-    | FINAL { $$ = new std::vector<std::string>{"final"}; }
-    | PUBLIC ABSTRACT { $$ = new std::vector<std::string>{"public", "abstract"}; }
+modifiers_opt:
+    %empty { $$ = nullptr; }
+    | modifiers
 ;
 
-modifier_list: 
-    ABSTRACT
+modifiers:
+    modifier { $$ = lexer.make_node(NodeType::ModifierList, std::move($1)); }
+    | modifiers modifier { $$ = lexer.make_node(NodeType::ModifierList, std::move($1), std::move($2)); }
+;
+
+modifier:
+    PUBLIC
+    | ABSTRACT
     | FINAL
 ;
 
 // Superclass
 superclass:
-    EXTENDS qualified_name { $$ = $2; }
-    | /* Empty */ { $$ = nullptr; }
+    %empty { $$ = nullptr; }
+    | EXTENDS qualified_name { $$ = lexer.make_node(NodeType::SuperClass, std::move($2)); }
 ;
 
 // Interfaces
 interfaces:
-    IMPLEMENTS interface_list { $$ = $2; }
-    | /* Empty */ { $$ = nullptr; }
+    %empty { $$ = nullptr; }
+    | IMPLEMENTS interface_list { $$ = std::move($2); }
 ;
 
 interface_list:
-    qualified_name { $$ = new std::vector<std::string>{*$1}; delete $1; }
+    qualified_name { $$ = lexer.make_node(NodeType::InterfaceTypeList, std::move($1)); }
     | interface_list COMMA qualified_name {
-        $1->push_back(*$3);
-        $$ = $1;
-        delete $3;
+        $$ = lexer.make_node(NodeType::InterfaceTypeList, std::move($1), std::move($3));
     }
 ;
 
 // Interface Declaration
 // public interface MyInterface {}
-interface_decl: PUBLIC INTERFACE ID LBRACE interface_body RBRACE
+interface_decl: modifiers_opt INTERFACE ID extends_interfaces_opt LBRACE interface_body RBRACE
+;
+
+extends_interfaces_opt:
+    %empty { $$ = nullptr; }
+    | extends_interfaces
+;
+
+extends_interfaces:
+    EXTENDS qualified_name { $$ = lexer.make_node(NodeType::InterfaceTypeList, std::move($2)); }
+    | extends_interfaces COMMA qualified_name {
+        $$ = lexer.make_node(NodeType::InterfaceTypeList, std::move($1), std::move($3));
+    }
 ;
 
 // Class Body
 class_body:
-    | class_body_decl class_body {
-        $$ = std::move($2);
-        $$->fields.insert($$->fields.end(), std::move($1.fields.begin()), std::move($1.fields.end()));
-        $$->methods.insert($$->methods.end(), std::move($1.methods.begin()), std::move($1.methods.end()));
-    }
+    %empty { $$ = nullptr; }
+    | class_body_decl_list
 ;
 
+class_body_decl_list:
+    class_body_decl { $$ = lexer.make_node(NodeType::ClassBodyDeclarationList, std::move($1)); }
+    | class_body_decl_list class_body_decl {
+        $$ = lexer.make_node(NodeType::ClassBodyDeclarationList, std::move($1), std::move($2));
+    }
+
 class_body_decl:
-    field_decl { $$ = {std::move($1), nullptr}; }
-    | method_decl { $$ = {nullptr, std::move($1)}; }
+    class_member_decl
+    | constructor_decl
+;
+
+class_member_decl:
+    field_decl
+    | method_decl
 ;
 
 // Interface Body
 interface_body:
-    | method_decl interface_body
+    %empty { $$ = nullptr; }
+    | interface_body_decl_list
 ;
 
+//| method_decl interface_body
+
+interface_body_decl_list:
+    abstract_method_decl { $$ = lexer.make_node(NodeType::InterfaceBodyDeclarationList, std::move($1)); }
+    | interface_body_decl_list abstract_method_decl {
+        $$ = lexer.make_node(NodeType::InterfaceBodyDeclarationList, std::move($1), std::move($2));
+    }
+;
+
+abstract_method_decl:
+    abstract_modifiers_opt type ID LPAREN params RPAREN SEMI {
+        $$ = lexer.make_node(NodeType::AbstractMethodDeclaration, std::move($1), std::move($2), std::move($3), std::move($5));
+    }
+    | abstract_modifiers_opt VOID ID LPAREN params RPAREN SEMI {
+        $$ = lexer.make_node(NodeType::AbstractMethodDeclaration, std::move($1), std::move($3), std::move($5));
+        }
+;
+
+abstract_modifiers_opt:
+    %empty { $$ = nullptr; }
+    | abstract_modifiers
+;
+
+abstract_modifiers:
+    abstract_modifier { $$ = lexer.make_node(NodeType::ModifierList, std::move($1)); }
+    | abstract_modifiers abstract_modifier {
+        $$ = lexer.make_node(NodeType::ModifierList, std::move($1), std::move($2));
+    }
+;
+
+abstract_modifier:
+    PUBLIC
+    | ABSTRACT
+;
 
 // Field Declarations
 /*
@@ -202,22 +247,28 @@ protected static int y = 42;
 int z;
 */
 field_decl:
-    field_modifiers type ID field_initializer SEMI {
-        $$ = std::make_unique<FieldDecl>($3, $2, std::move($4));
+    method_modifiers_opt type var_name SEMI {
+        $$ = lexer.make_node(NodeType::FieldDeclaration, std::move($1), std::move($2), std::move($3));
     }
 ;
 
-field_modifiers:
-    PUBLIC
-    | PROTECTED
-    | STATIC
-    | PUBLIC STATIC
-    | PROTECTED STATIC
+//////////////////// Params ////////////////////
+
+// method(int arg1, bool arg2, ...)
+params:
+    %empty { $$ = nullptr; }
+    | param_list
 ;
 
-field_initializer:
-    BECOMES expr { $$ = std::move($2); }
-    | /* Empty */ { $$ = nullptr; }
+param_list:
+    param { $$ = lexer.make_node(NodeType::ParameterList, std::move($1)); }
+    | param_list COMMA param {
+        $$ = lexer.make_node(NodeType::ParameterList, std::move($1), std::move($3));
+    }
+;
+
+param:
+    type ID { $$ = lexer.make_node(NodeType::Parameter, std::move($1), std::move($2)); }
 ;
 
 // Method Declarations
@@ -226,30 +277,34 @@ protected abstract void compute();
 public static void main(String[] args) {}
 */
 method_decl:
-    method_modifiers type ID LPAREN params RPAREN method_body {
-        $$ = std::make_unique<MethodDecl>(
-            $3, // Method name
-            $2, // Return type
-            std::move($5), // Parameters
-            std::move($7) // Body
-        );
+    method_modifiers_opt VOID ID LPAREN params RPAREN method_body {
+        $$ = lexer.make_node(NodeType::MethodDeclaration, std::move($1), std::move($3), std::move($5), std::move($7));
+    }
+    | method_modifiers_opt type ID LPAREN params RPAREN method_body {
+        $$ = lexer.make_node(NodeType::MethodDeclaration, std::move($1), std::move($2), std::move($3), std::move($5), std::move($7));
     }
 ;
 
-// did i miss anything?
+method_modifiers_opt:
+    %empty { $$ = nullptr; }
+    | method_modifiers
+;
+
 method_modifiers:
+    method_modifier { $$ = lexer.make_node(NodeType::ModifierList, std::move($1)); }
+    | method_modifiers method_modifier { $$ = lexer.make_node(NodeType::ModifierList, std::move($1), std::move($2)); }
+;
+
+method_modifier:
     PUBLIC
-    | PROTECTED 
-    | PUBLIC STATIC
-    | PROTECTED STATIC
-    | PUBLIC ABSTRACT
-    | PROTECTED ABSTRACT
-    | PUBLIC FINAL
-    | PROTECTED FINAL
+    | PROTECTED
+    | STATIC
+    | ABSTRACT
+    | FINAL
 ;
 
 method_body:
-    LBRACE statements RBRACE { $$ = std::make_unique<BlockStmt>(std::move($2)); }
+    block { $$ = std::move($1); }
     | SEMI { $$ = nullptr; } // Abstract or native methods
 ;
 
@@ -258,173 +313,339 @@ method_body:
 public A() {}
 public A(int x) { this.x = x; }
 */
-constructor_decl: constructor_modifiers ID LPAREN params RPAREN LBRACE statements RBRACE
-;
-
-constructor_modifiers: PUBLIC
-    | PROTECTED
+constructor_decl: method_modifiers_opt ID LPAREN params RPAREN block {
+    $$ = lexer.make_node(NodeType::ConstructorDeclaration, std::move($1), std::move($2), std::move($4), std::move($6));
+}
 ;
 
 //////////////////// Types ////////////////////
 
-type: BOOLEAN
+type:
+    qualified_name { $$ = lexer.make_node(NodeType::Type, std::move($1)); }
+    | basic_type { $$ = lexer.make_node(NodeType::Type, std::move($1)); }
+    | qualified_name LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayType, std::move($1)); }
+    | basic_type LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayType, std::move($1)); }
+;
+
+object_type:
+    qualified_name { $$ = lexer.make_node(NodeType::Type, std::move($1)); } // A obj;
+    | qualified_name LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayType, std::move($1)); } // java.util.Vector[] v;
+    | basic_type LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayType, std::move($1)); }
+    ;
+
+basic_type: BOOLEAN
     | INT
     | CHAR
     | BYTE
     | SHORT
 ;
 
-// Single-dimensional arrays
-type: BOOLEAN LBRACK RBRACK
-    | INT LBRACK RBRACK
-    | CHAR LBRACK RBRACK
-    | BYTE LBRACK RBRACK
-    | SHORT LBRACK RBRACK
-;
-
-// Reference types (custom classes/interfaces)
-type: ID                  // A obj;
-    | ID LBRACK RBRACK    // java.util.Vector[] v;
-;
-
-// Void type for method return types
-void_type: VOID
-;
-
-//////////////////// Literals ////////////////////
-
-literal: NUM
-	| TRUE
-	| FALSE
-	| char
-	| SQUOTE char SQUOTE
-	| DQUOTE chars DQUOTE
-	| NULL
-;
-
-char: SINGLECHAR
-    | ESCAPESEQ
-;
-
-chars:
-    | chars char
-;
+qualified_name:
+    ID                                                                { $$ = lexer.make_node(NodeType::QualifiedName, std::move($1)); }
+    | qualified_name '.' ID                                        { $$ = lexer.make_node(NodeType::QualifiedName, std::move($1), std::move($3)); }
+    ;
 
 //////////////////// Block ////////////////////
 
 // { ... }
 block:
-    LBRACE statements RBRACE { $$ = std::make_unique<BlockStmt>(std::move($2)); }
-;
+    LBRACE statements_opt RBRACE { $$ = lexer.make_node(NodeType::Block, std::move($2)); }
 ;
 
 //////////////////// Statements ////////////////////
 
+statements_opt:
+    %empty { $$ = nullptr; }
+    | statements { $$ = std::move($1); }
+;
+
 statements:
-    | statement statements { $2->push_back(std::move($1)); $$ = $2; }
-    | /* Empty */ { $$ = new std::vector<std::unique_ptr<Stmt>>(); }
+    statement { $$ = lexer.make_node(NodeType::StatementList, std::move($1)); }
+    | statement statements { $$ = lexer.make_node(NodeType::StatementList, std::move($1), std::move($2)); }
 ;
 
-statement: block
-    | SEMI
-    | RETURN SEMI
-    | RETURN expr SEMI
-    | expr
-    | IF LPARAN test RPARAN statement
-	| IF LPARAN test RPARAN statement_no_short_if ELSE statement
-	| WHILE LPARAN test RPARAN statement
-	| WHILE LPARAN test RPARAN statement_no_short_if
-	| FOR LPAREN for_init SEMI test SEMI for_update RPAREN statement
+statement:
+    local_decl_statement
+    | statement_no_substatement
+    | if_then_statement { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+    | if_then_else_statement { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+    | while_statement { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+    | for_statement { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
 ;
 
-statement_no_short_if: block
-    | SEMI
-    | RETURN SEMI
-    | RETURN expr SEMI
-    | expr
-    | IF LPARAN test RPARAN statement_no_short_if ELSE statement_no_short_if
-	| WHILE LPARAN test RPARAN statement_no_short_if
-    | FOR LPAREN for_init SEMI test SEMI for_update RPAREN statement_no_short_if
+statement_no_substatement:
+    block
+    | empty_statement
+    | expr_statement
+    | return_statement
 ;
 
-for_init: 
-    | decl
-    | expr
+statement_no_short_if:
+    statement_no_substatement
+    | if_then_else_statement_no_short_if { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+    | while_statement_no_short_if { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+    | for_statement_no_short_if { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
 ;
 
-for_update:
-    | expr
+expr_statement:
+    statement_expr SEMI { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
 ;
 
-test: expr LT expr             // <
-	| expr GT expr             // >
-	| expr LE expr             // <=
-	| expr GE expr             // >=
-    | expr INSTANCEOF type     // instanceof
-    | expr EQ expr             // ==
-    | expr NE expr             // !=
-    | expr && expr             // &&
-    | expr || expr             // ||
+return_statement:
+    RETURN expr_opt SEMI { $$ = lexer.make_node(NodeType::ReturnStatement, std::move($2)); }
+;
+
+statement_expr:
+    assignment
+    | method_invocation_expr
+    | class_create_expr
+;
+
+empty_statement:
+    SEMI { $$ = lexer.make_node(NodeType::Statement); }
+;
+
+
+//////////////////// Control Flows ////////////////////
+
+if_then_statement:
+    IF LPAREN expr RPAREN statement { $$ = lexer.make_node(NodeType::IfStatement, std::move($3), std::move($5)); }
+;
+
+if_then_else_statement:
+    IF LPAREN expr RPAREN statement_no_short_if ELSE statement { $$ = lexer.make_node(NodeType::IfStatement, std::move($3), std::move($5), std::move($7)); }
+;
+
+if_then_else_statement_no_short_if:
+    IF LPAREN expr RPAREN statement_no_short_if ELSE statement_no_short_if { $$ = lexer.make_node(NodeType::IfStatement, std::move($3), std::move($5), std::move($7)); }
+;
+
+while_statement:
+    WHILE LPAREN expr RPAREN statement { $$ = lexer.make_node(NodeType::WhileStatement, std::move($3), std::move($5)); }
+;
+
+while_statement_no_short_if:
+    WHILE LPAREN expr RPAREN statement_no_short_if { $$ = lexer.make_node(NodeType::WhileStatement, std::move($3), std::move($5)); }
+;
+
+for_statement:
+    FOR LPAREN for_init_opt SEMI expr_opt SEMI for_update_opt RPAREN statement {
+        $$ = lexer.make_node(NodeType::ForStatement, std::move($3), std::move($5), std::move($7), std::move($9));
+    }
+;
+
+for_statement_no_short_if:
+    FOR LPAREN for_init_opt SEMI expr_opt SEMI for_update_opt RPAREN statement_no_short_if {
+        $$ = lexer.make_node(NodeType::ForStatement, std::move($3), std::move($5), std::move($7), std::move($9));
+    }
+;
+
+for_init_opt:
+    %empty { $$ = nullptr; }
+    | local_decl_statement { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+    | statement_expr { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+;
+
+for_update_opt:
+    %empty { $$ = nullptr; }
+    | statement_expr { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
 ;
 
 //////////////////// Expressions ////////////////////
-// Primary expr (Highest precedence)
-expr: ID
-    | NUM
-    | TRUE
-    | FALSE
-    | NULL
-    | THIS
-    | expr DOT ID                       // Field access
-    | expr DOT ID LPAREN args RPAREN    // Method call
-    | expr LBRACK expr RBRACK           // Array access
-    | NEW ID LPAREN args RPAREN         // Object creation
-    | NEW type LBRACK expr RBRACK       // Array creation
-    | LPAREN expr RPAREN                // Parentheses
+expr_opt:
+    %empty { $$ = nullptr; }
+    | expr { $$ = std::move($1); }
 ;
 
-// Unary operators
-expr: '-' expr %prec UMINUS     // -x
-    | NOT expr                  // !x
-    | LPAREN type RPAREN expr   // (type) cast
+expr:
+    assignment_expr
 ;
 
-// Multiplicative
-expr: expr STAR expr           // *
-    | expr SLASH expr          // /
-    | expr PCT expr            // %
-;
-
-// Additive
-expr: expr PLUS expr            // +
-    | expr MINUS expr           // -
-;
-
-// Relational
-expr: expr LT expr             // <
-    | expr GT expr             // >
-    | expr LE expr             // <=
-    | expr GE expr             // >=
-    | expr INSTANCEOF type     // instanceof
-;
-
-// Equalit
-expr: expr EQ expr             // ==
-    | expr NE expr             // !=
-;
-
-// Bitwise operators
-expr: expr AMP expr             // &
-    | expr VERT expr            // |
-;
-
-// Logical (lazy)
-expr: expr AND expr             // &&
-    | expr OR expr              // ||
+assignment_expr:
+    assignment
+    | conditional_or_expr
 ;
 
 // Assignment (Lowest precedence)
-expr: lvalue BECOMES expr       // =
+assignment: lvalue BECOMES assignment_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
 ;
 
+lvalue: qualified_name
+    | field_access_expr
+    | array_access_expr
+;
+
+
+// Logical (lazy)
+conditional_or_expr:
+    conditional_and_expr
+    | conditional_or_expr OR conditional_and_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+;
+
+conditional_and_expr:
+    eager_or_expr
+    | conditional_and_expr AND eager_or_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+;
+
+// Eager Boolean
+eager_or_expr:
+    eager_and_expr
+    | eager_or_expr VERT eager_and_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+;
+
+eager_and_expr:
+    equality_expr
+    | eager_and_expr AMP equality_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+;
+
+// Equality
+equality_expr:
+    relational_expr
+    | equality_expr EQ relational_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | equality_expr NE relational_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+;
+
+// Relational
+relational_expr:
+    additive_expr
+    | relational_expr LT additive_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | relational_expr GT additive_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }    
+    | relational_expr LE additive_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | relational_expr GE additive_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | relational_expr INSTANCEOF object_type { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+;
+
+// Additive
+additive_expr:
+    multiplicative_expr
+    | additive_expr PLUS multiplicative_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | additive_expr MINUS multiplicative_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+;
+
+// Multiplicative
+multiplicative_expr:
+    unary_expr_negative
+    | multiplicative_expr STAR unary_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | multiplicative_expr SLASH unary_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | multiplicative_expr PCT unary_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+;
+
+// Unary operators
+unary_expr_negative:
+    MINUS unary_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2)); }
+    | unary_expr
+;
+
+unary_expr:
+    post_fix_expr
+    | NOT unary_expr_negative { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2)); }
+    | cast_expr
+;
+
+post_fix_expr:
+    primary
+    | qualified_name
+;
+
+cast_expr:
+    LPAREN cast_type RPAREN unary_expr_negative { $$ = lexer.make_node(NodeType::Expression, std::move($2), std::move($4)); }
+;
+
+cast_type:
+    basic_type { $$ = lexer.make_node(NodeType::Type, std::move($1)); }
+    | basic_type LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayType, std::move($1)); }
+;
+
+//////////////////// Primary Expressions ////////////////////
+primary:
+    primary_without_array
+    | array_create
+    | array_access_expr
+    | array_cast
+;
+
+primary_without_array:
+    LITERAL
+    | THIS
+    | LPAREN expr RPAREN
+    | class_create_expr
+    | field_access_expr
+    | method_invocation_expr
+    ;
+
+array_create:
+    NEW qualified_name LBRACK expr RBRACK { $$ = lexer.make_node(NodeType::ArrayCreate, std::move($2), std::move($4)); }
+;
+
+array_access_expr:
+    primary_without_array LBRACK expr RBRACK { $$ = lexer.make_node(NodeType::ArrayAccess, std::move($1), std::move($3)); }
+    qualified_name LBRACK expr RBRACK { $$ = lexer.make_node(NodeType::ArrayAccess, std::move($1), std::move($3)); }
+;
+
+array_cast:
+    qualified_name LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayCastType, std::move($1)); }
+;
+
+class_create_expr:
+    NEW qualified_name LBRACE arg_list_opt RBRACE { $$ = lexer.make_node(NodeType::ClassCreation, std::move($2), std::move($4)); }
+;
+
+field_access_expr:
+    primary DOT ID { $$ = lexer.make_node(NodeType::FieldAccess, std::move($1), std::move($3)); }
+;
+
+method_invocation_expr:
+    qualified_name LPAREN arg_list_opt RPAREN { $$ = lexer.make_node(NodeType::MethodInvocation, std::move($1), std::move($3)); }
+    | primary DOT ID LPAREN arg_list_opt RPAREN { $$ = lexer.make_node(NodeType::MethodInvocation, std::move($1), std::move($3), std::move($5)); }
+;
+
+
+arg_list_opt:
+    %empty { $$ = nullptr; }
+    | arg_list
+;
+
+arg_list:
+    expr { $$ = lexer.make_node(NodeType::ArgumentList, std::move($1)); }
+    | arg_list COMMA expr { $$ = lexer.make_node(NodeType::ArgumentList, std::move($1), std::move($3)); }
+;
+
+
+//////////////////// Var and Arr ////////////////////
+local_decl_statement:
+    local_decl SEMI { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+;
+
+local_decl:
+    type var_name { $$ = lexer.make_node(NodeType::LocalDeclaration, std::move($1), std::move($2)); }
+;
+
+var_name:
+    ID { $$ = lexer.make_node(NodeType::Variable, std::move($1)); }
+    | ID BECOMES expr { $$ = lexer.make_node(NodeType::Variable, std::move($1), std::move($3)); }
+;
+
+
+
 %%
+
+std::string parser_resolve_token(int yysymbol) {
+    if(yysymbol <= 0) return "EOF";
+    if(yysymbol >= 256) {
+        yysymbol -= 255;
+        // check if yysymbol is greater than the end of the array
+        if((unsigned) yysymbol >= sizeof(yytname)/sizeof(yytname[0])) {
+            return std::string{"<unknown>"};
+        }
+        return std::string{
+            yysymbol_name(static_cast<yysymbol_kind_t>(yysymbol))
+        };
+    } else {
+        return std::string{static_cast<char>(yysymbol)};
+    }
+}
+
+static void yyerror(YYSTYPE* ret, myFlexLexer& lexer, const char* s) {
+    (void) ret;
+    std::cerr << "Parsing error! : " << s << std::endl;
+}
