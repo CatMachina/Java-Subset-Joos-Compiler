@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "parseTree/parseTree.hpp"
+#include "parsetree/parseTree.hpp"
 
 // Only include FlexLexer.h if it hasn't been already included
 #if ! defined(yyFlexLexerOnce)

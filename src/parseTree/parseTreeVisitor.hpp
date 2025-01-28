@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ast/ast.hpp"
-#include "parseTree/parseTree.hpp"
+#include "parsetree/parseTree.hpp"
 
 namespace parsetree {
 

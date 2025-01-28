@@ -5,7 +5,7 @@
 %{
 #include <iostream>
 #include <string>
-#include "parseTree/parseTree.hpp"
+#include "parsetree/parseTree.hpp"
 #include "myFlexLexer.hpp"
 
 void print_token(const std::string& token_name, const std::string& token_value) {
@@ -67,40 +67,40 @@ using basicType = parsetree::BasicType::Type;
 
 "null"                              { yylval = make_literal(literalType::Null, yytext); print_token("NULL_LITERAL", yytext); return LITERAL ; }
 
-"("                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '(' ; }
-")"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return ')' ; }
-"{"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '{' ; }
-"}"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '}' ; }
-"["                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '[' ; }
-"]"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return ']' ; }
-";"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return ';' ; }
-","                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return ',' ; }
-"."                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return '.' ; }
+"("                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return LPAREN ; }
+")"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return RPAREN ; }
+"{"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return LBRACE ; }
+"}"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return RBRACE ; }
+"["                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return LBRACK ; }
+"]"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return RBRACK ; }
+";"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return SEMI ; }
+","                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return COMMA ; }
+"."                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return DOT ; }
 
-"="                                 { yylval = make_operator(operatorType::Assign); print_token("OPERATOR", yytext); return OP_ASSIGN ; }
-">"                                 { yylval = make_operator(operatorType::GreaterThan); print_token("OPERATOR", yytext); return OP_GT ; }
-"<"                                 { yylval = make_operator(operatorType::LessThan); print_token("OPERATOR", yytext); return OP_LT ; }
-"!"                                 { yylval = make_operator(operatorType::Not); print_token("OPERATOR", yytext); return OP_NOT ; }
-"=="                                { yylval = make_operator(operatorType::Equal); print_token("OPERATOR", yytext); return OP_EQ ; }
-"<="                                { yylval = make_operator(operatorType::LessThanOrEqual); print_token("OPERATOR", yytext); return OP_LTE ; }
-">="                                { yylval = make_operator(operatorType::GreaterThanOrEqual); print_token("OPERATOR", yytext); return OP_GTE ; }
-"!="                                { yylval = make_operator(operatorType::NotEqual); print_token("OPERATOR", yytext); return OP_NEQ ; }
-"&&"                                { yylval = make_operator(operatorType::And); print_token("OPERATOR", yytext); return OP_AND ; }
-"||"                                { yylval = make_operator(operatorType::Or); print_token("OPERATOR", yytext); return OP_OR ; }
-"+"                                 { yylval = make_operator(operatorType::Plus); print_token("OPERATOR", yytext); return OP_PLUS ; }
-"-"                                 { yylval = make_operator(operatorType::Minus); print_token("OPERATOR", yytext); return OP_MINUS ; }
-"*"                                 { yylval = make_operator(operatorType::Multiply); print_token("OPERATOR", yytext); return OP_MOD ; }
-"/"                                 { yylval = make_operator(operatorType::Divide); print_token("OPERATOR", yytext); return OP_DIV ; }
-"&"                                 { yylval = make_operator(operatorType::BitwiseAnd); print_token("OPERATOR", yytext); return OP_BIT_AND ; }
-"|"                                 { yylval = make_operator(operatorType::BitwiseOr); print_token("OPERATOR", yytext); return OP_BIT_OR ; }
-"%"                                 { yylval = make_operator(operatorType::Modulo); print_token("OPERATOR", yytext); return OP_MOD ; }
+"="                                 { yylval = make_operator(operatorType::Assign); print_token("OPERATOR", yytext); return BECOMES ; }
+">"                                 { yylval = make_operator(operatorType::GreaterThan); print_token("OPERATOR", yytext); return GT ; }
+"<"                                 { yylval = make_operator(operatorType::LessThan); print_token("OPERATOR", yytext); return LT ; }
+"!"                                 { yylval = make_operator(operatorType::Not); print_token("OPERATOR", yytext); return NOT ; }
+"=="                                { yylval = make_operator(operatorType::Equal); print_token("OPERATOR", yytext); return EQ ; }
+"<="                                { yylval = make_operator(operatorType::LessThanOrEqual); print_token("OPERATOR", yytext); return LE ; }
+">="                                { yylval = make_operator(operatorType::GreaterThanOrEqual); print_token("OPERATOR", yytext); return GE ; }
+"!="                                { yylval = make_operator(operatorType::NotEqual); print_token("OPERATOR", yytext); return NE ; }
+"&&"                                { yylval = make_operator(operatorType::And); print_token("OPERATOR", yytext); return AND ; }
+"||"                                { yylval = make_operator(operatorType::Or); print_token("OPERATOR", yytext); return OR ; }
+"+"                                 { yylval = make_operator(operatorType::Plus); print_token("OPERATOR", yytext); return PLUS ; }
+"-"                                 { yylval = make_operator(operatorType::Minus); print_token("OPERATOR", yytext); return MINUS ; }
+"*"                                 { yylval = make_operator(operatorType::Multiply); print_token("OPERATOR", yytext); return STAR ; }
+"/"                                 { yylval = make_operator(operatorType::Divide); print_token("OPERATOR", yytext); return SLASH ; }
+"&"                                 { yylval = make_operator(operatorType::BitwiseAnd); print_token("OPERATOR", yytext); return VERT ; }
+"|"                                 { yylval = make_operator(operatorType::BitwiseOr); print_token("OPERATOR", yytext); return AMP ; }
+"%"                                 { yylval = make_operator(operatorType::Modulo); print_token("OPERATOR", yytext); return PCT ; }
 
 [0-9]+                             { yylval = make_literal(literalType::Integer, yytext);; print_token("INTEGER_LITERAL", yytext); return LITERAL ; }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
     make_identifier(yytext);
     print_token("IDENTIFIER", yytext);
-    return IDENTIFIER;
+    return ID;
 }
 
 [ \t\n\r]+

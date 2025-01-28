@@ -35,55 +35,52 @@ struct Node {
         // Leaf nodes
         Literal,
         Identifier,
-        QualifiedName, // Updated from QualifiedIdentifier to align with grammar
+        QualifiedName,
         Operator,
-        BasicType, // Covers types like INT, CHAR, etc.
         ArrayType,
-        Type, // Represents type -> BOOLEAN | INT | ...
+        Type, // All Types
         Corrupted,
+        ArrayCastType,
 
         // Program structure
-        Program,
+        ProgramDeclaration,
         PackageDeclaration,
-        ImportDeclarations,
-        ImportDeclaration,
+        SingleImportDeclaration,
+        MultiImportDeclaration,
+        LocalDeclaration,
 
         // Type Declarations
         TypeDeclaration,
         ClassDeclaration,
         InterfaceDeclaration,
+        AbstractMethodDeclaration,
 
         // Modifiers
         ModifierList,
-        PublicModifier, // PUBLIC
-        ProtectedModifier, // PROTECTED
-        StaticModifier, // STATIC
-        AbstractModifier, // ABSTRACT
-        FinalModifier, // FINAL
 
         // Class-specific constructs
         ClassBody,
-        ClassBodyDeclaration,
+        ClassBodyDeclarationList,
         FieldDeclaration,
         MethodDeclaration,
         ConstructorDeclaration,
-        SuperclassOpt,
-        InterfacesOpt,
-        InterfaceList,
+        SuperClass,
+        InterfaceTypeList,
 
         // Interface-specific constructs
         InterfaceBody,
-        InterfaceMemberDeclarationList,
+        InterfaceBodyDeclarationList,
 
         // Method-specific constructs
         MethodHeader,
-        FormalParameterList,
-        FormalParameter,
+        ParameterList,
+        Parameter,
         VoidType,
 
         // Statements
         Statement,
         Block,
+        StatementList,
         IfStatement,
         IfElseStatement,
         WhileStatement,
@@ -93,7 +90,7 @@ struct Node {
         ExpressionStatement,
 
         // Variable Declarations
-        VariableDeclarator,
+        FieldInitializer,
         LocalVariableDeclaration,
         VariableDeclaratorList,
         FieldInitializer,
@@ -103,11 +100,10 @@ struct Node {
         ArgumentList,
         FieldAccess,
         ArrayAccess,
+        ArrayCreate,
         CastExpression,
         MethodInvocation,
-        ArrayCreationExpression,
-        ClassInstanceCreationExpression,
-        Dims,
+        ClassCreation,
 
         // Literals
         NumLiteral, // NUM
@@ -118,6 +114,11 @@ struct Node {
 
         // Test (used in control flows like IF, WHILE)
         TestExpression, // For comparison expressions like <, >, ==, !=, etc.
+
+        // Control Flows
+        IfStatement,
+        WhileStatement,
+        ForStatement
     };
 
    /// leaf nodes

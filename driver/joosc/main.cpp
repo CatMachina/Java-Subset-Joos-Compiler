@@ -10,8 +10,8 @@
 
 #include "ast/ast.hpp"
 #include "parser/myBisonParser.hpp"
-#include "parseTree/parseTree.hpp"
-#include "parseTree/parseTreeVisitor.hpp"
+#include "parsetree/parseTree.hpp"
+#include "parsetree/parseTreeVisitor.hpp"
 
 int main(int argc, char** argv) {
     try {
