@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+
+find . -type f \( -name "*.hpp" -o -name "*.cpp" \) -exec clang-format -i {} \;
