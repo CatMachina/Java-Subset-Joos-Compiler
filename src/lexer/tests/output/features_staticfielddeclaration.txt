@@ -1,0 +1,20 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "class"
+295: CLASS
+Token: IDENTIFIER, Value: "A"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "protected"
+303: PROTECTED
+Token: KEYWORD, Value: "static"
+298: STATIC
+Token: KEYWORD, Value: "int"
+318: INT
+Token: IDENTIFIER, Value: "x"
+261: ID
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: SEPARATOR, Value: "}"
+307: RBRACE

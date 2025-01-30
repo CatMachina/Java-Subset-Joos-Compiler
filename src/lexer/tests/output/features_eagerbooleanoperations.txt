@@ -1,0 +1,60 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "class"
+295: CLASS
+Token: IDENTIFIER, Value: "A"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: IDENTIFIER, Value: "A"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "boolean"
+317: BOOLEAN
+Token: IDENTIFIER, Value: "m"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: KEYWORD, Value: "boolean"
+317: BOOLEAN
+Token: IDENTIFIER, Value: "x"
+261: ID
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "return"
+311: RETURN
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: IDENTIFIER, Value: "x"
+261: ID
+Token: OPERATOR, Value: "&"
+267: VERT
+Token: BOOLEAN_LITERAL, Value: "true"
+260: LITERAL
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: OPERATOR, Value: "|"
+266: AMP
+Token: OPERATOR, Value: "!"
+281: NOT
+Token: IDENTIFIER, Value: "x"
+261: ID
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE

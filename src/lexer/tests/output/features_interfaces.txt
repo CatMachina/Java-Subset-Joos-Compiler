@@ -1,0 +1,10 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "interface"
+302: INTERFACE
+Token: IDENTIFIER, Value: "A"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE
