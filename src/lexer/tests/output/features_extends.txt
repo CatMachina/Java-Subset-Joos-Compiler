@@ -1,0 +1,34 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "class"
+295: CLASS
+Token: IDENTIFIER, Value: "A"
+261: ID
+Token: KEYWORD, Value: "extends"
+296: EXTENDS
+Token: IDENTIFIER, Value: "java"
+261: ID
+Token: SEPARATOR, Value: "."
+282: DOT
+Token: IDENTIFIER, Value: "lang"
+261: ID
+Token: SEPARATOR, Value: "."
+282: DOT
+Token: IDENTIFIER, Value: "Thread"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: IDENTIFIER, Value: "A"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE

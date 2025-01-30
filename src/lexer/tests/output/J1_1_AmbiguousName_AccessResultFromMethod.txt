@@ -1,66 +1,132 @@
 Token: KEYWORD, Value: "public"
+301: PUBLIC
 Token: KEYWORD, Value: "class"
+295: CLASS
 Token: IDENTIFIER, Value: "J1_1_AmbiguousName_AccessResultFromMethod"
+261: ID
 Token: SEPARATOR, Value: "{"
+306: LBRACE
 Token: KEYWORD, Value: "public"
+301: PUBLIC
 Token: KEYWORD, Value: "int"
+318: INT
 Token: IDENTIFIER, Value: "i"
+261: ID
 Token: SEPARATOR, Value: ";"
+259: SEMI
 Token: KEYWORD, Value: "public"
+301: PUBLIC
 Token: IDENTIFIER, Value: "J1_1_AmbiguousName_AccessResultFromMethod"
+261: ID
 Token: SEPARATOR, Value: "("
+288: LPAREN
 Token: KEYWORD, Value: "int"
+318: INT
 Token: IDENTIFIER, Value: "j"
+261: ID
 Token: SEPARATOR, Value: ")"
+289: RPAREN
 Token: SEPARATOR, Value: "{"
+306: LBRACE
 Token: IDENTIFIER, Value: "i"
+261: ID
 Token: OPERATOR, Value: "="
+263: BECOMES
 Token: IDENTIFIER, Value: "j"
+261: ID
 Token: SEPARATOR, Value: ";"
+259: SEMI
 Token: SEPARATOR, Value: "}"
+307: RBRACE
 Token: KEYWORD, Value: "public"
+301: PUBLIC
 Token: IDENTIFIER, Value: "J1_1_AmbiguousName_AccessResultFromMethod"
+261: ID
 Token: IDENTIFIER, Value: "inc"
+261: ID
 Token: SEPARATOR, Value: "("
+288: LPAREN
 Token: SEPARATOR, Value: ")"
+289: RPAREN
 Token: SEPARATOR, Value: "{"
+306: LBRACE
 Token: KEYWORD, Value: "return"
+311: RETURN
 Token: IDENTIFIER, Value: "new"
+261: ID
 Token: IDENTIFIER, Value: "J1_1_AmbiguousName_AccessResultFromMethod"
+261: ID
 Token: SEPARATOR, Value: "("
+288: LPAREN
 Token: IDENTIFIER, Value: "i"
+261: ID
 Token: OPERATOR, Value: "+"
+275: PLUS
 Token: INTEGER_LITERAL, Value: "1"
+260: LITERAL
 Token: SEPARATOR, Value: ")"
+289: RPAREN
 Token: SEPARATOR, Value: ";"
+259: SEMI
 Token: SEPARATOR, Value: "}"
+307: RBRACE
 Token: KEYWORD, Value: "public"
+301: PUBLIC
 Token: KEYWORD, Value: "static"
+298: STATIC
 Token: KEYWORD, Value: "int"
+318: INT
 Token: IDENTIFIER, Value: "test"
+261: ID
 Token: SEPARATOR, Value: "("
+288: LPAREN
 Token: SEPARATOR, Value: ")"
+289: RPAREN
 Token: SEPARATOR, Value: "{"
+306: LBRACE
 Token: KEYWORD, Value: "return"
+311: RETURN
 Token: IDENTIFIER, Value: "new"
+261: ID
 Token: IDENTIFIER, Value: "J1_1_AmbiguousName_AccessResultFromMethod"
+261: ID
 Token: SEPARATOR, Value: "("
+288: LPAREN
 Token: INTEGER_LITERAL, Value: "120"
+260: LITERAL
 Token: SEPARATOR, Value: ")"
+289: RPAREN
 Token: SEPARATOR, Value: "."
+282: DOT
 Token: IDENTIFIER, Value: "inc"
+261: ID
 Token: SEPARATOR, Value: "("
+288: LPAREN
 Token: SEPARATOR, Value: ")"
+289: RPAREN
 Token: SEPARATOR, Value: "."
+282: DOT
 Token: IDENTIFIER, Value: "inc"
+261: ID
 Token: SEPARATOR, Value: "("
+288: LPAREN
 Token: SEPARATOR, Value: ")"
+289: RPAREN
 Token: SEPARATOR, Value: "."
+282: DOT
 Token: IDENTIFIER, Value: "inc"
+261: ID
 Token: SEPARATOR, Value: "("
+288: LPAREN
 Token: SEPARATOR, Value: ")"
+289: RPAREN
 Token: SEPARATOR, Value: "."
+282: DOT
 Token: IDENTIFIER, Value: "i"
+261: ID
 Token: SEPARATOR, Value: ";"
+259: SEMI
 Token: SEPARATOR, Value: "}"
+307: RBRACE
 Token: SEPARATOR, Value: "}"
+307: RBRACE
