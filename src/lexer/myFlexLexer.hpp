@@ -2,6 +2,9 @@
 
 #include <memory>
 #include <vector>
+#ifndef yyFlexLexer // Prevent multiple inclusion of FlexLexer.h
+#include <FlexLexer.h>
+#endif
 
 // #include "parsetree/parseTree.hpp"
 #include "../src/parseTree/parseTree.hpp"

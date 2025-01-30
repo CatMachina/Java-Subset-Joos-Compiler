@@ -86,3 +86,8 @@ add_tool(
     lexer
     "driver/lexer/main.cpp"
 )
+
+add_tool(
+    parser
+    "driver/parser/main.cpp"
+)
