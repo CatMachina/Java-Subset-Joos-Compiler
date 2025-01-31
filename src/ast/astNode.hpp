@@ -2,10 +2,10 @@
 
 #include "parsetree/ParseTree.h"
 #include <iostream>
+#include <list>
 #include <memory>
 #include <string>
 #include <vector>
-#include <list>
 
 namespace ast {
 
@@ -65,9 +65,10 @@ class ProgramDecl : public CodeBody {
   std::vector<ImportDecl> imports;
   std::shared_ptr<CodeBody> body;
 
-  public:
-  ProgramDecl(std::shared_ptr<QualifiedIdentifier> package, std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body)
-    : package{package}, imports{imports}, body{body} {}
+public:
+  ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
+              std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body)
+      : package{package}, imports{imports}, body{body} {}
 };
 
 class ClassDecl : public CodeBody, public Decl {
@@ -77,11 +78,11 @@ class ClassDecl : public CodeBody, public Decl {
   std::vector<std::shared_ptr<FieldDecl>> fields;
   std::vector<std::shared_ptr<MethodDecl>> constructors;
   std::vector<std::shared_ptr<MethodDecl>> methods;
-  
+
 public:
   ClassDecl(std::shared_ptr<Modifiers> modifiers,
-      std::shared_ptr<QualifiedIdentifier> superClass,
-      std::vector<std::shared_ptr<Decl>> classBodyDecls);
+            std::shared_ptr<QualifiedIdentifier> superClass,
+            std::vector<std::shared_ptr<Decl>> classBodyDecls);
 };
 
 class InterfaceDecl : public Decl {
@@ -90,8 +91,8 @@ class InterfaceDecl : public Decl {
   std::vector<std::shared_ptr<Decl>> interfaceBody;
 
 public:
-  InterfaceDecl(std::shared_ptr<Modifiers> modifiers,
-      std::string_view name,
+  InterfaceDecl(
+      std::shared_ptr<Modifiers> modifiers, std::string_view name,
       std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces,
       std::vector<std::shared_ptr<Decl>> interfaceBody);
 };
@@ -103,13 +104,11 @@ class MethodDecl : public Decl {
   std::shared_ptr<Stmt> methodBody;
   bool isConstructor_;
 
-  public:
-  MethodDecl(std::shared_ptr<Modifiers> methodModifiers,
-      std::string_view name,
-      std::shared_ptr<Type> returnType,
-      std::vector<std::shared_ptr<VarDecl>> params,
-      bool isConstructor,
-      std::shared_ptr<Stmt> methodBody);
+public:
+  MethodDecl(std::shared_ptr<Modifiers> methodModifiers, std::string_view name,
+             std::shared_ptr<Type> returnType,
+             std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
+             std::shared_ptr<Stmt> methodBody);
   bool isConstructor() const { return isConstructor_; }
 };
 
@@ -117,8 +116,9 @@ class VarDecl : public Decl {
   std::shared_ptr<Type> type;
   std::shared_ptr<Expr> initializer;
 
-  public:
-  VarDecl(std::shared_ptr<Type> type, std::shared_ptr<Expr> initializer) : type{std::move(type)}, initializer{std::move(initializer)} {}
+public:
+  VarDecl(std::shared_ptr<Type> type, std::shared_ptr<Expr> initializer)
+      : type{std::move(type)}, initializer{std::move(initializer)} {}
   bool hasInitializer() const { return initializer != nullptr; }
   std::shared_ptr<Expr> getInitializer() const { return initializer; }
   std::shared_ptr<Type> getType() const { return type; }
@@ -127,26 +127,28 @@ class VarDecl : public Decl {
 class FieldDecl : public VarDecl {
   std::shared_ptr<Modifiers> modifiers;
 
-  public:
-  FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type, std::shared_ptr<Stmt> initializer)
-      : modifiers{std::move(modifiers)}, VarDecl{std::move(type), std::move(initializer)} {
-        if(modifiers.isFinal()) {
-          throw std::runtime_error("FieldDecl cannot be final");
-        }
-        if(modifiers.isAbstract()) {
-          throw std::runtime_error("FieldDecl cannot be abstract");
-        }
-        if(modifiers.isNative()) {
-          throw std::runtime_error("FieldDecl cannot be native");
-        }
-        if(modifiers.isPublic() && modifiers.isProtected()) {
-          throw std::runtime_error(
-                "A method cannot be both public and protected. " + name);
-        }
-        if(!modifiers.isPublic() && !modifiers.isProtected()) {
-          throw std::runtime_error("Field must have a visibility modifier");
-        }
-      }
+public:
+  FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
+            std::shared_ptr<Stmt> initializer)
+      : modifiers{std::move(modifiers)}, VarDecl{std::move(type),
+                                                 std::move(initializer)} {
+    if (modifiers.isFinal()) {
+      throw std::runtime_error("FieldDecl cannot be final");
+    }
+    if (modifiers.isAbstract()) {
+      throw std::runtime_error("FieldDecl cannot be abstract");
+    }
+    if (modifiers.isNative()) {
+      throw std::runtime_error("FieldDecl cannot be native");
+    }
+    if (modifiers.isPublic() && modifiers.isProtected()) {
+      throw std::runtime_error(
+          "A method cannot be both public and protected. " + name);
+    }
+    if (!modifiers.isPublic() && !modifiers.isProtected()) {
+      throw std::runtime_error("Field must have a visibility modifier");
+    }
+  }
 };
 
 class Param : public AstNode {
@@ -161,7 +163,8 @@ class Block : public Stmt {
   std::vector<std::shared_ptr<Stmt>> statements;
 
 public:
-  Block(std::vector<std::shared_ptr<Stmt>> statements) : statements{std::move(statements)} {}
+  Block(std::vector<std::shared_ptr<Stmt>> statements)
+      : statements{std::move(statements)} {}
 };
 
 class IfStmt : public Stmt {
@@ -191,7 +194,8 @@ class ExpressionStmt : public Stmt {
 
 // Expressions /////////////////////////////////////////////////////////////
 
-class Literal : public Expr {};
+class Literal : public Expr {
+};
 
 class LValue : public Expr {};
 
@@ -238,26 +242,24 @@ class ArrayCast : public Expr {
 
 class ExprOp {
 protected:
-    ExprOp(int num_args) : num_args{num_args} {}
+  ExprOp(int num_args) : num_args{num_args} {}
+
 private:
-    int num_args;
+  int num_args;
 };
 
 class UnaryOp : ExprOp {
   OpType op;
+
 public:
-  enum class OpType {
-    Not,
-    Plus,
-    Minus,
-    BitWiseNot
-  };
+  enum class OpType { Not, Plus, Minus, BitWiseNot };
   UnaryOp(OpType op) : op{op}, ExprOp{1} {}
 };
 
 class BinaryOp : ExprOp {
 private:
   OpType op;
+
 public:
   enum class OpType {
     GreaterThan,
@@ -285,6 +287,7 @@ public:
 
 class BuiltInType : public Type {
   TypeType type;
+
 public:
   enum class TypeType {
     Int,
@@ -297,38 +300,37 @@ public:
 
   BuiltInType(TypeType type) : type{type} {}
   BuiltInType(parsetree::BasicType::Type type) {
-    switch(type) {
-         case parsetree::BasicType::Type::Byte:
-            kind = Kind::Byte;
-            break;
-         case parsetree::BasicType::Type::Short:
-            kind = Kind::Short;
-            break;
-         case parsetree::BasicType::Type::Int:
-            kind = Kind::Int;
-            break;
-         case parsetree::BasicType::Type::Char:
-            kind = Kind::Char;
-            break;
-         case parsetree::BasicType::Type::Boolean:
-            kind = Kind::Boolean;
-            break;
-         default:
-            break;
-      }
+    switch (type) {
+    case parsetree::BasicType::Type::Byte:
+      kind = Kind::Byte;
+      break;
+    case parsetree::BasicType::Type::Short:
+      kind = Kind::Short;
+      break;
+    case parsetree::BasicType::Type::Int:
+      kind = Kind::Int;
+      break;
+    case parsetree::BasicType::Type::Char:
+      kind = Kind::Char;
+      break;
+    case parsetree::BasicType::Type::Boolean:
+      kind = Kind::Boolean;
+      break;
+    default:
+      break;
+    }
   }
 };
 
 class ArrayType : public Type {
-   std::shared_ptr<Type> elementType;
+  std::shared_ptr<Type> elementType;
 
 public:
-   ArrayType(std::shared_ptr<Type> elementType) : elementType{elementType} {}
-   std::string toString() const override {
-      return magic_enum::enum_name(*elementType) + "[]";
-   }
+  ArrayType(std::shared_ptr<Type> elementType) : elementType{elementType} {}
+  std::string toString() const override {
+    return magic_enum::enum_name(*elementType) + "[]";
+  }
 };
-
 
 // Other classes /////////////////////////////////////////////////////////////
 
@@ -342,7 +344,8 @@ class Modifiers {
 
 public:
   void set(parsetree::Modifier modifier) {
-    switch modifier.getType() {
+    switch
+      modifier.getType() {
       case Public:
         setPublic();
         break;
@@ -358,7 +361,7 @@ public:
       case Final:
         setFinal();
         break;
-    }
+      }
   };
 
   void set(ast::Modifiers modifier);
@@ -370,12 +373,12 @@ public:
   [[nodiscard]] bool isAbstract() const noexcept { return isAbstract_; }
   [[nodiscard]] bool isNative() const noexcept { return isNative_; }
 
-  void setPublic() { isPublic_ = true };
-  void setProtected() { isProtected_ = true };
-  void setStatic() { isStatic_ = true };
-  void setFinal() { isFinal_ = true };
-  void setAbstract() { isAbstract_ = true };
-  void setNative() { isNative_ = true };
+  void setPublic(){isPublic_ = true};
+  void setProtected(){isProtected_ = true};
+  void setStatic(){isStatic_ = true};
+  void setFinal(){isFinal_ = true};
+  void setAbstract(){isAbstract_ = true};
+  void setNative(){isNative_ = true};
 
   [[nodiscard]] std::string toString() const {
     std::string result;

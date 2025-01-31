@@ -2,47 +2,38 @@
 #include <sstream>
 #include <unistd.h>
 
-#include "../src/parser/myBisonParser.hpp"
 #include "../src/parseTree/parseTree.hpp"
+#include "../src/parser/myBisonParser.hpp"
 
 extern std::string parser_resolve_token(int yysymbol);
 
-int main()
-{
+int main() {
   // Determine if input is piped
   const bool is_piped = !isatty(STDIN_FILENO);
 
-  if (!is_piped)
-  {
+  if (!is_piped) {
     std::cout
         << "This is the Scanner. Enter a string to be lexed followed by enter."
         << std::endl;
   }
 
-  do
-  {
+  do {
     // Prompt for input if not piped
-    if (!is_piped)
-    {
+    if (!is_piped) {
       std::cout << "> ";
       std::cout.flush();
     }
 
     // Read input
     std::string input;
-    if (!is_piped)
-    {
-      if (!std::getline(std::cin, input))
-      {
+    if (!is_piped) {
+      if (!std::getline(std::cin, input)) {
         break; // Exit on EOF
       }
-    }
-    else
-    {
+    } else {
       input.assign(std::istreambuf_iterator<char>(std::cin),
                    std::istreambuf_iterator<char>());
-      if (input.empty())
-      {
+      if (input.empty()) {
         break; // Exit on EOF
       }
     }
