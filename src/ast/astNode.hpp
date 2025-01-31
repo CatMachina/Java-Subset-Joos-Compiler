@@ -1,6 +1,6 @@
 #pragma once
 
-#include "parsetree/ParseTree.h"
+#include "parseTree/parseTree.hpp"
 #include <iostream>
 #include <list>
 #include <memory>
@@ -80,8 +80,9 @@ class ClassDecl : public CodeBody, public Decl {
   std::vector<std::shared_ptr<MethodDecl>> methods;
 
 public:
-  ClassDecl(std::shared_ptr<Modifiers> modifiers,
+  ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
             std::shared_ptr<QualifiedIdentifier> superClass,
+            std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 };
 
@@ -98,18 +99,20 @@ public:
 };
 
 class MethodDecl : public Decl {
-  std::shared_ptr<Modifiers> methodModifiers;
+  std::shared_ptr<Modifiers> modifiers;
   std::shared_ptr<Type> returnType;
   std::vector<std::shared_ptr<VarDecl>> params;
   std::shared_ptr<Stmt> methodBody;
   bool isConstructor_;
 
 public:
-  MethodDecl(std::shared_ptr<Modifiers> methodModifiers, std::string_view name,
+  MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
              std::shared_ptr<Type> returnType,
              std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
              std::shared_ptr<Stmt> methodBody);
+  std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
   bool isConstructor() const { return isConstructor_; }
+  bool hasBody() const { return methodBody != nullptr; };
 };
 
 class VarDecl : public Decl {
@@ -117,8 +120,10 @@ class VarDecl : public Decl {
   std::shared_ptr<Expr> initializer;
 
 public:
-  VarDecl(std::shared_ptr<Type> type, std::shared_ptr<Expr> initializer)
-      : type{std::move(type)}, initializer{std::move(initializer)} {}
+  VarDecl(std::shared_ptr<Type> type, std::string_view name,
+          std::shared_ptr<Expr> initializer)
+      : Decl{name}, type{std::move(type)}, initializer{std::move(initializer)} {
+  }
   bool hasInitializer() const { return initializer != nullptr; }
   std::shared_ptr<Expr> getInitializer() const { return initializer; }
   std::shared_ptr<Type> getType() const { return type; }
@@ -129,26 +134,7 @@ class FieldDecl : public VarDecl {
 
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
-            std::shared_ptr<Stmt> initializer)
-      : modifiers{std::move(modifiers)}, VarDecl{std::move(type),
-                                                 std::move(initializer)} {
-    if (modifiers.isFinal()) {
-      throw std::runtime_error("FieldDecl cannot be final");
-    }
-    if (modifiers.isAbstract()) {
-      throw std::runtime_error("FieldDecl cannot be abstract");
-    }
-    if (modifiers.isNative()) {
-      throw std::runtime_error("FieldDecl cannot be native");
-    }
-    if (modifiers.isPublic() && modifiers.isProtected()) {
-      throw std::runtime_error(
-          "A method cannot be both public and protected. " + name);
-    }
-    if (!modifiers.isPublic() && !modifiers.isProtected()) {
-      throw std::runtime_error("Field must have a visibility modifier");
-    }
-  }
+            std::string_view name, std::shared_ptr<Stmt> initializer);
 };
 
 class Param : public AstNode {
@@ -190,12 +176,11 @@ class ReturnStmt : public Stmt {
 
 class ExpressionStmt : public Stmt {
   std::shared_ptr<StatementExpr> expr;
-}
+};
 
 // Expressions /////////////////////////////////////////////////////////////
 
-class Literal : public Expr {
-};
+class Literal : public Expr {};
 
 class LValue : public Expr {};
 
@@ -204,7 +189,7 @@ class StatementExpr : public Expr {};
 class Assignment : public StatementExpr {
   std::shared_ptr<LValue> lvalue;
   std::shared_ptr<Expr> expr;
-}
+};
 
 class MethodInvocation : public StatementExpr {
   std::shared_ptr<Expr> expr;
@@ -285,6 +270,10 @@ public:
 
 // Types /////////////////////////////////////////////////////////////
 
+/*
+TODO: The commented out BuiltinType didn't look right to me so I rewrote it (see
+below) Needs to check if mine is correct
+
 class BuiltInType : public Type {
   TypeType type;
 
@@ -321,6 +310,38 @@ public:
     }
   }
 };
+*/
+
+class BuiltInType : public Type {
+public:
+  enum class Kind { Int, Boolean, Short, Char, Void, Byte };
+
+  BuiltInType(Kind kind) : kind{kind} {}
+  BuiltInType(parsetree::BasicType::Type type) {
+    switch (type) {
+    case parsetree::BasicType::Type::Byte:
+      kind = Kind::Byte;
+      break;
+    case parsetree::BasicType::Type::Short:
+      kind = Kind::Short;
+      break;
+    case parsetree::BasicType::Type::Int:
+      kind = Kind::Int;
+      break;
+    case parsetree::BasicType::Type::Char:
+      kind = Kind::Char;
+      break;
+    case parsetree::BasicType::Type::Boolean:
+      kind = Kind::Boolean;
+      break;
+    default:
+      break;
+    }
+  }
+
+private:
+  Kind kind;
+};
 
 class ArrayType : public Type {
   std::shared_ptr<Type> elementType;
@@ -344,24 +365,23 @@ class Modifiers {
 
 public:
   void set(parsetree::Modifier modifier) {
-    switch
-      modifier.getType() {
-      case Public:
-        setPublic();
-        break;
-      case Protected:
-        setProtected();
-        break;
-      case Static:
-        setStatic();
-        break;
-      case Abstract:
-        setAbstract();
-        break;
-      case Final:
-        setFinal();
-        break;
-      }
+    switch (modifier.get_type()) {
+    case parsetree::Modifier::Type::Public:
+      setPublic();
+      break;
+    case parsetree::Modifier::Type::Protected:
+      setProtected();
+      break;
+    case parsetree::Modifier::Type::Static:
+      setStatic();
+      break;
+    case parsetree::Modifier::Type::Abstract:
+      setAbstract();
+      break;
+    case parsetree::Modifier::Type::Final:
+      setFinal();
+      break;
+    }
   };
 
   void set(ast::Modifiers modifier);
@@ -373,12 +393,12 @@ public:
   [[nodiscard]] bool isAbstract() const noexcept { return isAbstract_; }
   [[nodiscard]] bool isNative() const noexcept { return isNative_; }
 
-  void setPublic(){isPublic_ = true};
-  void setProtected(){isProtected_ = true};
-  void setStatic(){isStatic_ = true};
-  void setFinal(){isFinal_ = true};
-  void setAbstract(){isAbstract_ = true};
-  void setNative(){isNative_ = true};
+  void setPublic() { isPublic_ = true; };
+  void setProtected() { isProtected_ = true; };
+  void setStatic() { isStatic_ = true; };
+  void setFinal() { isFinal_ = true; };
+  void setAbstract() { isAbstract_ = true; };
+  void setNative() { isNative_ = true; };
 
   [[nodiscard]] std::string toString() const {
     std::string result;
