@@ -42,23 +42,25 @@ struct Node {
     Corrupted,
     Literal,
 
-    ProgramDeclaration,
-    PackageDeclaration,
+    ProgramDecl,
+    PackageDecl,
 
-    SingleImportDeclaration,
-    MultiImportDeclaration,
+    ImportDeclList,
+    SingleImportDecl,
+    MultiImportDecl,
 
-    ClassDeclaration,
-    FieldDeclaration,
-    MethodDeclaration,
-    ConstructorDeclaration,
-    AbstractMethodDeclaration,
-    LocalDeclaration,
+    ClassDecl,
+    InterfaceDecl,
+    FieldDecl,
+    MethodDecl,
+    ConstructorDecl,
+    AbstractMethodDecl,
+    LocalDecl,
 
     ModifierList,
     InterfaceTypeList,
-    ClassBodyDeclarationList,
-    InterfaceBodyDeclarationList,
+    ClassBodyDeclList,
+    InterfaceBodyDeclList,
     ParameterList,
     StatementList,
     ArgumentList,
@@ -110,6 +112,9 @@ struct Node {
 
   // Gets node type
   Type get_node_type() const { return type; }
+
+  // Return Type String
+  std::string type_string() const { return magic_enum::enum_name(type); }
 
   // If the node is corrupted, the tree has been corrupted
   bool is_corrupted() const {

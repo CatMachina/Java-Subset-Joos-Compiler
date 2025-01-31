@@ -78,7 +78,7 @@
 program:
     package_decls import_decls_opt type_decl {
         (void) yynerrs;
-        *ret = lexer.make_node(NodeType::ProgramDeclaration, std::move($1), std::move($2), std::move($3));
+        *ret = lexer.make_node(NodeType::ProgramDecl, std::move($1), std::move($2), std::move($3));
     }
 ;
 
@@ -89,7 +89,7 @@ package_decls:
     | package_decl
 ;
 
-package_decl: PACKAGE qualified_name SEMI    { $$ = lexer.make_node(NodeType::PackageDeclaration, std::move($2)); } 
+package_decl: PACKAGE qualified_name SEMI    { $$ = lexer.make_node(NodeType::PackageDecl, std::move($2)); } 
 ;
 
 // Import Declarations (could be multiple)
@@ -100,13 +100,13 @@ import_decls_opt:
 ;
 
 import_decls:
-    import_decl
-    | import_decls import_decl
+    import_decl { $$ = lexer.make_node(NodeType::ImportDeclList, std::move($1)); }
+    | import_decls import_decl { $$ = lexer.make_node(NodeType::ImportDeclList, std::move($1), std::move($2)); }
 ;
 
 import_decl:
-    IMPORT qualified_name SEMI { $$ = lexer.make_node(NodeType::SingleImportDeclaration, std::move($2)); }
-    | IMPORT qualified_name '.' STAR ';' { $$ = lexer.make_node(NodeType::MultiImportDeclaration, std::move($2)); }
+    IMPORT qualified_name SEMI { $$ = lexer.make_node(NodeType::SingleImportDecl, std::move($2)); }
+    | IMPORT qualified_name '.' STAR ';' { $$ = lexer.make_node(NodeType::MultiImportDecl, std::move($2)); }
 ;
 
 // Class and Interface Declarations
@@ -120,7 +120,7 @@ type_decl:
 // public final class B extends A implements InterfaceA, InterfaceB {}
 class_decl:
     modifiers_opt CLASS ID superclass interfaces LBRACE class_body RBRACE {
-        $$ = lexer.make_node(NodeType::ClassDeclaration, std::move($1), std::move($3), std::move($4), std::move($5), std::move($7) );
+        $$ = lexer.make_node(NodeType::ClassDecl, std::move($1), std::move($3), std::move($4), std::move($5), std::move($7) );
     }
 ;
 
@@ -163,6 +163,7 @@ interface_list:
 // Interface Declaration
 // public interface MyInterface {}
 interface_decl: modifiers_opt INTERFACE ID extends_interfaces_opt LBRACE interface_body RBRACE
+    { $$ = lexer.make_node(NodeType::InterfaceDecl, std::move($1), std::move($3), std::move($4), std::move($6)); }
 ;
 
 extends_interfaces_opt:
@@ -184,9 +185,9 @@ class_body:
 ;
 
 class_body_decl_list:
-    class_body_decl { $$ = lexer.make_node(NodeType::ClassBodyDeclarationList, std::move($1)); }
+    class_body_decl { $$ = lexer.make_node(NodeType::ClassBodyDeclList, std::move($1)); }
     | class_body_decl_list class_body_decl {
-        $$ = lexer.make_node(NodeType::ClassBodyDeclarationList, std::move($1), std::move($2));
+        $$ = lexer.make_node(NodeType::ClassBodyDeclList, std::move($1), std::move($2));
     }
 
 class_body_decl:
@@ -208,18 +209,18 @@ interface_body:
 //| method_decl interface_body
 
 interface_body_decl_list:
-    abstract_method_decl { $$ = lexer.make_node(NodeType::InterfaceBodyDeclarationList, std::move($1)); }
+    abstract_method_decl { $$ = lexer.make_node(NodeType::InterfaceBodyDeclList, std::move($1)); }
     | interface_body_decl_list abstract_method_decl {
-        $$ = lexer.make_node(NodeType::InterfaceBodyDeclarationList, std::move($1), std::move($2));
+        $$ = lexer.make_node(NodeType::InterfaceBodyDeclList, std::move($1), std::move($2));
     }
 ;
 
 abstract_method_decl:
     abstract_modifiers_opt type ID LPAREN params RPAREN SEMI {
-        $$ = lexer.make_node(NodeType::AbstractMethodDeclaration, std::move($1), std::move($2), std::move($3), std::move($5));
+        $$ = lexer.make_node(NodeType::AbstractMethodDecl, std::move($1), std::move($2), std::move($3), std::move($5));
     }
     | abstract_modifiers_opt VOID ID LPAREN params RPAREN SEMI {
-        $$ = lexer.make_node(NodeType::AbstractMethodDeclaration, std::move($1), std::move($3), std::move($5));
+        $$ = lexer.make_node(NodeType::AbstractMethodDecl, std::move($1), std::move($3), std::move($5));
         }
 ;
 
@@ -248,7 +249,7 @@ int z;
 */
 field_decl:
     method_modifiers_opt type var_name SEMI {
-        $$ = lexer.make_node(NodeType::FieldDeclaration, std::move($1), std::move($2), std::move($3));
+        $$ = lexer.make_node(NodeType::FieldDecl, std::move($1), std::move($2), std::move($3));
     }
 ;
 
@@ -278,10 +279,10 @@ public static void main(String[] args) {}
 */
 method_decl:
     method_modifiers_opt VOID ID LPAREN params RPAREN method_body {
-        $$ = lexer.make_node(NodeType::MethodDeclaration, std::move($1), std::move($3), std::move($5), std::move($7));
+        $$ = lexer.make_node(NodeType::MethodDecl, std::move($1), std::move($3), std::move($5), std::move($7));
     }
     | method_modifiers_opt type ID LPAREN params RPAREN method_body {
-        $$ = lexer.make_node(NodeType::MethodDeclaration, std::move($1), std::move($2), std::move($3), std::move($5), std::move($7));
+        $$ = lexer.make_node(NodeType::MethodDecl, std::move($1), std::move($2), std::move($3), std::move($5), std::move($7));
     }
 ;
 
@@ -314,7 +315,7 @@ public A() {}
 public A(int x) { this.x = x; }
 */
 constructor_decl: method_modifiers_opt ID LPAREN params RPAREN block {
-    $$ = lexer.make_node(NodeType::ConstructorDeclaration, std::move($1), std::move($2), std::move($4), std::move($6));
+    $$ = lexer.make_node(NodeType::ConstructorDecl, std::move($1), std::move($2), std::move($4), std::move($6));
 }
 ;
 
@@ -617,7 +618,7 @@ local_decl_statement:
 ;
 
 local_decl:
-    type var_name { $$ = lexer.make_node(NodeType::LocalDeclaration, std::move($1), std::move($2)); }
+    type var_name { $$ = lexer.make_node(NodeType::LocalDecl, std::move($1), std::move($2)); }
 ;
 
 var_name:

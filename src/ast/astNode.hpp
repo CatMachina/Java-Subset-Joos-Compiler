@@ -5,10 +5,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <list>
 
 namespace ast {
 
 // Base class for all AST nodes //////////////////////////////////////////////
+
+class QualifiedIdentifier;
+class ExprOp;
 
 class AstNode {
 public:
@@ -24,11 +28,7 @@ public:
   [[nodiscard]] std::string getName() const noexcept { return name; }
 };
 
-class ProgramDecl : public AstNode {
-  std::vector<std::shared_ptr<PackageDecl>> packageDecls;
-  std::vector<std::shared_ptr<ImportDecl>> importDecls;
-  std::shared_ptr<Decl> typeDecl;
-};
+class CodeBody : public AstNode {};
 
 class Type : public AstNode {
 public:
@@ -42,7 +42,10 @@ public:
 
 class Stmt : public AstNode {};
 
-class Expr : public AstNode {};
+class Expr : public AstNode {
+  // Reverse Polish Notation
+  std::list<ExprOp> rpn_ops;
+};
 
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 
@@ -52,39 +55,98 @@ class PackageDecl : public Decl {
   std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
 };
 
-class ImportDecl : public Decl {
+struct ImportDecl {
   std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
+  bool hasStar;
 };
 
-class ClassDecl : public Decl {
+class ProgramDecl : public CodeBody {
+  std::shared_ptr<QualifiedIdentifier> package;
+  std::vector<ImportDecl> imports;
+  std::shared_ptr<CodeBody> body;
+
+  public:
+  ProgramDecl(std::shared_ptr<QualifiedIdentifier> package, std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body)
+    : package{package}, imports{imports}, body{body} {}
+};
+
+class ClassDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
-  std::vector<std::shared_ptr<QualifiedIdentifier>> superClasses;
+  std::shared_ptr<QualifiedIdentifier> superClass;
   std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces;
-  std::vector<std::shared_ptr<Decl>> classBody;
+  std::vector<std::shared_ptr<FieldDecl>> fields;
+  std::vector<std::shared_ptr<MethodDecl>> constructors;
+  std::vector<std::shared_ptr<MethodDecl>> methods;
+  
+public:
+  ClassDecl(std::shared_ptr<Modifiers> modifiers,
+      std::shared_ptr<QualifiedIdentifier> superClass,
+      std::vector<std::shared_ptr<Decl>> classBodyDecls);
 };
 
 class InterfaceDecl : public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces;
   std::vector<std::shared_ptr<Decl>> interfaceBody;
-};
 
-class FieldDecl : public Decl {
-  std::shared_ptr<Modifiers> modifiers;
-  std::shared_ptr<Type> type;
+public:
+  InterfaceDecl(std::shared_ptr<Modifiers> modifiers,
+      std::string_view name,
+      std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces,
+      std::vector<std::shared_ptr<Decl>> interfaceBody);
 };
 
 class MethodDecl : public Decl {
   std::shared_ptr<Modifiers> methodModifiers;
   std::shared_ptr<Type> returnType;
-  std::vector<std::shared_ptr<Param>> params;
-  std::shared_ptr<Block> methodBody;
+  std::vector<std::shared_ptr<VarDecl>> params;
+  std::shared_ptr<Stmt> methodBody;
+  bool isConstructor_;
+
+  public:
+  MethodDecl(std::shared_ptr<Modifiers> methodModifiers,
+      std::string_view name,
+      std::shared_ptr<Type> returnType,
+      std::vector<std::shared_ptr<VarDecl>> params,
+      bool isConstructor,
+      std::shared_ptr<Stmt> methodBody);
+  bool isConstructor() const { return isConstructor_; }
 };
 
-class ConstructorDecl : public Decl {
-  std::shared_ptr<Modifiers> methodModifiers;
-  std::vector<std::shared_ptr<Param>> params;
-  std::shared_ptr<Block> constructorBody;
+class VarDecl : public Decl {
+  std::shared_ptr<Type> type;
+  std::shared_ptr<Expr> initializer;
+
+  public:
+  VarDecl(std::shared_ptr<Type> type, std::shared_ptr<Expr> initializer) : type{std::move(type)}, initializer{std::move(initializer)} {}
+  bool hasInitializer() const { return initializer != nullptr; }
+  std::shared_ptr<Expr> getInitializer() const { return initializer; }
+  std::shared_ptr<Type> getType() const { return type; }
+};
+
+class FieldDecl : public VarDecl {
+  std::shared_ptr<Modifiers> modifiers;
+
+  public:
+  FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type, std::shared_ptr<Stmt> initializer)
+      : modifiers{std::move(modifiers)}, VarDecl{std::move(type), std::move(initializer)} {
+        if(modifiers.isFinal()) {
+          throw std::runtime_error("FieldDecl cannot be final");
+        }
+        if(modifiers.isAbstract()) {
+          throw std::runtime_error("FieldDecl cannot be abstract");
+        }
+        if(modifiers.isNative()) {
+          throw std::runtime_error("FieldDecl cannot be native");
+        }
+        if(modifiers.isPublic() && modifiers.isProtected()) {
+          throw std::runtime_error(
+                "A method cannot be both public and protected. " + name);
+        }
+        if(!modifiers.isPublic() && !modifiers.isProtected()) {
+          throw std::runtime_error("Field must have a visibility modifier");
+        }
+      }
 };
 
 class Param : public AstNode {
@@ -97,6 +159,9 @@ class Param : public AstNode {
 
 class Block : public Stmt {
   std::vector<std::shared_ptr<Stmt>> statements;
+
+public:
+  Block(std::vector<std::shared_ptr<Stmt>> statements) : statements{std::move(statements)} {}
 };
 
 class IfStmt : public Stmt {
@@ -171,21 +236,99 @@ class ArrayCast : public Expr {
 
 // Operators /////////////////////////////////////////////////////////////
 
-class UnaryOp : public AstNode {
-  OpType op;
-  std::shared_ptr<Expr> operand;
-public:
-  enum class OpType { };
+class ExprOp {
+protected:
+    ExprOp(int num_args) : num_args{num_args} {}
+private:
+    int num_args;
 };
 
-class BinaryOp : public Expr {
+class UnaryOp : ExprOp {
+  OpType op;
+public:
+  enum class OpType {
+    Not,
+    Plus,
+    Minus,
+    BitWiseNot
+  };
+  UnaryOp(OpType op) : op{op}, ExprOp{1} {}
+};
+
+class BinaryOp : ExprOp {
 private:
   OpType op;
-  std::shared_ptr<Expr> left;
-  std::shared_ptr<Expr> right;
 public:
-  enum class OpType { };
+  enum class OpType {
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+    Equal,
+    NotEqual,
+    Assign,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    BitWiseAnd,
+    BitWiseOr,
+    Plus,
+    Minus,
+    InstanceOf
+  };
+  BinaryOp(OpType op) : op{op}, ExprOp{2} {}
 };
+
+// Types /////////////////////////////////////////////////////////////
+
+class BuiltInType : public Type {
+  TypeType type;
+public:
+  enum class TypeType {
+    Int,
+    Boolean,
+    Short,
+    Char,
+    Void,
+    Byte
+  }
+
+  BuiltInType(TypeType type) : type{type} {}
+  BuiltInType(parsetree::BasicType::Type type) {
+    switch(type) {
+         case parsetree::BasicType::Type::Byte:
+            kind = Kind::Byte;
+            break;
+         case parsetree::BasicType::Type::Short:
+            kind = Kind::Short;
+            break;
+         case parsetree::BasicType::Type::Int:
+            kind = Kind::Int;
+            break;
+         case parsetree::BasicType::Type::Char:
+            kind = Kind::Char;
+            break;
+         case parsetree::BasicType::Type::Boolean:
+            kind = Kind::Boolean;
+            break;
+         default:
+            break;
+      }
+  }
+};
+
+class ArrayType : public Type {
+   std::shared_ptr<Type> elementType;
+
+public:
+   ArrayType(std::shared_ptr<Type> elementType) : elementType{elementType} {}
+   std::string toString() const override {
+      return magic_enum::enum_name(*elementType) + "[]";
+   }
+};
+
 
 // Other classes /////////////////////////////////////////////////////////////
 
@@ -236,12 +379,12 @@ public:
 
   [[nodiscard]] std::string toString() const {
     std::string result;
-    result += (isPublic_ ? "public" : "");
-    result += (isProtected_ ? "protected" : "");
-    result += (isStatic_ ? "static" : "");
-    result += (isFinal_ ? "final" : "");
-    result += (isAbstract_ ? "abstract" : "");
-    result += (isNative_ ? "native" : "");
+    result += (isPublic_ ? "public " : "");
+    result += (isProtected_ ? "protected " : "");
+    result += (isStatic_ ? "static " : "");
+    result += (isFinal_ ? "final " : "");
+    result += (isAbstract_ ? "abstract " : "");
+    result += (isNative_ ? "native " : "");
     return result;
   };
 

@@ -1,74 +1,127 @@
 #pragma once
 
+#include <stdexcept>
+#include <vector>
+#include <string_view>
+#include <memory>
 #include "ast/ast.hpp"
-#include "parsetree/parseTree.hpp"
+#include "parseTree/parseTree.h"
 
 namespace parsetree {
 
-using nodeType = Node::Type;
+class ParseTreeVisitor {
+   using nodeType = Node::Type;
+   using NodePtr = std::shared_ptr<Node>;
 
-// General visitor template
-template <parsetree::Node::Type N, typename T> T visit(Node *node) {
-  if (!node) {
-    throw std::runtime_error("Visited a null node!");
-  }
-  throw std::runtime_error("No visitor for node type " + node->type_string());
-}
+public:
+   explicit ParseTreeVisitor(ast::Semantic& sem) noexcept
+       : sem{sem} {}
 
-// List pattern visitor template
-template <parsetree::Node::Type N, typename T, bool nullable = false>
-void visitListPattern(Node *node, std::vector<T> &list) {
-  if (nullable && node == nullptr)
-    return;
-  if (!nullable && node == nullptr) {
-    throw std::runtime_error("Visited a null node!");
-  }
-  check_node_type(node, N);
-  check_num_children(node, 1, 2);
+private:
+   // Basic helper functions
 
-  if (node->num_children() == 1) {
-    list.push_back(visit<N, T>(node->child(0)));
-  } else if (node->num_children() == 2) {
-    visitListPattern<N, T, nullable>(node->child(0), list);
-    list.push_back(visit<N, T>(node->child(1)));
-  }
-}
+   static void check_node_type(const NodePtr& node, Node::Type type) {
+      if (!node || node->get_node_type() != type) {
+         throw std::runtime_error(
+            "Called on a node that is not the correct type!"
+            " Expected: " +
+            Node::type_string(type) + " Actual: " + node->type_string());
+      }
+   }
 
-// Compilation unit visitors ///////////////////////////////////////////////////
+   static void check_num_children(const NodePtr& node, std::size_t min, std::size_t max) {
+      if (!node || node->get_num_children() < min || node->get_num_children() > max) {
+         throw std::runtime_error(
+               "Node has incorrect number of children!"
+               " Type: " +
+               (node ? node->type_string() : "null") +
+               " Expected: " + std::to_string(min) + " to " +
+               std::to_string(max) +
+               " Actual: " + std::to_string(node ? node->get_num_children() : 0));
+      }
+   }
 
-std::shared_ptr<ast::ProgramDecl> visitProgramDecl(Node *node);
-std::shared_ptr<ast::QualifiedIdentifier> visitPackageDeclaration(Node *node);
+   [[noreturn]] static void unreachable() {
+      throw std::runtime_error("Unreachable code reached!");
+   }
 
-template <>
-ast::ImportDeclaration visit<pty::ImportDeclarationList>(Node *node);
+   // Templated visitor patterns
 
-// Classes & interfaces visitors ///////////////////////////////////////////////
+   template <nodeType N, typename T>
+   [[nodiscard]] T visit(const NodePtr& node) {
+      throw std::runtime_error("No visitor for node type " + (node ? node->type_string() : "null"));
+   }
 
-std::shared_ptr<ast::ClassDecl> visitClassDeclaration(Node *node);
-std::shared_ptr<ast::InterfaceDecl> visitInterfaceDeclaration(Node *node);
-std::shared_ptr<ast::QualifiedIdentifier> visitSuperOpt(Node *node);
-std::shared_ptr<ast::FieldDecl> visitFieldDeclaration(Node *node);
-std::shared_ptr<ast::MethodDecl> visitMethodDeclaration(Node *node);
-std::shared_ptr<ast::MethodDecl> visitConstructorDeclaration(Node *node);
-std::shared_ptr<ast::MethodDecl> visitAbstractMethodDeclaration(Node *node);
+   template <nodeType N, typename T, bool nullable = false>
+   void visitListPattern(const NodePtr& node, std::vector<T>& list) {
+      if constexpr (nullable) {
+         if (!node) return;
+      } else if (!node) {
+         throw std::runtime_error("Visited a null node!");
+      }
 
-template <> ast::Decl *visit<pty::ClassBodyDeclarationList>(Node *node);
-template <> ast::VarDecl *visit<pty::VariableDeclaratorList>(Node *node);
-template <> ast::VarDecl *visit<pty::FormalParameterList>(Node *node);
-template <> ast::Decl *visit<pty::InterfaceMemberDeclarationList>(Node *node);
+      check_node_type(node, N);
+      check_num_children(node, 1, 2);
 
-// Statements visitors /////////////////////////////////////////////////////////
+      if (node->get_num_children() == 1) {
+         list.push_back(visit<N, T>(node->child(0)));
+      } else {
+         visitListPattern<N, T, nullable>(node->child(0), list);
+         list.push_back(visit<N, T>(node->child(1)));
+      }
+   }
 
-std::shared_ptr<ast::Stmt> visitBlock(Node *node);
+public:
+   // Program Decl visitors
 
-// Leaf node visitors //////////////////////////////////////////////////////////
+   [[nodiscard]] std::shared_ptr<ast::ProgramDecl> visitProgramDecl(const NodePtr& node);
+   [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier> visitPackageDecl(const NodePtr& node);
+   template <>
+   [[nodiscard]] ast::ImportDecl visit<nodeType::ImportDeclList>(const NodePtr& node);
 
-std::shared_ptr<ast::QualifiedIdentifier> visitQualifiedIdentifier(
-    Node *node, std::shared_ptr<ast::QualifiedIdentifier> ast_node = nullptr);
-std::string visitIdentifier(Node *node);
-ast::Modifiers visitModifierList(Node *node,
-                                 ast::Modifiers modifiers = ast::Modifiers{});
-Modifier visitModifier(Node *node);
-std::shared_ptr<ast::Type> visitType(Node *node);
+   // Classes & interfaces visitors
+
+   [[nodiscard]] std::shared_ptr<ast::ClassDecl> visitClassDecl(const NodePtr& node);
+   [[nodiscard]] std::shared_ptr<ast::InterfaceDecl> visitInterfaceDecl(const NodePtr& node);
+   [[nodiscard]] std::shared_ptr<ast::ReferenceType> visitSuper(const NodePtr& node);
+   [[nodiscard]] std::shared_ptr<ast::FieldDecl> visitFieldDecl(const NodePtr& node);
+   [[nodiscard]] std::shared_ptr<ast::MethodDecl> visitMethodDecl(const NodePtr& node);
+   [[nodiscard]] std::shared_ptr<ast::MethodDecl> visitConstructorDecl(const NodePtr& node);
+   [[nodiscard]] std::shared_ptr<ast::MethodDecl> visitAbstractMethodDecl(const NodePtr& node);
+
+   template <>
+   [[nodiscard]] std::shared_ptr<ast::Decl> visit<nodeType::ClassBodyDeclList>(const NodePtr& node);
+   template <>
+   [[nodiscard]] std::shared_ptr<ast::VarDecl> visit<nodeType::ParameterList>(const NodePtr& node);
+   template <>
+   [[nodiscard]] std::shared_ptr<ast::Decl> visit<nodeType::InterfaceBodyDeclList>(const NodePtr& node);
+
+   // Statements visitors 
+   struct VariableDecl {
+      std::shared_ptr<ast::Type> type;
+      std::string_view name;
+      std::shared_ptr<ast::Expr> init;
+   };
+   VariableDecl visitVariableDeclarator(const NodePtr& type, const NodePtr& node);
+
+   [[nodiscard]] std::shared_ptr<ast::Stmt> visitBlock(const NodePtr& node);
+
+   // Expression visitors
+
+   [[nodiscard]] std::shared_ptr<ast::Expr> visitExpr(const NodePtr& node);
+
+   // Leaf node visitors
+
+   [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier> visitQualifiedIdentifier(
+         const NodePtr& node, std::shared_ptr<ast::QualifiedIdentifier> ast_node = nullptr);
+   [[nodiscard]] std::string_view visitIdentifier(const NodePtr& node);
+   [[nodiscard]] ast::Modifiers visitModifierList(const NodePtr& node,
+                                                  ast::Modifiers modifiers = ast::Modifiers{});
+   [[nodiscard]] Modifier visitModifier(const NodePtr& node);
+   [[nodiscard]] std::shared_ptr<ast::Type> visitType(const NodePtr& node);
+
+private:
+   ast::Semantic& sem;
+};
 
 } // namespace parsetree
