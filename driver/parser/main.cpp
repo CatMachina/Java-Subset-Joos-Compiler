@@ -1,11 +1,13 @@
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
+#include <cstdlib>
 
 #include "../src/parseTree/parseTree.hpp"
 #include "../src/parser/myBisonParser.hpp"
 
 extern std::string parser_resolve_token(int yysymbol);
+extern int yydebug;
 
 int main() {
   // Determine if input is piped
@@ -42,6 +44,11 @@ int main() {
     myBisonParser parser{input};
 
     // Parse
+    const char *env_var = std::getenv("YYDEBUG"); // Replace with your environment variable name
+    if (env_var) {
+      yydebug = 1;
+      std::cout << "====== DEBUG MODE ======\n";
+    }
     std::shared_ptr<parsetree::Node> root = nullptr;
     parser.parse(root);
 
