@@ -596,7 +596,7 @@ array_cast:
 ;
 
 class_create_expr:
-    NEW qualified_name LBRACE arg_list_opt RBRACE { $$ = lexer.make_node(NodeType::ClassCreation, std::move($2), std::move($4)); }
+    NEW qualified_name LPAREN arg_list_opt RPAREN { $$ = lexer.make_node(NodeType::ClassCreation, std::move($2), std::move($4)); }
 ;
 
 field_access_expr:
