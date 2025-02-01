@@ -69,7 +69,7 @@ using basicType = parsetree::BasicType::Type;
 \'[^\'\\]\'                         { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
 \\[btnfr\'\"\\]                     { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
 
-\"([^\"\\]|\\[0btnfr\'\"\\])*\"      { yylval = make_literal(literalType::String, yytext); print_token("STRING_LITERAL", yytext); return LITERAL ; }
+\"([^\"\\]|\\[btnfr\'\"\\]|\\([0-7]|[0-7][0-7]|[0-3][0-7][0-7]))*\"      { yylval = make_literal(literalType::String, yytext); print_token("STRING_LITERAL", yytext); return LITERAL ; }
 
 "null"                              { yylval = make_literal(literalType::Null, yytext); print_token("NULL_LITERAL", yytext); return LITERAL ; }
 
