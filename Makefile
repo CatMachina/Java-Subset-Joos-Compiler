@@ -11,7 +11,6 @@ $(BUILD_DIR)/Makefile:
 
 $(TARGET): $(BUILD_DIR)/Makefile
 	cd $(BUILD_DIR) && $(MAKE) $(TARGET)
-	cp $(BUILD_DIR)/$(TARGET) .
 
 clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
