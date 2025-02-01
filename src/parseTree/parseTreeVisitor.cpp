@@ -260,7 +260,7 @@ std::list<ast::ExprOp> visitExpr(const NodePtr &node) {
     return std::list<ast::ExprOp>();
   }
 
-  check_node_type(node, nodeType::Expression);
+  // check_node_type(node, nodeType::Expression);
 
   // unimplemented yet
   return std::list<ast::ExprOp>();
@@ -270,8 +270,9 @@ std::list<ast::ExprOp> visitExpr(const NodePtr &node) {
 std::shared_ptr<ast::Stmt> visitBlock(const NodePtr &node) {
   check_node_type(node, nodeType::Block);
   check_num_children(node, 1, 1);
-  if (node->child_at(0) == nullptr)
+  if (node->child_at(0) == nullptr) {
     return nullptr;
+  }
   // Unimplemented yet
   return std::make_shared<ast::Block>();
 }

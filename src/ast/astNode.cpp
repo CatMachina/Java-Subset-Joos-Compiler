@@ -11,7 +11,7 @@ ClassDecl::ClassDecl(
       interfaces{interfaces} {
   // Check modifiers
   if (!modifiers) {
-    throw std::runtime_error("Invalid modifiers.");
+    throw std::runtime_error("Class Decl Invalid modifiers.");
   }
   if (modifiers->isAbstract() && modifiers->isFinal())
     throw std::runtime_error("A class cannot be both abstract and final.");
@@ -82,27 +82,28 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
       isConstructor_{isConstructor}, methodBody{methodBody} {
   // Check modifiers
   if (!modifiers) {
-    throw std::runtime_error("Invalid modifiers.");
+    throw std::runtime_error("Method Decl Invalid modifiers for method " + std::string(name));
   }
   // A method has a body iff it is neither abstract nor native
   if ((modifiers->isAbstract() || modifiers->isNative()) && methodBody) {
     throw std::runtime_error(
-        "An abstract or native method cannot have a body.");
+        "An abstract or native method cannot have a body for method " + std::string(name));
   }
   if (!modifiers->isAbstract() && !modifiers->isNative() && !methodBody) {
     throw std::runtime_error(
-        "A non-abstract and non-native method must have a body.");
+        "A non-abstract and non-native method must have a body for method " + std::string(name));
   }
   // Other restricitons for modifiers
   if (modifiers->isAbstract() &&
       (modifiers->isStatic() || modifiers->isFinal())) {
-    throw std::runtime_error("An abstract method cannot be static or final.");
+    throw std::runtime_error("An abstract method cannot be static or final for "
+                             "method " + std::string(name));
   }
   if (modifiers->isStatic() && modifiers->isFinal()) {
-    throw std::runtime_error("A static method cannot be final.");
+    throw std::runtime_error("A static method cannot be final for method " + std::string(name));
   }
   if (modifiers->isNative() && !modifiers->isStatic()) {
-    throw std::runtime_error("A native method must be static.");
+    throw std::runtime_error("A native method must be static for method " + std::string(name));
   }
   // Check for explicit this() or super() calls
   // TODO: This looks super ugly...Will fix later
@@ -115,10 +116,10 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
           auto qid = methodInvocation->getQualifiedIdentifier();
           if (qid->toString() == "this") {
             throw std::runtime_error("A method or constructor must not contain "
-                                     "explicit this() calls.");
+                                     "explicit this() calls for method " + std::string(name));
           } else if (qid->toString() == "super") {
             throw std::runtime_error("A method or constructor must not contain "
-                                     "explicit super() calls.");
+                                     "explicit super() calls for method " + std::string(name));
           }
         }
       }
@@ -128,9 +129,9 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
                      std::shared_ptr<Type> type, std::string_view name)
-    : modifiers{modifiers}, VarDecl{type), name} {
+    : modifiers{modifiers}, VarDecl{type, name} {
   if (!modifiers) {
-    throw std::runtime_error("Invalid modifiers.");
+    throw std::runtime_error("Field Decl Invalid modifiers.");
   }
   if (modifiers->isFinal()) {
     throw std::runtime_error("A field cannot be final");
