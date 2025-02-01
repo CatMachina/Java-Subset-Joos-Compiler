@@ -309,10 +309,13 @@ ast::Modifiers visitModifierList(const NodePtr &node,
   }
   check_node_type(node, nodeType::ModifierList);
   check_num_children(node, 1, 2);
-
-  modifiers.set(visitModifier(node->child_at(0)));
-  if (node->get_num_children() == 2) {
-    modifiers = visitModifierList(node->child_at(1), modifiers);
+  
+  if (node->get_num_children() == 1) {
+    modifiers.set(visitModifier(node->child_at(0)));
+  }
+  else if (node->get_num_children() == 2) {
+    modifiers = visitModifierList(node->child_at(0), modifiers);
+    modifiers.set(visitModifier(node->child_at(1)));
   }
   return modifiers;
 }
