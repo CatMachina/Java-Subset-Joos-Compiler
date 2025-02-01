@@ -1,0 +1,96 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "class"
+295: CLASS
+Token: IDENTIFIER, Value: "restrictions_ascii"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "static"
+298: STATIC
+Token: KEYWORD, Value: "void"
+312: VOID
+Token: IDENTIFIER, Value: "main"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: IDENTIFIER, Value: "String"
+261: ID
+Token: SEPARATOR, Value: "["
+290: LBRACK
+Token: SEPARATOR, Value: "]"
+291: RBRACK
+Token: IDENTIFIER, Value: "args"
+261: ID
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "char"
+319: CHAR
+Token: IDENTIFIER, Value: "validChar1"
+261: ID
+Token: OPERATOR, Value: "="
+263: BECOMES
+Token: CHARACTER_LITERAL, Value: "'A'"
+260: LITERAL
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: KEYWORD, Value: "char"
+319: CHAR
+Token: IDENTIFIER, Value: "validChar2"
+261: ID
+Token: OPERATOR, Value: "="
+263: BECOMES
+Token: CHARACTER_LITERAL, Value: "'z'"
+260: LITERAL
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: KEYWORD, Value: "char"
+319: CHAR
+Token: IDENTIFIER, Value: "validChar3"
+261: ID
+Token: OPERATOR, Value: "="
+263: BECOMES
+Token: CHARACTER_LITERAL, Value: "' '"
+260: LITERAL
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: KEYWORD, Value: "char"
+319: CHAR
+Token: IDENTIFIER, Value: "validChar4"
+261: ID
+Token: OPERATOR, Value: "="
+263: BECOMES
+Unrecognized character: '
+257: "invalid token"
+Token: CHARACTER_LITERAL, Value: "\n"
+260: LITERAL
+Unrecognized character: '
+257: "invalid token"
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: KEYWORD, Value: "char"
+319: CHAR
+Token: IDENTIFIER, Value: "invalidChar"
+261: ID
+Token: OPERATOR, Value: "="
+263: BECOMES
+Unrecognized character: '
+257: "invalid token"
+Unrecognized character: â
+257: "invalid token"
+Unrecognized character: ‚
+257: "invalid token"
+Unrecognized character: ¬
+257: "invalid token"
+Unrecognized character: '
+257: "invalid token"
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE

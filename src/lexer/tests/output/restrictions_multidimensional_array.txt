@@ -1,0 +1,66 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "class"
+295: CLASS
+Token: IDENTIFIER, Value: "restrictions_multidimensional_array"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "static"
+298: STATIC
+Token: KEYWORD, Value: "void"
+312: VOID
+Token: IDENTIFIER, Value: "main"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: IDENTIFIER, Value: "String"
+261: ID
+Token: SEPARATOR, Value: "["
+290: LBRACK
+Token: SEPARATOR, Value: "]"
+291: RBRACK
+Token: IDENTIFIER, Value: "args"
+261: ID
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "int"
+318: INT
+Token: SEPARATOR, Value: "["
+290: LBRACK
+Token: SEPARATOR, Value: "]"
+291: RBRACK
+Token: SEPARATOR, Value: "["
+290: LBRACK
+Token: SEPARATOR, Value: "]"
+291: RBRACK
+Token: IDENTIFIER, Value: "matrix"
+261: ID
+Token: OPERATOR, Value: "="
+263: BECOMES
+Token: IDENTIFIER, Value: "new"
+261: ID
+Token: KEYWORD, Value: "int"
+318: INT
+Token: SEPARATOR, Value: "["
+290: LBRACK
+Token: INTEGER_LITERAL, Value: "3"
+260: LITERAL
+Token: SEPARATOR, Value: "]"
+291: RBRACK
+Token: SEPARATOR, Value: "["
+290: LBRACK
+Token: INTEGER_LITERAL, Value: "3"
+260: LITERAL
+Token: SEPARATOR, Value: "]"
+291: RBRACK
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE

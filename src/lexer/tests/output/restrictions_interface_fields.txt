@@ -1,0 +1,42 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "interface"
+302: INTERFACE
+Token: IDENTIFIER, Value: "restrictions_interface_fields"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "int"
+318: INT
+Token: IDENTIFIER, Value: "x"
+261: ID
+Token: OPERATOR, Value: "="
+263: BECOMES
+Token: INTEGER_LITERAL, Value: "10"
+260: LITERAL
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: IDENTIFIER, Value: "TestInterface"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: KEYWORD, Value: "void"
+312: VOID
+Token: IDENTIFIER, Value: "method"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: SEPARATOR, Value: "}"
+307: RBRACE
