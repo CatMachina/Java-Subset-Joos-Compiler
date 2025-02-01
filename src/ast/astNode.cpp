@@ -7,8 +7,8 @@ ClassDecl::ClassDecl(
     std::shared_ptr<QualifiedIdentifier> superClass,
     std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces,
     std::vector<std::shared_ptr<Decl>> classBodyDecls)
-    : Decl{name}, modifiers{std::move(modifiers)},
-      superClass{std::move(superClass)}, interfaces{std::move(interfaces)} {
+    : Decl{name}, modifiers{modifiers}, superClass{superClass},
+      interfaces{interfaces} {
   // Check modifiers
   if (!modifiers) {
     throw std::runtime_error("Invalid modifiers.");
@@ -42,9 +42,8 @@ InterfaceDecl::InterfaceDecl(
     std::shared_ptr<Modifiers> modifiers, std::string_view name,
     std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces,
     std::vector<std::shared_ptr<Decl>> interfaceBody)
-    : Decl{name}, modifiers{std::move(modifiers)},
-      extendsInterfaces{std::move(extendsInterfaces)}, interfaceBody{std::move(
-                                                           interfaceBody)} {
+    : Decl{name}, modifiers{modifiers}, extendsInterfaces{extendsInterfaces},
+      interfaceBody{interfaceBody} {
   // Check declarations
   for (const auto &decl : interfaceBody) {
     auto field = std::dynamic_pointer_cast<FieldDecl>(decl);
@@ -79,9 +78,8 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
                        std::string_view name, std::shared_ptr<Type> returnType,
                        std::vector<std::shared_ptr<VarDecl>> params,
                        bool isConstructor, std::shared_ptr<Stmt> methodBody)
-    : Decl{name}, modifiers{std::move(modifiers)},
-      returnType{std::move(returnType)}, params{std::move(params)},
-      isConstructor_{isConstructor}, methodBody{std::move(methodBody)} {
+    : Decl{name}, modifiers{modifiers}, returnType{returnType}, params{params},
+      isConstructor_{isConstructor}, methodBody{methodBody} {
   // Check modifiers
   if (!modifiers) {
     throw std::runtime_error("Invalid modifiers.");
@@ -130,7 +128,7 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
                      std::shared_ptr<Type> type, std::string_view name)
-    : modifiers{std::move(modifiers)}, VarDecl{std::move(type), name} {
+    : modifiers{modifiers}, VarDecl{type), name} {
   if (!modifiers) {
     throw std::runtime_error("Invalid modifiers.");
   }
