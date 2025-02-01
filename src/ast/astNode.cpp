@@ -95,6 +95,7 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
     throw std::runtime_error(
         "A non-abstract and non-native method must have a body.");
   }
+  // Other restricitons for modifiers
   if (modifiers->isAbstract() &&
       (modifiers->isStatic() || modifiers->isFinal())) {
     throw std::runtime_error("An abstract method cannot be static or final.");
@@ -104,6 +105,26 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
   }
   if (modifiers->isNative() && !modifiers->isStatic()) {
     throw std::runtime_error("A native method must be static.");
+  }
+  // Check for explicit this() or super() calls
+  // TODO: This looks super ugly...Will fix later
+  if (auto block = std::dynamic_pointer_cast<Block>(methodBody)) {
+    for (auto statement : block->getStatements()) {
+      if (auto expressionStmt =
+              std::dynamic_pointer_cast<ExpressionStmt>(statement)) {
+        if (auto methodInvocation = std::dynamic_pointer_cast<MethodInvocation>(
+                expressionStmt->getExpr())) {
+          auto qid = methodInvocation->getQualifiedIdentifier();
+          if (qid->toString() == "this") {
+            throw std::runtime_error("A method or constructor must not contain "
+                                     "explicit this() calls.");
+          } else if (qid->toString() == "super") {
+            throw std::runtime_error("A method or constructor must not contain "
+                                     "explicit super() calls.");
+          }
+        }
+      }
+    }
   }
 }
 
