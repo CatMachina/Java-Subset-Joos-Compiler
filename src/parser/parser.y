@@ -108,7 +108,7 @@ import_decls:
 
 import_decl:
     IMPORT qualified_name SEMI { $$ = lexer.make_node(NodeType::SingleImportDeclaration, std::move($2)); }
-    | IMPORT qualified_name '.' STAR ';' { $$ = lexer.make_node(NodeType::MultiImportDeclaration, std::move($2)); }
+    | IMPORT qualified_name DOT STAR SEMI { $$ = lexer.make_node(NodeType::MultiImportDeclaration, std::move($2)); }
 ;
 
 // Class and Interface Declarations
