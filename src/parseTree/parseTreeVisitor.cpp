@@ -34,6 +34,8 @@ std::shared_ptr<ast::ProgramDecl> visitProgramDecl(const NodePtr &node) {
     default:
       break;
     }
+  } else {
+    std::cout << "There is no code body? " << node->child_at(2) << std::endl;
   }
 
   // Return the constructed AST node
