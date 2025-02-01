@@ -61,6 +61,7 @@ using basicType = parsetree::BasicType::Type;
 "const"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return CONST ; }
 "for"                               { yylval = make_corrupted(); print_token("KEYWORD", yytext); return FOR ; }
 "package"                           { yylval = make_corrupted(); print_token("KEYWORD", yytext); return PACKAGE ; }
+"new"                               { yylval = make_corrupted(); print_token("KEYWORD", yytext); return NEW ; }
 
 "true"                              { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
 "false"                             { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
@@ -68,7 +69,7 @@ using basicType = parsetree::BasicType::Type;
 \'[^\'\\]\'                         { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
 \\[btnfr\'\"\\]                     { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
 
-\"([^\"\\]|\\[btnfr\'\"\\])*\"      { yylval = make_literal(literalType::String, yytext); print_token("STRING_LITERAL", yytext); return LITERAL ; }
+\"([^\"\\]|\\[0btnfr\'\"\\])*\"      { yylval = make_literal(literalType::String, yytext); print_token("STRING_LITERAL", yytext); return LITERAL ; }
 
 "null"                              { yylval = make_literal(literalType::Null, yytext); print_token("NULL_LITERAL", yytext); return LITERAL ; }
 

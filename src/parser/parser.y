@@ -451,7 +451,7 @@ for_statement_no_short_if:
 
 for_init_opt:
     %empty { $$ = nullptr; }
-    | local_decl_statement { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+    | local_decl { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
     | statement_expr { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
 ;
 
