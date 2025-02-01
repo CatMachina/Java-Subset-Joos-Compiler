@@ -155,6 +155,9 @@ public:
   Block() : statements{std::vector<std::shared_ptr<Stmt>>{}} {}
   Block(std::vector<std::shared_ptr<Stmt>> statements)
       : statements{std::move(statements)} {}
+  const std::vector<std::shared_ptr<Stmt>> &getStatements() const {
+    return statements;
+  };
 };
 
 class IfStmt : public Stmt {
@@ -180,6 +183,9 @@ class ReturnStmt : public Stmt {
 
 class ExpressionStmt : public Stmt {
   std::shared_ptr<StatementExpr> expr;
+
+public:
+  std::shared_ptr<StatementExpr> getExpr() const { return expr; };
 };
 
 // Expressions /////////////////////////////////////////////////////////////
@@ -196,8 +202,12 @@ class Assignment : public StatementExpr {
 };
 
 class MethodInvocation : public StatementExpr {
-  std::shared_ptr<Expr> expr;
+  std::shared_ptr<QualifiedIdentifier> qid;
   std::vector<std::shared_ptr<Expr>> args;
+public:
+  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() {
+    return qid;
+  }
 };
 
 class ClassCreation : public StatementExpr {
