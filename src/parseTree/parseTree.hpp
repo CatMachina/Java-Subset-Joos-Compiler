@@ -97,11 +97,6 @@ struct Node {
     static_assert(sizeof...(Args_) > 0, "Must have at least one child");
     static_assert((std::is_convertible_v<Args_, std::shared_ptr<Node>> && ...),
                   "All arguments must be convertible to std::shared_ptr<Node>");
-
-    std::shared_ptr<Node> temp_args[] = {std::forward<Args_>(args_)...};
-    for (std::size_t i = 0; i < num_args; ++i) {
-      args[i] = temp_args[i];
-    }
   }
 
   size_t get_num_children() const { return num_args; }
