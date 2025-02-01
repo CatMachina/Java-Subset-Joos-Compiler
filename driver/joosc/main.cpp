@@ -9,9 +9,26 @@
 #include <vector>
 
 #include "ast/ast.hpp"
+#include "parseTree/parseTree.hpp"
+#include "parseTree/parseTreeVisitor.hpp"
 #include "parser/myBisonParser.hpp"
-#include "parsetree/parseTree.hpp"
-#include "parsetree/parseTreeVisitor.hpp"
+
+#include <memory>
+
+// hack
+bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
+  if (!node)
+    return true;
+
+  if (node->get_node_type() == parsetree::Node::Type::Literal) {
+    auto literalNode = std::dynamic_pointer_cast<parsetree::Literal>(node);
+    return literalNode && literalNode->isValid();
+  }
+
+  return std::all_of(
+      node->children().begin(), node->children().end(),
+      [](const auto &child) { return isLiteralTypeValid(child); });
+}
 
 int main(int argc, char **argv) {
   try {
@@ -48,9 +65,9 @@ int main(int argc, char **argv) {
     }
 
     // Parse the input
-    std::unique_ptr<parsetree::Node> parse_tree;
+    std::shared_ptr<parsetree::Node> parse_tree;
     myBisonParser parser{fileContent};
-    int result = parser.parse(parse_tree.get());
+    int result = parser.parse(parse_tree);
 
     // Validate parse result
     if (!parse_tree || result) {
@@ -62,17 +79,17 @@ int main(int argc, char **argv) {
     }
 
     // Validate literal types
-    if (!isLiteralTypeValid(parse_tree.get())) {
+    if (!isLiteralTypeValid(parse_tree)) {
       std::cerr << "Parse error: invalid literal type" << std::endl;
       return 42;
     }
 
     // Build AST from the parse tree
-    std::unique_ptr<ast::ProgramDecl> ast;
+    std::shared_ptr<parsetree::ast::ProgramDecl> ast;
     try {
       if (parse_tree->is_corrupted())
         throw std::runtime_error("Parse tree is invalid");
-      ast.reset(parsetree::visitProgramDecl(parse_tree.get()));
+      ast = parsetree::visitProgramDecl(parse_tree);
     } catch (const std::exception &ex) {
       std::cerr << "Runtime error: " << ex.what() << std::endl;
       return 42;
@@ -86,7 +103,8 @@ int main(int argc, char **argv) {
     }
 
     // Validate class/interface name matches file name
-    const auto *cuBody = dynamic_cast<const ast::Decl *>(ast->getBody());
+    const auto cuBody =
+        std::dynamic_pointer_cast<parsetree::ast::Decl>(ast->getBody());
     if (!cuBody || cuBody->getName() != fileName) {
       std::cerr << "Parse error: class/interface name does not match file name"
                 << std::endl;
