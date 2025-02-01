@@ -542,7 +542,7 @@ multiplicative_expr:
 
 // Unary operators
 unary_expr_negative:
-    MINUS unary_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2)); }
+    MINUS unary_expr_negative { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2)); }
     | unary_expr
 ;
 
