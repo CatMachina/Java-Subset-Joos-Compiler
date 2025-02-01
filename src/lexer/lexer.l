@@ -105,7 +105,7 @@ using basicType = parsetree::BasicType::Type;
 [0-9]+                             { yylval = make_literal(literalType::Integer, yytext);; print_token("INTEGER_LITERAL", yytext); return LITERAL ; }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
-    make_identifier(yytext);
+    yylval = make_identifier(yytext);
     print_token("IDENTIFIER", yytext);
     return ID;
 }

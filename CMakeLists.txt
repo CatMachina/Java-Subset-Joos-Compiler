@@ -10,6 +10,12 @@ enable_testing()
 # Define YYDEBUG for bison
 add_compile_definitions(YYDEBUG=1)
 
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
+
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+
 ################################################################################
 #                         Flex and Bison targets                               #
 ################################################################################
