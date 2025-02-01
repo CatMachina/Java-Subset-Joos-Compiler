@@ -128,7 +128,7 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
                      std::shared_ptr<Type> type, std::string_view name)
-    : modifiers{modifiers}, VarDecl{type), name} {
+    : modifiers{modifiers}, VarDecl{type, name} {
   if (!modifiers) {
     throw std::runtime_error("Invalid modifiers.");
   }
