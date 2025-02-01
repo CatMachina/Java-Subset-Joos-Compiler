@@ -1,3 +1,5 @@
+%debug
+
 %code top {
     #include <iostream>
     #include <memory>
@@ -49,7 +51,7 @@
 %token NEW CLASS EXTENDS IMPLEMENTS STATIC IMPORT PACKAGE PUBLIC INTERFACE PROTECTED ABSTRACT FINAL LBRACE RBRACE CONST
 
 // Method and Field Access
-%token LENGTH
+// %token LENGTH
 
 // Modifiers (most covered in Class Structure)
 %token NATIVE
@@ -321,9 +323,16 @@ constructor_decl: method_modifiers_opt ID LPAREN params RPAREN block {
 //////////////////// Types ////////////////////
 
 type:
+    non_array_type { $$ = std::move($1); }
+    | array_type { $$ = std::move($1); }
+
+non_array_type:
     qualified_name { $$ = lexer.make_node(NodeType::Type, std::move($1)); }
     | basic_type { $$ = lexer.make_node(NodeType::Type, std::move($1)); }
-    | qualified_name LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayType, std::move($1)); }
+;
+
+array_type:
+    qualified_name LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayType, std::move($1)); }
     | basic_type LBRACK RBRACK { $$ = lexer.make_node(NodeType::ArrayType, std::move($1)); }
 ;
 
@@ -342,7 +351,7 @@ basic_type: BOOLEAN
 
 qualified_name:
     ID                                                                { $$ = lexer.make_node(NodeType::QualifiedName, std::move($1)); }
-    | qualified_name '.' ID                                        { $$ = lexer.make_node(NodeType::QualifiedName, std::move($1), std::move($3)); }
+    | qualified_name DOT ID                                        { $$ = lexer.make_node(NodeType::QualifiedName, std::move($1), std::move($3)); }
     ;
 
 //////////////////// Block ////////////////////
@@ -574,7 +583,7 @@ primary_without_array:
     ;
 
 array_create:
-    NEW qualified_name LBRACK expr RBRACK { $$ = lexer.make_node(NodeType::ArrayCreate, std::move($2), std::move($4)); }
+    NEW non_array_type LBRACK expr RBRACK { $$ = lexer.make_node(NodeType::ArrayCreate, std::move($2), std::move($4)); }
 ;
 
 array_access_expr:
