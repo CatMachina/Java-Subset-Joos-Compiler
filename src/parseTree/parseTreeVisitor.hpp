@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ast/ast.hpp"
-#include "parseTree/parseTree.h"
+#include "parseTree/parseTree.hpp"
 #include <memory>
 #include <stdexcept>
 #include <string_view>
@@ -9,21 +9,16 @@
 
 namespace parsetree {
 
-class ParseTreeVisitor {
   using nodeType = Node::Type;
   using NodePtr = std::shared_ptr<Node>;
 
-public:
-  explicit ParseTreeVisitor(ast::Semantic &sem) noexcept : sem{sem} {}
-
-private:
   // Basic helper functions
 
   static void check_node_type(const NodePtr &node, Node::Type type) {
     if (!node || node->get_node_type() != type) {
       throw std::runtime_error("Called on a node that is not the correct type!"
                                " Expected: " +
-                               Node::type_string(type) +
+                               std::string(magic_enum::enum_name(type)) +
                                " Actual: " + node->type_string());
     }
   }
@@ -65,14 +60,13 @@ private:
     check_num_children(node, 1, 2);
 
     if (node->get_num_children() == 1) {
-      list.push_back(visit<N, T>(node->child(0)));
+      list.push_back(visit<N, T>(node->child_at(0)));
     } else {
-      visitListPattern<N, T, nullable>(node->child(0), list);
-      list.push_back(visit<N, T>(node->child(1)));
+      visitListPattern<N, T, nullable>(node->child_at(0), list);
+      list.push_back(visit<N, T>(node->child_at(1)));
     }
   }
 
-public:
   // Program Decl visitors
 
   [[nodiscard]] std::shared_ptr<ast::ProgramDecl>
@@ -89,7 +83,7 @@ public:
   visitClassDecl(const NodePtr &node);
   [[nodiscard]] std::shared_ptr<ast::InterfaceDecl>
   visitInterfaceDecl(const NodePtr &node);
-  [[nodiscard]] std::shared_ptr<ast::ReferenceType>
+  [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier>
   visitSuper(const NodePtr &node);
   [[nodiscard]] std::shared_ptr<ast::FieldDecl>
   visitFieldDecl(const NodePtr &node);
@@ -114,7 +108,7 @@ public:
   struct VariableDecl {
     std::shared_ptr<ast::Type> type;
     std::string_view name;
-    std::shared_ptr<ast::Expr> init;
+    std::list<ast::ExprOp> init;
   };
   VariableDecl visitVariableDeclarator(const NodePtr &type,
                                        const NodePtr &node);
@@ -123,7 +117,7 @@ public:
 
   // Expression visitors
 
-  [[nodiscard]] std::shared_ptr<ast::Expr> visitExpr(const NodePtr &node);
+  [[nodiscard]] std::list<ast::ExprOp> visitExpr(const NodePtr &node);
 
   // Leaf node visitors
 
@@ -131,15 +125,12 @@ public:
   visitQualifiedIdentifier(
       const NodePtr &node,
       std::shared_ptr<ast::QualifiedIdentifier> ast_node = nullptr);
-  [[nodiscard]] std::string_view visitIdentifier(const NodePtr &node);
+  [[nodiscard]] std::string visitIdentifier(const NodePtr &node);
   [[nodiscard]] ast::Modifiers
   visitModifierList(const NodePtr &node,
                     ast::Modifiers modifiers = ast::Modifiers{});
   [[nodiscard]] Modifier visitModifier(const NodePtr &node);
   [[nodiscard]] std::shared_ptr<ast::Type> visitType(const NodePtr &node);
 
-private:
-  ast::Semantic &sem;
-};
 
 } // namespace parsetree

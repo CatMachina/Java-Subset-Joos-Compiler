@@ -1,6 +1,6 @@
 #include "ast/astNode.hpp"
 
-namespace ast {
+namespace parsetree::ast {
 
 ClassDecl::ClassDecl(
     std::shared_ptr<Modifiers> modifiers, std::string_view name,
@@ -108,10 +108,8 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
 }
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
-                     std::shared_ptr<Type> type, std::string_view name,
-                     std::shared_ptr<Stmt> initializer)
-    : modifiers{std::move(modifiers)}, VarDecl{std::move(type), name,
-                                               std::move(initializer)} {
+                     std::shared_ptr<Type> type, std::string_view name)
+    : modifiers{std::move(modifiers)}, VarDecl{std::move(type), name} {
   if (!modifiers) {
     throw std::runtime_error("Invalid modifiers.");
   }
@@ -132,4 +130,21 @@ FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
   }
 }
 
-} // namespace ast
+// Prints
+std::ostream& InterfaceDecl::print(std::ostream& os) const {
+   os << "InterfaceDecl {}\n";
+   return os;
+}
+
+std::ostream& ProgramDecl::print(std::ostream& os) const {
+   os << "ProgramDecl {}\n";
+   return os;
+}
+
+std::ostream& ClassDecl::print(std::ostream& os) const {
+   os << "ProgramDecl {}\n";
+   return os;
+}
+
+
+} // namespace parsetree::ast

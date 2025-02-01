@@ -50,17 +50,19 @@ add_library(CompilerLib
     # 3rd party
     "src/3rd_party/magic_enum.hpp"
     # ast
-
+    "src/ast/ast.hpp"
+    "src/ast/astNode.cpp"
     # parser
     "src/lexer/joos1w.cpp"
     # parseTree
     "src/parseTree/parseTree.hpp"
+    "src/parseTree/parseTreeVisitor.cpp"
 
 )
 target_include_directories(
     CompilerLib
     PUBLIC
-    "lib"
+    "src"
     "${PARSER_DIR}"
     "src/3rd_party"
 )
@@ -90,4 +92,9 @@ add_tool(
 add_tool(
     parser
     "driver/parser/main.cpp"
+)
+
+add_tool(
+    joosc
+    "driver/joosc/main.cpp"
 )

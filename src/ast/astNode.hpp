@@ -7,17 +7,21 @@
 #include <string>
 #include <vector>
 
-namespace ast {
+namespace parsetree::ast {
 
 // Base class for all AST nodes //////////////////////////////////////////////
 
 class QualifiedIdentifier;
 class ExprOp;
+class Modifiers;
+class FieldDecl;
+class MethodDecl;
+class VarDecl;
+class StatementExpr;
 
 class AstNode {
 public:
   virtual ~AstNode() = default;
-  virtual std::ostream &print(std::ostream &os) const = 0;
 };
 
 class Decl : public AstNode {
@@ -35,7 +39,7 @@ public:
   ~Type() override = default;
   [[nodiscard]] virtual std::string toString() const = 0;
 
-  std::ostream &print(std::ostream &os) const override {
+  std::ostream &print(std::ostream &os) const {
     return os << toString();
   }
 };
@@ -69,6 +73,8 @@ public:
   ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
               std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body)
       : package{package}, imports{imports}, body{body} {}
+  std::shared_ptr<CodeBody> getBody() { return body; }
+  std::ostream& print(std::ostream& os) const;
 };
 
 class ClassDecl : public CodeBody, public Decl {
@@ -84,9 +90,11 @@ public:
             std::shared_ptr<QualifiedIdentifier> superClass,
             std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
+  
+  std::ostream& print(std::ostream& os) const;
 };
 
-class InterfaceDecl : public Decl {
+class InterfaceDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces;
   std::vector<std::shared_ptr<Decl>> interfaceBody;
@@ -96,6 +104,8 @@ public:
       std::shared_ptr<Modifiers> modifiers, std::string_view name,
       std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces,
       std::vector<std::shared_ptr<Decl>> interfaceBody);
+  
+  std::ostream& print(std::ostream& os) const;
 };
 
 class MethodDecl : public Decl {
@@ -117,15 +127,11 @@ public:
 
 class VarDecl : public Decl {
   std::shared_ptr<Type> type;
-  std::shared_ptr<Expr> initializer;
 
 public:
-  VarDecl(std::shared_ptr<Type> type, std::string_view name,
-          std::shared_ptr<Expr> initializer)
-      : Decl{name}, type{std::move(type)}, initializer{std::move(initializer)} {
+  VarDecl(std::shared_ptr<Type> type, std::string_view name)
+      : Decl{name}, type{std::move(type)} {
   }
-  bool hasInitializer() const { return initializer != nullptr; }
-  std::shared_ptr<Expr> getInitializer() const { return initializer; }
   std::shared_ptr<Type> getType() const { return type; }
 };
 
@@ -134,7 +140,7 @@ class FieldDecl : public VarDecl {
 
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
-            std::string_view name, std::shared_ptr<Stmt> initializer);
+            std::string_view name);
 };
 
 class Param : public AstNode {
@@ -149,6 +155,7 @@ class Block : public Stmt {
   std::vector<std::shared_ptr<Stmt>> statements;
 
 public:
+  Block() : statements{std::vector<std::shared_ptr<Stmt>>{}} {}
   Block(std::vector<std::shared_ptr<Stmt>> statements)
       : statements{std::move(statements)} {}
 };
@@ -234,17 +241,14 @@ private:
 };
 
 class UnaryOp : ExprOp {
-  OpType op;
-
 public:
   enum class OpType { Not, Plus, Minus, BitWiseNot };
   UnaryOp(OpType op) : op{op}, ExprOp{1} {}
+private:
+  OpType op;
 };
 
 class BinaryOp : ExprOp {
-private:
-  OpType op;
-
 public:
   enum class OpType {
     GreaterThan,
@@ -266,6 +270,8 @@ public:
     InstanceOf
   };
   BinaryOp(OpType op) : op{op}, ExprOp{2} {}
+private:
+  OpType op;
 };
 
 // Types /////////////////////////////////////////////////////////////
@@ -312,6 +318,33 @@ public:
 };
 */
 
+
+class QualifiedIdentifier {
+  std::vector<std::string> identifiers;
+
+public:
+  void addIdentifier(std::string_view identifier) {
+    identifiers.emplace_back(identifier);
+  }
+
+  [[nodiscard]] std::string toString() const {
+    if (identifiers.empty())
+      return "";
+
+    std::string result;
+    for (const auto &identifier : identifiers) {
+      result += identifier + '.';
+    }
+    result.pop_back();
+    return result;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os,
+                                  const QualifiedIdentifier &qid) {
+    return os << qid.toString();
+  }
+};
+
 class BuiltInType : public Type {
 public:
   enum class Kind { Int, Boolean, Short, Char, Void, Byte };
@@ -339,6 +372,11 @@ public:
     }
   }
 
+  Kind getKind() const { return kind; }
+  std::string toString() const override {
+    return std::string(magic_enum::enum_name(kind));
+  }
+
 private:
   Kind kind;
 };
@@ -349,8 +387,16 @@ class ArrayType : public Type {
 public:
   ArrayType(std::shared_ptr<Type> elementType) : elementType{elementType} {}
   std::string toString() const override {
-    return magic_enum::enum_name(*elementType) + "[]";
+    return elementType->toString() + "[]";
   }
+};
+
+class ReferenceType : public Type {
+  std::shared_ptr<QualifiedIdentifier> name;
+
+public:
+  ReferenceType(std::shared_ptr<QualifiedIdentifier> name) : name{name} {}
+  std::string toString() const override { return name->toString(); }
 };
 
 // Other classes /////////////////////////////////////////////////////////////
@@ -416,32 +462,4 @@ public:
   }
 };
 
-// Other classes /////////////////////////////////////////////////////////////
-
-class QualifiedIdentifier {
-  std::vector<std::string> identifiers;
-
-public:
-  void addIdentifier(std::string_view identifier) {
-    identifiers.emplace_back(identifier);
-  }
-
-  [[nodiscard]] std::string toString() const {
-    if (identifiers.empty())
-      return "";
-
-    std::string result;
-    for (const auto &identifier : identifiers) {
-      result += identifier + '.';
-    }
-    result.pop_back();
-    return result;
-  }
-
-  friend std::ostream &operator<<(std::ostream &os,
-                                  const QualifiedIdentifier &qid) {
-    return os << qid.toString();
-  }
-};
-
-} // namespace ast
+} // namespace parsetree::ast
