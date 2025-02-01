@@ -1,0 +1,24 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "class"
+295: CLASS
+Token: IDENTIFIER, Value: "restrictions_field_final"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "final"
+305: FINAL
+Token: KEYWORD, Value: "int"
+318: INT
+Token: IDENTIFIER, Value: "x"
+261: ID
+Token: OPERATOR, Value: "="
+263: BECOMES
+Token: INTEGER_LITERAL, Value: "10"
+260: LITERAL
+Token: SEPARATOR, Value: ";"
+259: SEMI
+Token: SEPARATOR, Value: "}"
+307: RBRACE

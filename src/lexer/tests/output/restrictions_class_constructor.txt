@@ -1,0 +1,10 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "class"
+295: CLASS
+Token: IDENTIFIER, Value: "restrictions_class_constructor"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE

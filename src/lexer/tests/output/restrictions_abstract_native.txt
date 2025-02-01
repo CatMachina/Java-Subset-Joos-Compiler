@@ -1,0 +1,66 @@
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "class"
+295: CLASS
+Token: IDENTIFIER, Value: "restrictions_abstract_native"
+261: ID
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "abstract"
+304: ABSTRACT
+Token: KEYWORD, Value: "void"
+312: VOID
+Token: IDENTIFIER, Value: "abstractMethod"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: IDENTIFIER, Value: "native"
+261: ID
+Token: KEYWORD, Value: "void"
+312: VOID
+Token: IDENTIFIER, Value: "nativeMethod"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: KEYWORD, Value: "public"
+301: PUBLIC
+Token: KEYWORD, Value: "static"
+298: STATIC
+Token: KEYWORD, Value: "void"
+312: VOID
+Token: IDENTIFIER, Value: "main"
+261: ID
+Token: SEPARATOR, Value: "("
+288: LPAREN
+Token: IDENTIFIER, Value: "String"
+261: ID
+Token: SEPARATOR, Value: "["
+290: LBRACK
+Token: SEPARATOR, Value: "]"
+291: RBRACK
+Token: IDENTIFIER, Value: "args"
+261: ID
+Token: SEPARATOR, Value: ")"
+289: RPAREN
+Token: SEPARATOR, Value: "{"
+306: LBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE
+Token: SEPARATOR, Value: "}"
+307: RBRACE
