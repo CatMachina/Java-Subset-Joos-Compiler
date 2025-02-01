@@ -304,6 +304,7 @@ method_modifier:
     | STATIC
     | ABSTRACT
     | FINAL
+    | NATIVE
 ;
 
 method_body:
