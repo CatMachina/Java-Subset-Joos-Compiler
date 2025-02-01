@@ -131,20 +131,19 @@ FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
 }
 
 // Prints
-std::ostream& InterfaceDecl::print(std::ostream& os) const {
-   os << "InterfaceDecl {}\n";
-   return os;
+std::ostream &InterfaceDecl::print(std::ostream &os) const {
+  os << "InterfaceDecl {}\n";
+  return os;
 }
 
-std::ostream& ProgramDecl::print(std::ostream& os) const {
-   os << "ProgramDecl {}\n";
-   return os;
+std::ostream &ProgramDecl::print(std::ostream &os) const {
+  os << "ProgramDecl {}\n";
+  return os;
 }
 
-std::ostream& ClassDecl::print(std::ostream& os) const {
-   os << "ProgramDecl {}\n";
-   return os;
+std::ostream &ClassDecl::print(std::ostream &os) const {
+  os << "ProgramDecl {}\n";
+  return os;
 }
-
 
 } // namespace parsetree::ast

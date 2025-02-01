@@ -37,7 +37,8 @@ std::shared_ptr<ast::ProgramDecl> visitProgramDecl(const NodePtr &node) {
   }
 
   // Return the constructed AST node
-  return std::make_shared<ast::ProgramDecl>(package, std::move(imports), body_ast_node);
+  return std::make_shared<ast::ProgramDecl>(package, std::move(imports),
+                                            body_ast_node);
 }
 
 std::shared_ptr<ast::QualifiedIdentifier>
@@ -127,8 +128,8 @@ std::shared_ptr<ast::FieldDecl> visitFieldDecl(const NodePtr &node) {
   check_node_type(node, nodeType::FieldDecl);
   check_num_children(node, 3, 3);
 
-  std::shared_ptr<ast::Modifiers> modifiers = std::make_shared<ast::Modifiers>(
-    visitModifierList(node->child_at(0)));
+  std::shared_ptr<ast::Modifiers> modifiers =
+      std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
   auto type = visitType(node->child_at(1));
 
   auto decl = visitVariableDeclarator(node->child_at(1), node->child_at(2));
@@ -142,9 +143,8 @@ std::shared_ptr<ast::MethodDecl> visitMethodDecl(const NodePtr &node) {
   check_num_children(node, 4, 5);
 
   // Visit the modifiers
-  std::shared_ptr<ast::Modifiers> modifiers = std::make_shared<ast::Modifiers>(
-    visitModifierList(node->child_at(0))
-  );
+  std::shared_ptr<ast::Modifiers> modifiers =
+      std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
   // type could be void
   std::shared_ptr<ast::Type> type =
       (node->get_num_children() == 5) ? visitType(node->child_at(1)) : nullptr;
@@ -156,9 +156,9 @@ std::shared_ptr<ast::MethodDecl> visitMethodDecl(const NodePtr &node) {
                    true>(node->child_at(type ? 3 : 2), params);
 
   // visit body
-  std::shared_ptr<ast::Stmt> body = node->child_at(type ? 4 : 3)
-                                        ? visitBlock(node->child_at(type ? 4 : 3))
-                                        : nullptr;
+  std::shared_ptr<ast::Stmt> body =
+      node->child_at(type ? 4 : 3) ? visitBlock(node->child_at(type ? 4 : 3))
+                                   : nullptr;
 
   return std::make_shared<ast::MethodDecl>(modifiers, name, type, params, false,
                                            body);
@@ -169,7 +169,8 @@ std::shared_ptr<ast::MethodDecl> visitConstructorDecl(const NodePtr &node) {
   check_num_children(node, 4, 4);
 
   // need to visit modifier, identifier and parameters
-  std::shared_ptr<ast::Modifiers> modifiers = std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
+  std::shared_ptr<ast::Modifiers> modifiers =
+      std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
   auto name = visitIdentifier(node->child_at(1));
 
   std::vector<std::shared_ptr<ast::VarDecl>> params;
@@ -225,10 +226,11 @@ std::shared_ptr<ast::MethodDecl> visitAbstractMethodDecl(const NodePtr &node) {
   check_node_type(node, nodeType::AbstractMethodDecl);
   check_num_children(node, 3, 4);
 
-  std::shared_ptr<ast::Modifiers> modifiers = std::make_shared<ast::Modifiers>(
-    visitModifierList(node->child_at(0)));
+  std::shared_ptr<ast::Modifiers> modifiers =
+      std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
   // type could be void
-  auto type = (node->get_num_children() == 4) ? visitType(node->child_at(1)) : nullptr;
+  auto type =
+      (node->get_num_children() == 4) ? visitType(node->child_at(1)) : nullptr;
   auto name = visitIdentifier(node->child_at(type ? 2 : 1));
 
   std::vector<std::shared_ptr<ast::VarDecl>> params;
@@ -274,9 +276,9 @@ std::shared_ptr<ast::Stmt> visitBlock(const NodePtr &node) {
 
 // Leaf Nodes!!
 
-std::shared_ptr<ast::QualifiedIdentifier> visitQualifiedIdentifier(
-    const NodePtr &node,
-    std::shared_ptr<ast::QualifiedIdentifier> ast_node) {
+std::shared_ptr<ast::QualifiedIdentifier>
+visitQualifiedIdentifier(const NodePtr &node,
+                         std::shared_ptr<ast::QualifiedIdentifier> ast_node) {
   check_node_type(node, nodeType::QualifiedName);
   check_num_children(node, 1, 2);
 

@@ -91,7 +91,8 @@ struct Node {
   // Non leaf nodes
   template <typename... Args_>
   Node(Type type, Args_ &&...args_)
-      : type{type}, args{std::vector<std::shared_ptr<Node>>{std::forward<Args_>(args_)...}},
+      : type{type}, args{std::vector<std::shared_ptr<Node>>{
+                        std::forward<Args_>(args_)...}},
         num_args{sizeof...(Args_)} {
     static_assert(sizeof...(Args_) > 0, "Must have at least one child");
     static_assert((std::is_convertible_v<Args_, std::shared_ptr<Node>> && ...),
@@ -112,7 +113,9 @@ struct Node {
   Type get_node_type() const { return type; }
 
   // Return Type String
-  std::string type_string() const { return std::string(magic_enum::enum_name(type)); }
+  std::string type_string() const {
+    return std::string(magic_enum::enum_name(type));
+  }
 
   // If the node is corrupted, the tree has been corrupted
   bool is_corrupted() const {
@@ -142,7 +145,7 @@ struct Node {
     return os;
   }
 
-  const std::vector<std::shared_ptr<Node>>& children() const { return args; }
+  const std::vector<std::shared_ptr<Node>> &children() const { return args; }
 
 private:
   Type type;

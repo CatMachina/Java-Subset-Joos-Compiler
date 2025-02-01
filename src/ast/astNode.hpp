@@ -39,9 +39,7 @@ public:
   ~Type() override = default;
   [[nodiscard]] virtual std::string toString() const = 0;
 
-  std::ostream &print(std::ostream &os) const {
-    return os << toString();
-  }
+  std::ostream &print(std::ostream &os) const { return os << toString(); }
 };
 
 class Stmt : public AstNode {};
@@ -74,7 +72,7 @@ public:
               std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body)
       : package{package}, imports{imports}, body{body} {}
   std::shared_ptr<CodeBody> getBody() { return body; }
-  std::ostream& print(std::ostream& os) const;
+  std::ostream &print(std::ostream &os) const;
 };
 
 class ClassDecl : public CodeBody, public Decl {
@@ -90,8 +88,8 @@ public:
             std::shared_ptr<QualifiedIdentifier> superClass,
             std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
-  
-  std::ostream& print(std::ostream& os) const;
+
+  std::ostream &print(std::ostream &os) const;
 };
 
 class InterfaceDecl : public CodeBody, public Decl {
@@ -104,8 +102,8 @@ public:
       std::shared_ptr<Modifiers> modifiers, std::string_view name,
       std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces,
       std::vector<std::shared_ptr<Decl>> interfaceBody);
-  
-  std::ostream& print(std::ostream& os) const;
+
+  std::ostream &print(std::ostream &os) const;
 };
 
 class MethodDecl : public Decl {
@@ -130,8 +128,7 @@ class VarDecl : public Decl {
 
 public:
   VarDecl(std::shared_ptr<Type> type, std::string_view name)
-      : Decl{name}, type{std::move(type)} {
-  }
+      : Decl{name}, type{std::move(type)} {}
   std::shared_ptr<Type> getType() const { return type; }
 };
 
@@ -244,6 +241,7 @@ class UnaryOp : ExprOp {
 public:
   enum class OpType { Not, Plus, Minus, BitWiseNot };
   UnaryOp(OpType op) : op{op}, ExprOp{1} {}
+
 private:
   OpType op;
 };
@@ -270,6 +268,7 @@ public:
     InstanceOf
   };
   BinaryOp(OpType op) : op{op}, ExprOp{2} {}
+
 private:
   OpType op;
 };
@@ -317,7 +316,6 @@ public:
   }
 };
 */
-
 
 class QualifiedIdentifier {
   std::vector<std::string> identifiers;

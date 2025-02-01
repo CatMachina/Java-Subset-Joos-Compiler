@@ -9,23 +9,25 @@
 #include <vector>
 
 #include "ast/ast.hpp"
-#include "parser/myBisonParser.hpp"
 #include "parseTree/parseTree.hpp"
 #include "parseTree/parseTreeVisitor.hpp"
+#include "parser/myBisonParser.hpp"
 
 #include <memory>
 
 // hack
-bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node>& node) {
-    if (!node) return true;
+bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
+  if (!node)
+    return true;
 
-    if (node->get_node_type() == parsetree::Node::Type::Literal) {
-        auto literalNode = std::dynamic_pointer_cast<parsetree::Literal>(node);
-        return literalNode && literalNode->isValid();
-    }
+  if (node->get_node_type() == parsetree::Node::Type::Literal) {
+    auto literalNode = std::dynamic_pointer_cast<parsetree::Literal>(node);
+    return literalNode && literalNode->isValid();
+  }
 
-    return std::all_of(node->children().begin(), node->children().end(),
-                       [](const auto& child) { return isLiteralTypeValid(child); });
+  return std::all_of(
+      node->children().begin(), node->children().end(),
+      [](const auto &child) { return isLiteralTypeValid(child); });
 }
 
 int main(int argc, char **argv) {
@@ -101,7 +103,8 @@ int main(int argc, char **argv) {
     }
 
     // Validate class/interface name matches file name
-    const auto cuBody = std::dynamic_pointer_cast<parsetree::ast::Decl>(ast->getBody());
+    const auto cuBody =
+        std::dynamic_pointer_cast<parsetree::ast::Decl>(ast->getBody());
     if (!cuBody || cuBody->getName() != fileName) {
       std::cerr << "Parse error: class/interface name does not match file name"
                 << std::endl;
