@@ -589,7 +589,7 @@ array_create:
 
 array_access_expr:
     primary_without_array LBRACK expr RBRACK { $$ = lexer.make_node(NodeType::ArrayAccess, std::move($1), std::move($3)); }
-    qualified_name LBRACK expr RBRACK { $$ = lexer.make_node(NodeType::ArrayAccess, std::move($1), std::move($3)); }
+    | qualified_name LBRACK expr RBRACK { $$ = lexer.make_node(NodeType::ArrayAccess, std::move($1), std::move($3)); }
 ;
 
 array_cast:
