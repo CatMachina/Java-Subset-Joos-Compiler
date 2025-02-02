@@ -15,7 +15,8 @@
 #include "../src/lexer/myFlexLexer.hpp"
 
 void print_token(const std::string& token_name, const std::string& token_value) {
-    std::cout << "Token: " << token_name << ", Value: \"" << token_value << "\"" << std::endl;
+    // uncomment to debug
+    // std::cout << "Token: " << token_name << ", Value: \"" << token_value << "\"" << std::endl;
 }
 
 using literalType = parsetree::Literal::Type;
@@ -62,7 +63,7 @@ using basicType = parsetree::BasicType::Type;
 "for"                               { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return FOR ; }
 "package"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return PACKAGE ; }
 "new"                               { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return NEW ; }
-"native"                            { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return NATIVE ; }
+"native"                            { yylval = make_modifier(modifierType::Native); print_token("KEYWORD", yytext); return NATIVE ; }
 
 "true"                              { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
 "false"                             { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }

@@ -283,7 +283,7 @@ class Modifier : public Node {
 
 public:
   // Enum for modifier types
-  enum class Type { Public, Protected, Static, Abstract, Final };
+  enum class Type { Public, Protected, Static, Abstract, Final, Native };
 
   // Constructor for Modifier
   Modifier(Type type) : Node{Node::Type::Modifier}, type{type} {}

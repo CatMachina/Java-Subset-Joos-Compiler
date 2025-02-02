@@ -434,6 +434,9 @@ public:
     case parsetree::Modifier::Type::Final:
       setFinal();
       break;
+    case parsetree::Modifier::Type::Native:
+      setNative();
+      break;
     }
   };
 
