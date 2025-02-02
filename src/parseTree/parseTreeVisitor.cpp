@@ -49,14 +49,12 @@ visitPackageDecl(const NodePtr &node) {
     return nullptr;
   check_node_type(node, nodeType::PackageDecl);
   check_num_children(node, 1, 1);
-  std::cout << "here 1" << std::endl;
   return visitQualifiedIdentifier(node->child_at(0));
 }
 
 template <>
 ast::ImportDecl visit<nodeType::ImportDeclList>(const NodePtr &node) {
   check_num_children(node, 1, 1);
-  std::cout << "here 2" << std::endl;
   auto id = visitQualifiedIdentifier(node->child_at(0));
 
   switch (node->get_node_type()) {
@@ -102,14 +100,12 @@ std::shared_ptr<ast::QualifiedIdentifier> visitSuper(const NodePtr &node) {
     return nullptr;
   check_node_type(node, nodeType::SuperClass);
   check_num_children(node, 1, 1);
-  std::cout << "here 3" << std::endl;
   return visitQualifiedIdentifier(node->child_at(0));
 }
 
 template <>
 std::shared_ptr<ast::QualifiedIdentifier>
 visit<nodeType::InterfaceTypeList>(const NodePtr &node) {
-  std::cout << "here 4" << std::endl;
   return visitQualifiedIdentifier(node);
 }
 
@@ -304,14 +300,11 @@ visitMethodInvocation(const NodePtr &node) {
   check_num_children(node, 2, 3);
   std::shared_ptr<ast::QualifiedIdentifier> qid;
   if (node->get_num_children() == 2) {
-    std::cout << "here 5" << std::endl;
     // TODO: args
     return std::make_shared<ast::MethodInvocation>(
         visitQualifiedIdentifier(node->child_at(0)),
         std::vector<std::shared_ptr<ast::Expr>>());
   } else {
-    std::cout << "here 6" << std::endl;
-    // TODO: args
     return std::make_shared<ast::MethodInvocation>(
         visitExpression(node->child_at(0)), visitIdentifier(node->child_at(1)),
         std::vector<std::shared_ptr<ast::Expr>>());
@@ -431,7 +424,6 @@ visitQualifiedIdentifier(const NodePtr &node,
   if (node->get_num_children() == 1) {
     ast_node->addIdentifier(visitIdentifier(node->child_at(0)));
   } else {
-    std::cout << "here 7" << std::endl;
     ast_node = visitQualifiedIdentifier(node->child_at(0), ast_node);
     ast_node->addIdentifier(visitIdentifier(node->child_at(1)));
   }
@@ -475,7 +467,6 @@ std::shared_ptr<ast::Type> visitType(const NodePtr &node) {
     elemType = std::make_shared<ast::BuiltInType>(
         std::dynamic_pointer_cast<BasicType>(innerType)->get_type());
   } else if (innerType->get_node_type() == nodeType::QualifiedName) {
-    std::cout << "here 8" << std::endl;
     elemType = std::make_shared<ast::ReferenceType>(
         visitQualifiedIdentifier(innerType));
   } else {
