@@ -10,15 +10,18 @@ SCRIPT_DIR="$(dirname "$0")"
 
 mkdir $BUILD_DIR
 
+# Change this to whatever you want to test
+DRIVER_NAME="joosc"
+
 pushd $BUILD_DIR
 {
     cmake ..
     make clean
-    make parser
+    make $DRIVER_NAME
 }
 popd
 
-PARSER_DRIVER="$BUILD_DIR/parser"
+DRIVER="$BUILD_DIR/$DRIVER_NAME"
 
 echo "TEST_DIR: $TEST_DIR"
 # Loop through all files (excluding directories)
@@ -30,7 +33,7 @@ for file in "$TEST_DIR"/*; do
         base_name=$(basename $file)
         prefix=${base_name:0:2}
         exit_code=$(
-            ( $PARSER_DRIVER < "$file" > /dev/null 2>&1 ) 2>/dev/null
+            ( $DRIVER "$file" > /dev/null 2>&1 ) 2>/dev/null
             echo $?
         )
         if [[ "$prefix" == "Je" && "$exit_code" -eq 0 ]]; then
@@ -50,12 +53,16 @@ for file in "$TEST_DIR"/*; do
     fi
 done
 
-for file in "$SCRIPT_DIR/../tests/input/*"; do
+TEST_DIR="$SCRIPT_DIR/../tests/input"
+
+echo "====================="
+echo $TEST_DIR
+for file in "$TEST_DIR"/*; do
     if [ -f "$file" ]; then
         base_name=$(basename $file)
         prefix=${base_name:0:2}
         exit_code=$(
-            ( $PARSER_DRIVER < "$file" > /dev/null 2>&1 ) 2>/dev/null
+            ($DRIVER "$file" > /dev/null 2>&1) 2> /dev/null
             echo $?
         )
         if [[ "$prefix" == "re" && "$exit_code" -eq 0 ]]; then
