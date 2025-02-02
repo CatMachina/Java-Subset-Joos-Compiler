@@ -68,7 +68,7 @@ using basicType = parsetree::BasicType::Type;
 "false"                             { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
 
 \'[^\'\\]\'                         { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
-\'\\[btnfr\'\"\\]\'                 { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
+\'(\\[btnfr\'\"\\]|\\([0-7]|[0-7][0-7]|[0-3][0-7][0-7]))\'                 { yylval = make_literal(literalType::Character, yytext); print_token("CHARACTER_LITERAL", yytext); return LITERAL ; }
 
 \"([^\"\\]|\\[btnfr\'\"\\]|\\([0-7]|[0-7][0-7]|[0-3][0-7][0-7]))*\"      { yylval = make_literal(literalType::String, yytext); print_token("STRING_LITERAL", yytext); return LITERAL ; }
 
