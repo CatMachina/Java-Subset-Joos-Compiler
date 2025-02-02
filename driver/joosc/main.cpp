@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
     if (parse_tree->is_corrupted()) {
       std::cerr << "Parse error: parse tree is invalid" << std::endl;
       // comment out if not debugging
-      parse_tree->print(std::cerr);
+      // parse_tree->print(std::cerr);
       return 42;
     }
 

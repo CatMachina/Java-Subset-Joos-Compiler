@@ -572,7 +572,8 @@ cast_expr:
         // $2 is a qualified name and or an array type
         bool isQI = $2->get_node_type() == NodeType::QualifiedName;
         bool isArr = $2->get_node_type() == NodeType::ArrayCastType;
-        if (isQI || isArr) {
+        bool hasOneChild = $2->get_num_children() == 1;
+        if (isQI || (isArr && hasOneChild)) {
             $$ = lexer.make_node(NodeType::Expression, std::move($2), std::move($4));
         } else {
             std::cerr << "Cast expression is not valid" << std::endl;
@@ -597,7 +598,7 @@ primary:
 primary_without_array:
     LITERAL
     | THIS
-    | LPAREN expr RPAREN
+    | LPAREN expr RPAREN { $$ = lexer.make_node(NodeType::Expression, std::move($2)); }
     | class_create_expr
     | field_access_expr
     | method_invocation_expr
