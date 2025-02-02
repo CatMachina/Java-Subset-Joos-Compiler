@@ -64,6 +64,27 @@ using basicType = parsetree::BasicType::Type;
 "package"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return PACKAGE ; }
 "new"                               { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return NEW ; }
 "native"                            { yylval = make_modifier(modifierType::Native); print_token("KEYWORD", yytext); return NATIVE ; }
+"super"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return SUPER ; }
+
+"private"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return PRIVATE ; }
+"goto"                              { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return GOTO ; }
+"do"                                { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return DO ; }
+"try"                               { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return TRY ; }
+"catch"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return CATCH ; }
+"finally"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return FINALLY ; }
+"throw"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return THROW ; }
+"throws"                            { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return THROWS ; }
+"transient"                         { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return TRANSIENT ; }
+"switch"                            { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return SWITCH ; }
+"break"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return BREAK ; }
+"case"                              { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return CASE ; }
+"default"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return DEFAULT ; }
+"synchronized"                      { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return SYNCHRONIZED ; }
+"volatile"                          { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return VOLATILE ; }
+"continue"                          { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return CONTINUE ; }
+"double"                            { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return DOUBLE ; }
+"float"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return FLOAT ; }
+"long"                              { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return LONG ; }
 
 "true"                              { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
 "false"                             { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
