@@ -347,7 +347,9 @@ std::shared_ptr<ast::Block> visitBlock(const NodePtr &node) {
   check_num_children(node, 1, 1);
   // TODO: check implementation
   if (node->child_at(0) == nullptr) {
-    return nullptr;
+    // this case is when public abstract int foo() {}
+    // so it should consider an empty block
+    return std::make_shared<ast::Block>();
   }
   std::vector<std::shared_ptr<ast::Stmt>> statements;
   visitStatementList(node->child_at(0), statements);
