@@ -204,10 +204,9 @@ class Assignment : public StatementExpr {
 class MethodInvocation : public StatementExpr {
   std::shared_ptr<QualifiedIdentifier> qid;
   std::vector<std::shared_ptr<Expr>> args;
+
 public:
-  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() {
-    return qid;
-  }
+  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() { return qid; }
 };
 
 class ClassCreation : public StatementExpr {
@@ -446,6 +445,10 @@ public:
   [[nodiscard]] bool isFinal() const noexcept { return isFinal_; }
   [[nodiscard]] bool isAbstract() const noexcept { return isAbstract_; }
   [[nodiscard]] bool isNative() const noexcept { return isNative_; }
+  [[nodiscard]] bool isPackagePrivate() const noexcept {
+    return !isPublic_ && !isProtected_ && !isStatic_ && !isFinal_ &&
+           !isAbstract_ && !isNative_;
+  }
 
   void setPublic() { isPublic_ = true; };
   void setProtected() { isProtected_ = true; };

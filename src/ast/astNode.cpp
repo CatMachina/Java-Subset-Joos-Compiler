@@ -13,8 +13,12 @@ ClassDecl::ClassDecl(
   if (!modifiers) {
     throw std::runtime_error("Class Decl Invalid modifiers.");
   }
-  if (modifiers->isAbstract() && modifiers->isFinal())
+  if (modifiers->isPackagePrivate()) {
+    throw std::runtime_error("A class cannot be package private.");
+  }
+  if (modifiers->isAbstract() && modifiers->isFinal()) {
     throw std::runtime_error("A class cannot be both abstract and final.");
+  }
   // Separate fields, constructors and methods
   bool foundConstructor = false;
   for (const auto &decl : classBodyDecls) {
