@@ -124,7 +124,7 @@ using basicType = parsetree::BasicType::Type;
 "|"                                 { yylval = make_operator(operatorType::BitwiseOr); print_token("OPERATOR", yytext); return AMP ; }
 "%"                                 { yylval = make_operator(operatorType::Modulo); print_token("OPERATOR", yytext); return PCT ; }
 
-[0-9]+                             { yylval = make_literal(literalType::Integer, yytext);; print_token("INTEGER_LITERAL", yytext); return LITERAL ; }
+(0|[1-9][0-9]*)                     { yylval = make_literal(literalType::Integer, yytext);; print_token("INTEGER_LITERAL", yytext); return LITERAL ; }
 
 [a-zA-Z_][a-zA-Z0-9_]* {
     yylval = make_identifier(yytext);
