@@ -1,5 +1,5 @@
 public class restrictions_this_super {
-    public TestClass() {
+    public restrictions_this_super() {
         this();
     }
 

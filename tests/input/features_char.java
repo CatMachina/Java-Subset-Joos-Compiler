@@ -1,6 +1,6 @@
 
-public class A {
-  public A() {}
+public class features_char {
+  public features_char() {}
   protected char x;
 }
 

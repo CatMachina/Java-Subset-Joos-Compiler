@@ -1,8 +1,8 @@
 
 import java.util.*;
 
-public class A {
-  public A() {}
+public class features_packageimport {
+  public features_packageimport() {}
   protected Vector c;
 }
 

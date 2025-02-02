@@ -1,7 +1,7 @@
 
-public class A {
-  public A() {}
+public class features_instanceof {
+  public features_instanceof() {}
   public boolean m(Object x) {
-    return x instanceof A;
+    return x instanceof features_instanceof;
   }
 }

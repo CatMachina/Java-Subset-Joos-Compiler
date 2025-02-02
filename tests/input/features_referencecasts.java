@@ -1,7 +1,7 @@
 
-public class A {
-  public A() {}
-  public A m(Object x) {
-    return (A)x;
+public class features_referencecasts {
+  public features_referencecasts() {}
+  public features_referencecasts m(Object x) {
+    return (features_referencecasts)x;
   }
 }

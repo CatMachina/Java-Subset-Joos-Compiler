@@ -1,6 +1,6 @@
 
-public class A {
-  public A() {}
+public class features_implicitthisformethods {
+  public features_implicitthisformethods() {}
   public int m1() {
     return 42;
   }

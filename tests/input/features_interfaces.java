@@ -1,3 +1,3 @@
 
-  public interface A {}
+  public interface features_interfaces {}
 

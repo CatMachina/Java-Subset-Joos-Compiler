@@ -1,5 +1,5 @@
 
-public class A {
+public class features_methodoverloading {
   public int m1(int x) {
     return 42;
   }

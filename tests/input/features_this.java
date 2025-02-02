@@ -1,7 +1,7 @@
 
-public class A {
-  public A() {}
-  public A returnThis() {
+public class features_this {
+  public features_this() {}
+  public features_this returnThis() {
     return this;
   }
 }

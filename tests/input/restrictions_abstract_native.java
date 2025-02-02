@@ -1,4 +1,5 @@
 public class restrictions_abstract_native {
+    public restrictions_abstract_native() {}
     public abstract void abstractMethod() {
     }
 

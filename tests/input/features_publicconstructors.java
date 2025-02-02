@@ -1,5 +1,5 @@
 
-public class A {
-  public A() {}
+public class features_publicconstructors {
+  public features_publicconstructors() {}
 }
 
