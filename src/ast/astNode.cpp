@@ -35,6 +35,10 @@ ClassDecl::ClassDecl(
       // Non-constructor
       this->methods.push_back(methodDecl);
     }
+    if (field == nullptr && methodDecl == nullptr) {
+      throw std::runtime_error("Class Decl Invalid declarations for class " +
+                               std::string(name));
+    }
   }
   if (!foundConstructor) {
     throw std::runtime_error(
@@ -48,6 +52,18 @@ InterfaceDecl::InterfaceDecl(
     std::vector<std::shared_ptr<Decl>> interfaceBody)
     : Decl{name}, modifiers{modifiers}, extendsInterfaces{extendsInterfaces},
       interfaceBody{interfaceBody} {
+  if (!modifiers) {
+    throw std::runtime_error("Interface Decl Invalid modifiers for interface " +
+                             std::string(name));
+  }
+  if(modifiers->isFinal()) {
+      throw std::runtime_error("An interface cannot be final for interface " +
+                               std::string(name));
+   }
+   if(!modifiers->isPublic()) {
+      throw std::runtime_error("Interface must have a visibility modifier for interface " +
+                               std::string(name));
+   }
   // Check declarations
   for (const auto &decl : interfaceBody) {
     auto field = std::dynamic_pointer_cast<FieldDecl>(decl);
@@ -72,6 +88,11 @@ InterfaceDecl::InterfaceDecl(
         }
         if (methodModifiers->isNative()) {
           throw std::runtime_error("An interface method cannot be native.");
+        }
+        if (!methodModifiers->isAbstract()) {
+          throw std::runtime_error(
+              "An interface method must be abstract for interface " +
+              std::string(name));
         }
       }
     }
@@ -123,6 +144,10 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
                              "and protected for method " +
                              std::string(name));
   }
+  if(!modifiers->isPublic() && !modifiers->isProtected()) {
+      throw std::runtime_error("A method must have a visibility modifier for method " +
+                               std::string(name));
+   }
   if (modifiers->isAbstract() &&
       (modifiers->isStatic() || modifiers->isFinal())) {
     throw std::runtime_error("An abstract method cannot be static or final for "
@@ -133,9 +158,31 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
     throw std::runtime_error("A static method cannot be final for method " +
                              std::string(name));
   }
-  if (modifiers->isNative() && !modifiers->isStatic()) {
-    throw std::runtime_error("A native method must be static for method " +
+
+  // check native methods
+  if (modifiers->isNative()) {
+    if (!modifiers->isStatic()) {
+      throw std::runtime_error("A native method must be static for method " +
                              std::string(name));
+    }
+    if (params.size() != 1) {
+      throw std::runtime_error("A native method must have exactly one "
+                               "parameter for method " +
+                               std::string(name));
+    }
+    if (auto type = std::dynamic_pointer_cast<BuiltInType>(returnType)) {
+      if (type->getKind() != BuiltInType::Kind::Int) {
+        throw std::runtime_error("A native method must return int for method " +
+                                 std::string(name));
+      }
+    }
+    if (auto type = std::dynamic_pointer_cast<BuiltInType>(params[0]->getType())) {
+      if (type->getKind() != BuiltInType::Kind::Int) {
+        throw std::runtime_error("A native method must have parameter of type "
+                                 "int for method " +
+                                 std::string(name));
+      }
+    }
   }
   checkSuperThisCalls(methodBody);
 }
