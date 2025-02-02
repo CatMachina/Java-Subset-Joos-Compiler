@@ -64,7 +64,7 @@ using basicType = parsetree::BasicType::Type;
 "package"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return PACKAGE ; }
 "new"                               { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return NEW ; }
 "native"                            { yylval = make_modifier(modifierType::Native); print_token("KEYWORD", yytext); return NATIVE ; }
-"super"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return SUPER ; }
+
 
 "private"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return PRIVATE ; }
 "goto"                              { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return GOTO ; }

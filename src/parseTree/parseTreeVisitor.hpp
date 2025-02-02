@@ -104,7 +104,7 @@ template <>
 [[nodiscard]] std::shared_ptr<ast::Decl>
 visit<nodeType::InterfaceBodyDeclList>(const NodePtr &node);
 
-// Statements visitors
+// Statement visitors
 struct VariableDecl {
   std::shared_ptr<ast::Type> type;
   std::string_view name;
@@ -112,11 +112,37 @@ struct VariableDecl {
 };
 VariableDecl visitVariableDeclarator(const NodePtr &type, const NodePtr &node);
 
-[[nodiscard]] std::shared_ptr<ast::Stmt> visitBlock(const NodePtr &node);
+[[nodiscard]] std::shared_ptr<ast::Block> visitBlock(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::Stmt> visitStatement(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::ReturnStmt>
+visitReturnStatement(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::IfStmt>
+visitIfStatement(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::WhileStmt>
+visitWhileStatement(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::ForStmt>
+visitForStatement(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::ExpressionStmt>
+visitExprStatement(const NodePtr &node);
+
+void visitStatementList(const NodePtr &node,
+                        std::vector<std::shared_ptr<ast::Stmt>> &statements);
 
 // Expression visitors
 
 [[nodiscard]] std::list<ast::ExprOp> visitExpr(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::StatementExpr>
+visitStatementExpr(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::MethodInvocation>
+visitMethodInvocation(const NodePtr &node);
 
 // Leaf node visitors
 

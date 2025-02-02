@@ -403,7 +403,7 @@ statement_no_short_if:
 ;
 
 expr_statement:
-    statement_expr SEMI { $$ = lexer.make_node(NodeType::Statement, std::move($1)); }
+    statement_expr SEMI { $$ = lexer.make_node(NodeType::ExprStatement, std::move($1)); }
 ;
 
 return_statement:
@@ -482,7 +482,7 @@ assignment_expr:
 ;
 
 // Assignment (Lowest precedence)
-assignment: lvalue BECOMES assignment_expr { $$ = lexer.make_node(NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+assignment: lvalue BECOMES assignment_expr { $$ = lexer.make_node(NodeType::Assignment, std::move($1), std::move($2), std::move($3)); }
 ;
 
 lvalue: qualified_name
