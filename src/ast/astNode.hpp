@@ -460,7 +460,7 @@ public:
   [[nodiscard]] bool isFinal() const noexcept { return isFinal_; }
   [[nodiscard]] bool isAbstract() const noexcept { return isAbstract_; }
   [[nodiscard]] bool isNative() const noexcept { return isNative_; }
-  [[nodiscard]] bool isPackagePrivate() const noexcept {
+  [[nodiscard]] bool isInvalid() const noexcept {
     return !isPublic_ && !isProtected_ && !isStatic_ && !isFinal_ &&
            !isAbstract_ && !isNative_;
   }

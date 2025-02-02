@@ -13,7 +13,7 @@ ClassDecl::ClassDecl(
   if (!modifiers) {
     throw std::runtime_error("Class Decl Invalid modifiers.");
   }
-  if (modifiers->isPackagePrivate()) {
+  if (modifiers->isInvalid()) {
     throw std::runtime_error("A class cannot be package private.");
   }
   if (modifiers->isAbstract() && modifiers->isFinal()) {
@@ -85,7 +85,7 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
     : Decl{name}, modifiers{modifiers}, returnType{returnType}, params{params},
       isConstructor_{isConstructor}, methodBody{methodBody} {
   // Check for valid modifiers
-  if (!modifiers) {
+  if (!modifiers || modifiers->isInvalid()) {
     throw std::runtime_error("Method Decl Invalid modifiers for method " +
                              std::string(name));
   }
