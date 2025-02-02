@@ -192,7 +192,7 @@ public:
       if (x > INT_MAX && !isNegative) {
         return false;
       }
-      if (x < -INT_MAX - 1 && isNegative) {
+      if (-x < INT_MIN && isNegative) {
         return false;
       }
     } catch (const std::exception &) {
