@@ -576,7 +576,7 @@ cast_expr:
             $$ = lexer.make_node(NodeType::Expression, std::move($2), std::move($4));
         } else {
             std::cerr << "Cast expression is not valid" << std::endl;
-            $$ = lexer.make_corrupted();
+            $$ = lexer.make_corrupted("some cast expression");
         }
     }
 ;

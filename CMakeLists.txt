@@ -61,7 +61,7 @@ add_library(CompilerLib
     # parser
     "src/lexer/joos1w.cpp"
     # parseTree
-    "src/parseTree/parseTree.hpp"
+    "src/parseTree/parseTree.cpp"
     "src/parseTree/parseTreeVisitor.cpp"
 
 )

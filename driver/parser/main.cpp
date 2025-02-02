@@ -1,7 +1,7 @@
+#include <cstdlib>
 #include <iostream>
 #include <sstream>
 #include <unistd.h>
-#include <cstdlib>
 
 #include "../src/parseTree/parseTree.hpp"
 #include "../src/parser/myBisonParser.hpp"
@@ -44,7 +44,8 @@ int main() {
     myBisonParser parser{input};
 
     // Parse
-    const char *env_var = std::getenv("YYDEBUG"); // Replace with your environment variable name
+    const char *env_var =
+        std::getenv("YYDEBUG"); // Replace with your environment variable name
     if (env_var) {
       yydebug = 1;
       std::cout << "====== DEBUG MODE ======\n";

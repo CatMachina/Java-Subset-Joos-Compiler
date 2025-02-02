@@ -7,9 +7,10 @@ using Literal = parsetree::Literal;
 using Identifier = parsetree::Identifier;
 using Modifier = parsetree::Modifier;
 using BasicType = parsetree::BasicType;
+using Corrupted = parsetree::Corrupted;
 
-std::shared_ptr<Node> myFlexLexer::make_corrupted() {
-  auto nodePtr = std::make_shared<Node>(Node::Type::Corrupted);
+std::shared_ptr<Node> myFlexLexer::make_corrupted(const char *name) {
+  auto nodePtr = std::make_shared<Corrupted>(name);
   nodes.push_back(nodePtr);
   return nodePtr;
 }

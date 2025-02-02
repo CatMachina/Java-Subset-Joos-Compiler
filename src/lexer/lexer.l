@@ -37,32 +37,32 @@ using basicType = parsetree::BasicType::Type;
 <COMMENT>\n                       { }
 
 "abstract"                          { yylval = make_modifier(modifierType::Abstract); print_token("MODIFIER", yytext); return ABSTRACT ; }
-"if"                                { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IF ; }
+"if"                                { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return IF ; }
 "this"                              { yylval = make_identifier(yytext); print_token("KEYWORD", yytext); return THIS; }
 "boolean"                           { yylval = make_basic_type(basicType::Boolean); print_token("KEYWORD", yytext); return BOOLEAN ; }
-"implements"                        { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IMPLEMENTS ; }
+"implements"                        { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return IMPLEMENTS ; }
 "protected"                         { yylval = make_modifier(modifierType::Protected); print_token("MODIFIER", yytext); return PROTECTED ; }
-"import"                            { yylval = make_corrupted(); print_token("KEYWORD", yytext); return IMPORT ; }
+"import"                            { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return IMPORT ; }
 "public"                            { yylval = make_modifier(modifierType::Public); print_token("MODIFIER", yytext); return PUBLIC ; }
 "byte"                              { yylval = make_basic_type(basicType::Byte); print_token("KEYWORD", yytext); return BYTE ; }
-"else"                              { yylval = make_corrupted(); print_token("KEYWORD", yytext); return ELSE ; }
+"else"                              { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return ELSE ; }
 "instanceof"                        { yylval = make_operator(operatorType::InstanceOf); print_token("KEYWORD", yytext); return INSTANCEOF ; }
-"return"                            { yylval = make_corrupted(); print_token("KEYWORD", yytext); return RETURN ; }
-"extends"                           { yylval = make_corrupted(); print_token("KEYWORD", yytext); return EXTENDS ; }
+"return"                            { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return RETURN ; }
+"extends"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return EXTENDS ; }
 "int"                               { yylval = make_basic_type(basicType::Int); print_token("KEYWORD", yytext); return INT ; }
 "short"                             { yylval = make_basic_type(basicType::Short); print_token("KEYWORD", yytext); return SHORT ; }
 "final"                             { yylval = make_modifier(modifierType::Final); print_token("MODIFIER", yytext); return FINAL ; }
-"interface"                         { yylval = make_corrupted(); print_token("KEYWORD", yytext); return INTERFACE ; }
+"interface"                         { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return INTERFACE ; }
 "static"                            { yylval = make_modifier(modifierType::Static); print_token("MODIFIER", yytext); return STATIC ; }
-"void"                              { yylval = make_corrupted(); print_token("KEYWORD", yytext); return VOID ; }
+"void"                              { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return VOID ; }
 "char"                              { yylval = make_basic_type(basicType::Char); print_token("KEYWORD", yytext); return CHAR ; }
-"class"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return CLASS ; }
-"while"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return WHILE ; }
-"const"                             { yylval = make_corrupted(); print_token("KEYWORD", yytext); return CONST ; }
-"for"                               { yylval = make_corrupted(); print_token("KEYWORD", yytext); return FOR ; }
-"package"                           { yylval = make_corrupted(); print_token("KEYWORD", yytext); return PACKAGE ; }
-"new"                               { yylval = make_corrupted(); print_token("KEYWORD", yytext); return NEW ; }
-"native"                            { yylval = make_corrupted(); print_token("KEYWORD", yytext); return NATIVE ; }
+"class"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return CLASS ; }
+"while"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return WHILE ; }
+"const"                             { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return CONST ; }
+"for"                               { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return FOR ; }
+"package"                           { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return PACKAGE ; }
+"new"                               { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return NEW ; }
+"native"                            { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return NATIVE ; }
 
 "true"                              { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
 "false"                             { yylval = make_literal(literalType::Boolean, yytext); print_token("BOOLEAN_LITERAL", yytext); return LITERAL ; }
@@ -74,15 +74,15 @@ using basicType = parsetree::BasicType::Type;
 
 "null"                              { yylval = make_literal(literalType::Null, yytext); print_token("NULL_LITERAL", yytext); return LITERAL ; }
 
-"("                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return LPAREN ; }
-")"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return RPAREN ; }
-"{"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return LBRACE ; }
-"}"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return RBRACE ; }
-"["                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return LBRACK ; }
-"]"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return RBRACK ; }
-";"                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return SEMI ; }
-","                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return COMMA ; }
-"."                                 { yylval = make_corrupted(); print_token("SEPARATOR", yytext); return DOT ; }
+"("                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return LPAREN ; }
+")"                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return RPAREN ; }
+"{"                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return LBRACE ; }
+"}"                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return RBRACE ; }
+"["                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return LBRACK ; }
+"]"                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return RBRACK ; }
+";"                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return SEMI ; }
+","                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return COMMA ; }
+"."                                 { yylval = make_corrupted(yytext); print_token("SEPARATOR", yytext); return DOT ; }
 
 "="                                 { yylval = make_operator(operatorType::Assign); print_token("OPERATOR", yytext); return BECOMES ; }
 ">"                                 { yylval = make_operator(operatorType::GreaterThan); print_token("OPERATOR", yytext); return GT ; }

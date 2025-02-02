@@ -22,6 +22,7 @@ class Identifier;
 class Operator;
 class Modifier;
 class BasicType;
+class Corrupted;
 
 // The base node in the parse tree.
 struct Node {
@@ -113,30 +114,20 @@ struct Node {
   }
 
   // If the node is corrupted, the tree has been corrupted
-  bool is_corrupted() const {
-    if (type == Type::Corrupted)
-      return true;
-    for (size_t i = 0; i < num_args; ++i) {
-      if (args[i] == nullptr)
-        continue;
-      if (args[i]->is_corrupted())
-        return true;
-    }
-    return false;
-  }
+  bool is_corrupted() const;
 
-  virtual std::ostream &print(std::ostream &os) const {
-    os << "(" << magic_enum::enum_name(type);
+  virtual std::ostream &print(std::ostream &os, int depth = 0) const {
+    std::string indent(depth * 2, ' ');
+    os << indent << "(" << magic_enum::enum_name(type) << std::endl;
 
     for (size_t i = 0; i < num_args; ++i) {
-      os << " ";
       if (!args[i]) {
-        os << "ε";
+        os << indent << "ε\n";
       } else {
-        args[i]->print(os);
+        args[i]->print(os, depth + 1);
       }
     }
-    os << ")";
+    os << indent << ")\n";
     return os;
   }
 
@@ -146,6 +137,20 @@ private:
   Type type;
   std::vector<std::shared_ptr<Node>> args;
   size_t num_args;
+};
+
+class Corrupted : public Node {
+  friend class ::myFlexLexer;
+  friend class ::myBisonParser;
+  std::string_view name;
+
+public:
+  Corrupted(const char *name) : Node{Node::Type::Corrupted}, name{name} {}
+  std::ostream &print(std::ostream &os, int depth = 0) const override {
+    std::string indent(depth * 2, ' ');
+    os << indent << "(Corrupted: '" << name << "')\n";
+    return os;
+  }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -165,12 +170,13 @@ public:
   }
 
   // Override printing for this leaf node
-  std::ostream &print(std::ostream &os) const override {
-    os << "Literal(Type: " << magic_enum::enum_name(type)
+  std::ostream &print(std::ostream &os, int depth = 0) const override {
+    std::string indent(depth * 2, ' ');
+    os << indent << "Literal(Type: " << magic_enum::enum_name(type)
        << ", Value: " << value;
     if (isNegative)
       os << ", Negative: true";
-    os << ")";
+    os << ")\n";
     return os;
   }
 
@@ -214,8 +220,9 @@ public:
 
   const char *get_name() const { return name.c_str(); }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "Identifier(Name: " << name << ")";
+  std::ostream &print(std::ostream &os, int depth = 0) const override {
+    std::string indent(depth * 2, ' ');
+    os << indent << "Identifier(Name: " << name << ")\n";
     return os;
   }
 
@@ -258,8 +265,9 @@ public:
   // Constructor for Operator
   Operator(Type type) : Node{Node::Type::Operator}, type{type} {}
 
-  std::ostream &print(std::ostream &os) const override {
-    return os << magic_enum::enum_name(type);
+  std::ostream &print(std::ostream &os, int depth = 0) const override {
+    std::string indent(depth * 2, ' ');
+    return os << indent << "(Type: " << magic_enum::enum_name(type) << ")\n";
   }
 
 private:
@@ -284,8 +292,9 @@ public:
   Type get_type() const { return type; }
 
   // Print the string representation of the modifier
-  std::ostream &print(std::ostream &os) const override {
-    os << "Modifier(Type: " << magic_enum::enum_name(type) << ")";
+  std::ostream &print(std::ostream &os, int depth = 0) const override {
+    std::string indent(depth * 2, ' ');
+    os << indent << "Modifier(Type: " << magic_enum::enum_name(type) << ")\n";
     return os;
   }
 
@@ -310,8 +319,9 @@ public:
   Type get_type() const { return type; }
 
   // Print the string representation of the basic type
-  std::ostream &print(std::ostream &os) const override {
-    os << "BasicType(Type: " << magic_enum::enum_name(type) << ")";
+  std::ostream &print(std::ostream &os, int depth = 0) const override {
+    std::string indent(depth * 2, ' ');
+    os << indent << "BasicType(Type: " << magic_enum::enum_name(type) << ")\n";
     return os;
   }
 

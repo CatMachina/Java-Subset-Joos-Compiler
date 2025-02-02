@@ -204,10 +204,9 @@ class Assignment : public StatementExpr {
 class MethodInvocation : public StatementExpr {
   std::shared_ptr<QualifiedIdentifier> qid;
   std::vector<std::shared_ptr<Expr>> args;
+
 public:
-  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() {
-    return qid;
-  }
+  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() { return qid; }
 };
 
 class ClassCreation : public StatementExpr {

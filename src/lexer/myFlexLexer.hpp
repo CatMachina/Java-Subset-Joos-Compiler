@@ -34,7 +34,7 @@ public:
     return nodePtr;
   }
 
-  std::shared_ptr<Node> make_corrupted();
+  std::shared_ptr<Node> make_corrupted(const char *name);
 
   std::shared_ptr<Node> make_operator(Operator::Type type);
 
