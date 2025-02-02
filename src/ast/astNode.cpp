@@ -191,24 +191,44 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
   if (!block) {
     return;
   }
+  std::shared_ptr<MethodInvocation> methodToCheck;
   for (auto statement : block->getStatements()) {
+    if (auto nestedBlock = std::dynamic_pointer_cast<Block>(statement)) {
+      checkSuperThisCalls(nestedBlock);
+      continue;
+    }
     if (auto expressionStmt =
             std::dynamic_pointer_cast<ExpressionStmt>(statement)) {
       if (auto methodInvocation = std::dynamic_pointer_cast<MethodInvocation>(
               expressionStmt->getStatementExpr())) {
-        auto qid = methodInvocation->getQualifiedIdentifier();
-        if (qid->toString() == "this") {
-          throw std::runtime_error("A method or constructor must not contain "
-                                   "explicit this() calls for method " +
-                                   getName());
-        } else if (qid->toString() == "super") {
-          throw std::runtime_error("A method or constructor must not contain "
-                                   "explicit super() calls for method " +
-                                   getName());
-        }
+        methodToCheck = methodInvocation;
       }
-    } else if (auto nestedBlock = std::dynamic_pointer_cast<Block>(statement)) {
-      checkSuperThisCalls(nestedBlock);
+    } else if (auto returnStmt =
+                   std::dynamic_pointer_cast<ReturnStmt>(statement)) {
+      if (auto methodInvocation = std::dynamic_pointer_cast<MethodInvocation>(
+              returnStmt->getReturnExpr())) {
+        methodToCheck = methodInvocation;
+      }
+    }
+    if (!methodToCheck) {
+      continue;
+    }
+    auto qid = methodToCheck->getQualifiedIdentifier();
+    if (!qid) {
+      // TODO: This is the primary DOT ID case. Need to check whether the
+      // primary (i.e. expr) is a this() or super() method invocation.
+      continue;
+    }
+    for (const auto &id : qid->getIdentifiers()) {
+      if (id == "this") {
+        throw std::runtime_error("A method or constructor must not contain "
+                                 "explicit this() calls for method " +
+                                 getName());
+      } else if (id == "super") {
+        throw std::runtime_error("A method or constructor must not contain "
+                                 "explicit super() calls for method " +
+                                 getName());
+      }
     }
   }
 }

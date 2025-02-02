@@ -49,12 +49,14 @@ visitPackageDecl(const NodePtr &node) {
     return nullptr;
   check_node_type(node, nodeType::PackageDecl);
   check_num_children(node, 1, 1);
+  std::cout << "here 1" << std::endl;
   return visitQualifiedIdentifier(node->child_at(0));
 }
 
 template <>
 ast::ImportDecl visit<nodeType::ImportDeclList>(const NodePtr &node) {
   check_num_children(node, 1, 1);
+  std::cout << "here 2" << std::endl;
   auto id = visitQualifiedIdentifier(node->child_at(0));
 
   switch (node->get_node_type()) {
@@ -100,12 +102,14 @@ std::shared_ptr<ast::QualifiedIdentifier> visitSuper(const NodePtr &node) {
     return nullptr;
   check_node_type(node, nodeType::SuperClass);
   check_num_children(node, 1, 1);
+  std::cout << "here 3" << std::endl;
   return visitQualifiedIdentifier(node->child_at(0));
 }
 
 template <>
 std::shared_ptr<ast::QualifiedIdentifier>
 visit<nodeType::InterfaceTypeList>(const NodePtr &node) {
+  std::cout << "here 4" << std::endl;
   return visitQualifiedIdentifier(node);
 }
 
@@ -266,6 +270,19 @@ std::list<ast::ExprOp> visitExpr(const NodePtr &node) {
   return std::list<ast::ExprOp>();
 }
 
+std::shared_ptr<ast::Expr> visitExpression(const NodePtr &node) {
+  if (!node) {
+    return nullptr;
+  }
+  switch (node->get_node_type()) {
+  case nodeType::MethodInvocation:
+    return visitMethodInvocation(node);
+  default:
+    // TODO
+    return std::make_shared<ast::Expr>();
+  }
+}
+
 std::shared_ptr<ast::StatementExpr> visitStatementExpr(const NodePtr &node) {
   switch (node->get_node_type()) {
   case nodeType::Assignment:
@@ -287,14 +304,18 @@ visitMethodInvocation(const NodePtr &node) {
   check_num_children(node, 2, 3);
   std::shared_ptr<ast::QualifiedIdentifier> qid;
   if (node->get_num_children() == 2) {
-    qid = visitQualifiedIdentifier(node->child_at(0));
+    std::cout << "here 5" << std::endl;
     // TODO: args
+    return std::make_shared<ast::MethodInvocation>(
+        visitQualifiedIdentifier(node->child_at(0)),
+        std::vector<std::shared_ptr<ast::Expr>>());
   } else {
-    qid = visitQualifiedIdentifier(node->child_at(1));
-    // TODO: expr, args
+    std::cout << "here 6" << std::endl;
+    // TODO: args
+    return std::make_shared<ast::MethodInvocation>(
+        visitExpression(node->child_at(0)), visitIdentifier(node->child_at(1)),
+        std::vector<std::shared_ptr<ast::Expr>>());
   }
-  return std::make_shared<ast::MethodInvocation>(
-      qid, std::vector<std::shared_ptr<ast::Expr>>());
 }
 
 // Statements
@@ -359,8 +380,12 @@ std::shared_ptr<ast::Block> visitBlock(const NodePtr &node) {
 std::shared_ptr<ast::ReturnStmt> visitReturnStatement(const NodePtr &node) {
   check_node_type(node, nodeType::ReturnStatement);
   check_num_children(node, 0, 1);
-  // TODO
-  return std::make_shared<ast::ReturnStmt>();
+  if (node->get_num_children() == 0) {
+    return std::make_shared<ast::ReturnStmt>();
+  } else {
+    return std::make_shared<ast::ReturnStmt>(
+        visitExpression(node->child_at(0)));
+  }
 }
 
 std::shared_ptr<ast::IfStmt> visitIfStatement(const NodePtr &node) {
@@ -406,6 +431,7 @@ visitQualifiedIdentifier(const NodePtr &node,
   if (node->get_num_children() == 1) {
     ast_node->addIdentifier(visitIdentifier(node->child_at(0)));
   } else {
+    std::cout << "here 7" << std::endl;
     ast_node = visitQualifiedIdentifier(node->child_at(0), ast_node);
     ast_node->addIdentifier(visitIdentifier(node->child_at(1)));
   }
@@ -449,6 +475,7 @@ std::shared_ptr<ast::Type> visitType(const NodePtr &node) {
     elemType = std::make_shared<ast::BuiltInType>(
         std::dynamic_pointer_cast<BasicType>(innerType)->get_type());
   } else if (innerType->get_node_type() == nodeType::QualifiedName) {
+    std::cout << "here 8" << std::endl;
     elemType = std::make_shared<ast::ReferenceType>(
         visitQualifiedIdentifier(innerType));
   } else {

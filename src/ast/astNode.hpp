@@ -183,6 +183,12 @@ class ForStmt : public Stmt {
 
 class ReturnStmt : public Stmt {
   std::shared_ptr<Expr> returnExpr;
+
+public:
+  explicit ReturnStmt(std::shared_ptr<Expr> returnExpr = nullptr)
+      : returnExpr{returnExpr} {};
+
+  const std::shared_ptr<Expr> getReturnExpr() const { return returnExpr; };
 };
 
 class ExpressionStmt : public Stmt {
@@ -211,13 +217,20 @@ class Assignment : public StatementExpr {
 
 class MethodInvocation : public StatementExpr {
   std::shared_ptr<Expr> expr;
+  std::string id;
   std::shared_ptr<QualifiedIdentifier> qid;
   std::vector<std::shared_ptr<Expr>> args;
 
 public:
   MethodInvocation(std::shared_ptr<QualifiedIdentifier> qid,
                    std::vector<std::shared_ptr<Expr>> args)
-      : qid{qid}, args{args}, expr{nullptr} {};
+      : qid{qid}, args{args} {};
+
+  MethodInvocation(std::shared_ptr<Expr> expr, std::string identifier,
+                   std::vector<std::shared_ptr<Expr>> args)
+      : expr{expr}, id{id}, args{args} {};
+
+  std::string getIdentifier() { return id; }
   std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() { return qid; }
 };
 
@@ -342,6 +355,10 @@ class QualifiedIdentifier {
   std::vector<std::string> identifiers;
 
 public:
+  const std::vector<std::string> &getIdentifiers() const {
+    return identifiers;
+  };
+
   void addIdentifier(std::string_view identifier) {
     identifiers.emplace_back(identifier);
   }
