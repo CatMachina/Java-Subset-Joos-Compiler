@@ -21,7 +21,11 @@ pushd $BUILD_DIR
 }
 popd
 
-DRIVER="$BUILD_DIR/$DRIVER_NAME"
+if [[ "$DRIVER_NAME" != "joosc" ]]; then
+    DRIVER="$BUILD_DIR/$DRIVER_NAME"
+else
+    DRIVER="$BUILD_DIR/../$DRIVER_NAME"
+fi
 
 echo "TEST_DIR: $TEST_DIR"
 # Loop through all files (excluding directories)
@@ -36,13 +40,13 @@ for file in "$TEST_DIR"/*; do
             ( $DRIVER "$file" > /dev/null 2>&1 ) 2>/dev/null
             echo $?
         )
-        if [[ "$prefix" == "Je" && "$exit_code" -eq 0 ]]; then
+        if [[ "$prefix" == "Je" && ((exit_code -ne 42 && "$DRIVER_NAME" == "joosc") || (exit_code -eq 0 && "$DRIVER_NAME" != "joosc")) ]]; then
             # Should fail but doesn't
             echo "FAIL - $file passed but should have failed."
             NUM_FAILED=$((NUM_FAILED+1))
         elif [[ "$prefix" != "Je" && "$exit_code" -ne 0 ]]; then
             # Should pass but doesn't
-            echo "FAIL - $file failed but should have passed."
+            echo "FAIL - $file failed but should have passed with exit code $exit_code."
             NUM_FAILED=$((NUM_FAILED+1))
         else
             # Expected behaviour
