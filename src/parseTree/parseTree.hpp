@@ -74,12 +74,14 @@ struct Node {
     IfStatement,
     WhileStatement,
     ForStatement,
+    ExprStatement,
 
     Expression,
     ArrayCreate,
     ArrayAccess,
     ArrayCastType,
 
+    Assignment,
     ClassCreation,
     FieldAccess,
     MethodInvocation,

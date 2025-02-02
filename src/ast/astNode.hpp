@@ -18,6 +18,7 @@ class FieldDecl;
 class MethodDecl;
 class VarDecl;
 class StatementExpr;
+class Block;
 
 class AstNode {
 public:
@@ -110,14 +111,17 @@ class MethodDecl : public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::shared_ptr<Type> returnType;
   std::vector<std::shared_ptr<VarDecl>> params;
-  std::shared_ptr<Stmt> methodBody;
+  std::shared_ptr<Block> methodBody;
   bool isConstructor_;
+
+  // Check for explicit this() or super() calls
+  void checkSuperThisCalls(std::shared_ptr<Block> block) const;
 
 public:
   MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
              std::shared_ptr<Type> returnType,
              std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
-             std::shared_ptr<Stmt> methodBody);
+             std::shared_ptr<Block> methodBody);
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
   bool isConstructor() const { return isConstructor_; }
   bool hasBody() const { return methodBody != nullptr; };
@@ -182,10 +186,14 @@ class ReturnStmt : public Stmt {
 };
 
 class ExpressionStmt : public Stmt {
-  std::shared_ptr<StatementExpr> expr;
+  std::shared_ptr<StatementExpr> statementExpr;
 
 public:
-  std::shared_ptr<StatementExpr> getExpr() const { return expr; };
+  explicit ExpressionStmt(std::shared_ptr<StatementExpr> statementExpr)
+      : statementExpr{statementExpr} {};
+  std::shared_ptr<StatementExpr> getStatementExpr() const {
+    return statementExpr;
+  };
 };
 
 // Expressions /////////////////////////////////////////////////////////////
@@ -202,10 +210,14 @@ class Assignment : public StatementExpr {
 };
 
 class MethodInvocation : public StatementExpr {
+  std::shared_ptr<Expr> expr;
   std::shared_ptr<QualifiedIdentifier> qid;
   std::vector<std::shared_ptr<Expr>> args;
 
 public:
+  MethodInvocation(std::shared_ptr<QualifiedIdentifier> qid,
+                   std::vector<std::shared_ptr<Expr>> args)
+      : qid{qid}, args{args}, expr{nullptr} {};
   std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() { return qid; }
 };
 

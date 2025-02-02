@@ -158,7 +158,7 @@ std::shared_ptr<ast::MethodDecl> visitMethodDecl(const NodePtr &node) {
                    true>(node->child_at(type ? 3 : 2), params);
 
   // visit body
-  std::shared_ptr<ast::Stmt> body =
+  std::shared_ptr<ast::Block> body =
       node->child_at(type ? 4 : 3) ? visitBlock(node->child_at(type ? 4 : 3))
                                    : nullptr;
 
@@ -180,7 +180,7 @@ std::shared_ptr<ast::MethodDecl> visitConstructorDecl(const NodePtr &node) {
                    true>(node->child_at(2), params);
 
   // visit body if have one
-  std::shared_ptr<ast::Stmt> body =
+  std::shared_ptr<ast::Block> body =
       node->child_at(3) ? visitBlock(node->child_at(3)) : nullptr;
 
   return std::make_shared<ast::MethodDecl>(modifiers, name, nullptr, params,
@@ -266,15 +266,127 @@ std::list<ast::ExprOp> visitExpr(const NodePtr &node) {
   return std::list<ast::ExprOp>();
 }
 
+std::shared_ptr<ast::StatementExpr> visitStatementExpr(const NodePtr &node) {
+  switch (node->get_node_type()) {
+  case nodeType::Assignment:
+    // TODO
+    return std::make_shared<ast::Assignment>();
+  case nodeType::MethodInvocation:
+    return visitMethodInvocation(node);
+  case nodeType::ClassCreation:
+    // TODO
+    return std::make_shared<ast::ClassCreation>();
+  default:
+    throw std::runtime_error("Not a statementExpr!");
+  }
+}
+
+std::shared_ptr<ast::MethodInvocation>
+visitMethodInvocation(const NodePtr &node) {
+  check_node_type(node, nodeType::MethodInvocation);
+  check_num_children(node, 2, 3);
+  std::shared_ptr<ast::QualifiedIdentifier> qid;
+  if (node->get_num_children() == 2) {
+    qid = visitQualifiedIdentifier(node->child_at(0));
+    // TODO: args
+  } else {
+    qid = visitQualifiedIdentifier(node->child_at(1));
+    // TODO: expr, args
+  }
+  return std::make_shared<ast::MethodInvocation>(
+      qid, std::vector<std::shared_ptr<ast::Expr>>());
+}
+
 // Statements
-std::shared_ptr<ast::Stmt> visitBlock(const NodePtr &node) {
+
+void visitStatementList(const NodePtr &node,
+                        std::vector<std::shared_ptr<ast::Stmt>> &statements) {
+  check_node_type(node, nodeType::StatementList);
+  check_num_children(node, 1, 2);
+  auto child = node->child_at(0);
+  if (!child) {
+    // TODO
+  }
+  std::shared_ptr<ast::Stmt> astNode;
+  switch (child->get_node_type()) {
+  case nodeType::Block:
+    astNode = visitBlock(child);
+    break;
+  case nodeType::ReturnStatement:
+    astNode = visitReturnStatement(child);
+    break;
+  case nodeType::IfStatement:
+    astNode = visitIfStatement(child);
+    break;
+  case nodeType::WhileStatement:
+    astNode = visitWhileStatement(child);
+    break;
+  case nodeType::ForStatement:
+    astNode = visitForStatement(child);
+    break;
+  case nodeType::ExprStatement:
+    astNode = visitExprStatement(child);
+    break;
+  default:
+    astNode = visitStatement(child);
+  }
+  statements.push_back(astNode);
+  if (node->get_num_children() == 2) {
+    visitStatementList(node->child_at(1), statements);
+  }
+}
+
+std::shared_ptr<ast::Stmt> visitStatement(const NodePtr &node) {
+  check_node_type(node, nodeType::Statement);
+  // TODO
+  return std::make_shared<ast::Stmt>();
+}
+
+std::shared_ptr<ast::Block> visitBlock(const NodePtr &node) {
   check_node_type(node, nodeType::Block);
   check_num_children(node, 1, 1);
+  // TODO: check implementation
   if (node->child_at(0) == nullptr) {
     return nullptr;
   }
-  // Unimplemented yet
-  return std::make_shared<ast::Block>();
+  std::vector<std::shared_ptr<ast::Stmt>> statements;
+  visitStatementList(node->child_at(0), statements);
+  return std::make_shared<ast::Block>(statements);
+}
+
+std::shared_ptr<ast::ReturnStmt> visitReturnStatement(const NodePtr &node) {
+  check_node_type(node, nodeType::ReturnStatement);
+  check_num_children(node, 0, 1);
+  // TODO
+  return std::make_shared<ast::ReturnStmt>();
+}
+
+std::shared_ptr<ast::IfStmt> visitIfStatement(const NodePtr &node) {
+  check_node_type(node, nodeType::IfStatement);
+  // TODO
+  return std::make_shared<ast::IfStmt>();
+}
+
+std::shared_ptr<ast::WhileStmt> visitWhileStatement(const NodePtr &node) {
+  check_node_type(node, nodeType::WhileStatement);
+  // TODO
+  return std::make_shared<ast::WhileStmt>();
+}
+
+std::shared_ptr<ast::ForStmt> visitForStatement(const NodePtr &node) {
+  check_node_type(node, nodeType::ForStatement);
+  // TODO
+  return std::make_shared<ast::ForStmt>();
+}
+
+std::shared_ptr<ast::ExpressionStmt> visitExprStatement(const NodePtr &node) {
+  check_node_type(node, nodeType::ExprStatement);
+  check_num_children(node, 1, 1);
+  if (!node->child_at(0)) {
+    throw std::runtime_error("Invalid statmementExpr");
+  }
+  return std::make_shared<ast::ExpressionStmt>(
+      visitStatementExpr(node->child_at(0)));
 }
 
 // Leaf Nodes!!

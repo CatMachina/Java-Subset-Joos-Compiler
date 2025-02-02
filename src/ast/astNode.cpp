@@ -81,7 +81,7 @@ InterfaceDecl::InterfaceDecl(
 MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
                        std::string_view name, std::shared_ptr<Type> returnType,
                        std::vector<std::shared_ptr<VarDecl>> params,
-                       bool isConstructor, std::shared_ptr<Stmt> methodBody)
+                       bool isConstructor, std::shared_ptr<Block> methodBody)
     : Decl{name}, modifiers{modifiers}, returnType{returnType}, params{params},
       isConstructor_{isConstructor}, methodBody{methodBody} {
   // Check for valid modifiers
@@ -137,26 +137,31 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
     throw std::runtime_error("A native method must be static for method " +
                              std::string(name));
   }
-  // Check for explicit this() or super() calls
-  // TODO: This looks super ugly...Will fix later
-  if (auto block = std::dynamic_pointer_cast<Block>(methodBody)) {
-    for (auto statement : block->getStatements()) {
-      if (auto expressionStmt =
-              std::dynamic_pointer_cast<ExpressionStmt>(statement)) {
-        if (auto methodInvocation = std::dynamic_pointer_cast<MethodInvocation>(
-                expressionStmt->getExpr())) {
-          auto qid = methodInvocation->getQualifiedIdentifier();
-          if (qid->toString() == "this") {
-            throw std::runtime_error("A method or constructor must not contain "
-                                     "explicit this() calls for method " +
-                                     std::string(name));
-          } else if (qid->toString() == "super") {
-            throw std::runtime_error("A method or constructor must not contain "
-                                     "explicit super() calls for method " +
-                                     std::string(name));
-          }
+  checkSuperThisCalls(methodBody);
+}
+
+void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
+  if (!block) {
+    return;
+  }
+  for (auto statement : block->getStatements()) {
+    if (auto expressionStmt =
+            std::dynamic_pointer_cast<ExpressionStmt>(statement)) {
+      if (auto methodInvocation = std::dynamic_pointer_cast<MethodInvocation>(
+              expressionStmt->getStatementExpr())) {
+        auto qid = methodInvocation->getQualifiedIdentifier();
+        if (qid->toString() == "this") {
+          throw std::runtime_error("A method or constructor must not contain "
+                                   "explicit this() calls for method " +
+                                   getName());
+        } else if (qid->toString() == "super") {
+          throw std::runtime_error("A method or constructor must not contain "
+                                   "explicit super() calls for method " +
+                                   getName());
         }
       }
+    } else if (auto nestedBlock = std::dynamic_pointer_cast<Block>(statement)) {
+      checkSuperThisCalls(nestedBlock);
     }
   }
 }
