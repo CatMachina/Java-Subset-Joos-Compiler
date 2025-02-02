@@ -9,7 +9,7 @@ ClassDecl::ClassDecl(
     std::vector<std::shared_ptr<Decl>> classBodyDecls)
     : Decl{name}, modifiers{modifiers}, superClass{superClass},
       interfaces{interfaces} {
-  // Check modifiers
+  // Check for valid modifiers.
   if (!modifiers) {
     throw std::runtime_error("Class Decl Invalid modifiers.");
   }
@@ -80,30 +80,58 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
                        bool isConstructor, std::shared_ptr<Stmt> methodBody)
     : Decl{name}, modifiers{modifiers}, returnType{returnType}, params{params},
       isConstructor_{isConstructor}, methodBody{methodBody} {
-  // Check modifiers
+  // Check for valid modifiers
   if (!modifiers) {
-    throw std::runtime_error("Method Decl Invalid modifiers for method " + std::string(name));
+    throw std::runtime_error("Method Decl Invalid modifiers for method " +
+                             std::string(name));
   }
-  // A method has a body iff it is neither abstract nor native
-  if ((modifiers->isAbstract() || modifiers->isNative()) && methodBody) {
-    throw std::runtime_error(
-        "An abstract or native method cannot have a body for method " + std::string(name));
+  // Restrictions for constructors
+  if (isConstructor) {
+    if (modifiers->isAbstract()) {
+      throw std::runtime_error("A constructor cannot be abstract.");
+    }
+    if (modifiers->isFinal()) {
+      throw std::runtime_error("A constructor cannot be final.");
+    }
+    if (modifiers->isStatic()) {
+      throw std::runtime_error("A constructor cannot be static.");
+    }
+    if (modifiers->isNative()) {
+      throw std::runtime_error("A constructor cannot be native.");
+    }
+  } else {
+    // Restritions for non-constructor methods
+    // A method has a body iff it is neither abstract nor native
+    if ((modifiers->isAbstract() || modifiers->isNative()) && methodBody) {
+      throw std::runtime_error(
+          "An abstract or native method cannot have a body for method " +
+          std::string(name));
+    }
+    if (!modifiers->isAbstract() && !modifiers->isNative() && !methodBody) {
+      throw std::runtime_error(
+          "A non-abstract and non-native method must have a body for method " +
+          std::string(name));
+    }
   }
-  if (!modifiers->isAbstract() && !modifiers->isNative() && !methodBody) {
-    throw std::runtime_error(
-        "A non-abstract and non-native method must have a body for method " + std::string(name));
+  // Other restrictions for modifiers. These apply to constructors and methods.
+  if (modifiers->isPublic() && modifiers->isProtected()) {
+    throw std::runtime_error("A method or constructor cannot be both public "
+                             "and protected for method " +
+                             std::string(name));
   }
-  // Other restricitons for modifiers
   if (modifiers->isAbstract() &&
       (modifiers->isStatic() || modifiers->isFinal())) {
     throw std::runtime_error("An abstract method cannot be static or final for "
-                             "method " + std::string(name));
+                             "method " +
+                             std::string(name));
   }
   if (modifiers->isStatic() && modifiers->isFinal()) {
-    throw std::runtime_error("A static method cannot be final for method " + std::string(name));
+    throw std::runtime_error("A static method cannot be final for method " +
+                             std::string(name));
   }
   if (modifiers->isNative() && !modifiers->isStatic()) {
-    throw std::runtime_error("A native method must be static for method " + std::string(name));
+    throw std::runtime_error("A native method must be static for method " +
+                             std::string(name));
   }
   // Check for explicit this() or super() calls
   // TODO: This looks super ugly...Will fix later
@@ -116,10 +144,12 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
           auto qid = methodInvocation->getQualifiedIdentifier();
           if (qid->toString() == "this") {
             throw std::runtime_error("A method or constructor must not contain "
-                                     "explicit this() calls for method " + std::string(name));
+                                     "explicit this() calls for method " +
+                                     std::string(name));
           } else if (qid->toString() == "super") {
             throw std::runtime_error("A method or constructor must not contain "
-                                     "explicit super() calls for method " + std::string(name));
+                                     "explicit super() calls for method " +
+                                     std::string(name));
           }
         }
       }
