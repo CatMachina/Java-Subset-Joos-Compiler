@@ -9,10 +9,8 @@
 #include <cstdlib>
 #include <iostream>
 #include "parser.tab.h"
-// #include "parseTree/parseTree.hpp"
-// #include "lexer/myFlexLexer.hpp"
-#include "../src/parseTree/parseTree.hpp"
-#include "../src/lexer/myFlexLexer.hpp"
+#include "parseTree/parseTree.hpp"
+#include "lexer/myFlexLexer.hpp"
 
 void print_token(const std::string& token_name, const std::string& token_value) {
     // uncomment to debug

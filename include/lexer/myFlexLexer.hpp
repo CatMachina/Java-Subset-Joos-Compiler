@@ -6,8 +6,7 @@
 #include <FlexLexer.h>
 #endif
 
-// #include "parsetree/parseTree.hpp"
-#include "../src/parseTree/parseTree.hpp"
+#include "parseTree/parseTree.hpp"
 
 #include "parser.tab.h"
 

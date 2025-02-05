@@ -4,7 +4,7 @@
 #include <cassert>
 #include <climits>
 #include <iostream>
-#include <magic_enum.hpp>
+#include "3rd_party/magic_enum.hpp"
 #include <memory>
 #include <stdexcept>
 #include <string>

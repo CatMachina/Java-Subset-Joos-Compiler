@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../src/lexer/myFlexLexer.hpp"
+#include "lexer/myFlexLexer.hpp"
 #include <FlexLexer.h>
 
 #include <iostream>

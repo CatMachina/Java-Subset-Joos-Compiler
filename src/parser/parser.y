@@ -4,18 +4,15 @@
     #include <iostream>
     #include <memory>
     #include "parser.tab.h"
-    // #include "parsetree/parseTree.hpp"
-    // #include "parser/myBisonParser.hpp"
-    #include "../src/parseTree/parseTree.hpp"
-    #include "../src/parser/myBisonParser.hpp"
+    #include "parseTree/parseTree.hpp"
+    #include "parser/myBisonParser.hpp"
 
     extern int yylex(YYSTYPE*, myFlexLexer&);
     static void yyerror(YYSTYPE*, myFlexLexer&, const char*);
 }
 
 %code requires {
-    // #include "parsetree/parseTree.h"
-    #include "../src/parseTree/parseTree.hpp"
+    #include "parseTree/parseTree.hpp"
     #include <memory>
     namespace pt = parsetree;
     using NodeType = pt::Node::Type;

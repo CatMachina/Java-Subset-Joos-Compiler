@@ -1,4 +1,4 @@
-#include "parseTree.hpp"
+#include "parseTree/parseTree.hpp"
 
 namespace parsetree {
 

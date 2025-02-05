@@ -1,5 +1,5 @@
-#include "../src/parseTree/parseTree.hpp"
-#include "../src/parser/myBisonParser.hpp"
+#include "parseTree/parseTree.hpp"
+#include "parser/myBisonParser.hpp"
 
 using Node = parsetree::Node;
 using Operator = parsetree::Operator;

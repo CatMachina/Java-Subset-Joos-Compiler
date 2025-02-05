@@ -3,8 +3,8 @@
 #include <sstream>
 #include <unistd.h>
 
-#include "../src/parseTree/parseTree.hpp"
-#include "../src/parser/myBisonParser.hpp"
+#include "parseTree/parseTree.hpp"
+#include "parser/myBisonParser.hpp"
 
 extern std::string parser_resolve_token(int yysymbol);
 extern int yydebug;

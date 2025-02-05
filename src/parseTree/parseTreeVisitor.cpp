@@ -1,5 +1,5 @@
-#include "parseTreeVisitor.hpp"
-#include "parseTree.hpp"
+#include "parseTree/parseTreeVisitor.hpp"
+#include "parseTree/parseTree.hpp"
 
 #include <list>
 

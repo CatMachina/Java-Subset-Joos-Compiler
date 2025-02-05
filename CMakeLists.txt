@@ -53,24 +53,19 @@ add_library(CompilerLib
     # flex bison
     "${LEXER_OUT}"
     "${PARSER_OUT}"
-    # 3rd party
-    "src/3rd_party/magic_enum.hpp"
     # ast
-    "src/ast/ast.hpp"
     "src/ast/astNode.cpp"
     # parser
     "src/lexer/joos1w.cpp"
     # parseTree
     "src/parseTree/parseTree.cpp"
     "src/parseTree/parseTreeVisitor.cpp"
-
 )
 target_include_directories(
     CompilerLib
     PUBLIC
-    "src"
+    "include"
     "${PARSER_DIR}"
-    "src/3rd_party"
 )
 
 ################################################################################
