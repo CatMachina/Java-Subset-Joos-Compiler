@@ -77,14 +77,14 @@ template <>
 [[nodiscard]] ast::ImportDecl
 visit<nodeType::ImportDeclList>(const NodePtr &node);
 
-// Classes & interfaces visitors
+// Classes and Interfaces visitors
 
 [[nodiscard]] std::shared_ptr<ast::ClassDecl>
 visitClassDecl(const NodePtr &node);
-[[nodiscard]] std::shared_ptr<ast::InterfaceDecl>
-visitInterfaceDecl(const NodePtr &node);
 [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier>
 visitSuper(const NodePtr &node);
+[[nodiscard]] std::shared_ptr<ast::InterfaceDecl>
+visitInterfaceDecl(const NodePtr &node);
 [[nodiscard]] std::shared_ptr<ast::FieldDecl>
 visitFieldDecl(const NodePtr &node);
 [[nodiscard]] std::shared_ptr<ast::MethodDecl>
@@ -141,8 +141,22 @@ void visitStatementList(const NodePtr &node,
 [[nodiscard]] std::shared_ptr<ast::StatementExpr>
 visitStatementExpr(const NodePtr &node);
 
+[[nodiscard]] std::shared_ptr<ast::Assignment>
+visitAssignment(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::LValue> visitLValue(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::FieldAccess>
+visitFieldAccess(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::ArrayAccess>
+visitArrayAccess(const NodePtr &node);
+
 [[nodiscard]] std::shared_ptr<ast::MethodInvocation>
 visitMethodInvocation(const NodePtr &node);
+
+[[nodiscard]] std::shared_ptr<ast::ClassCreation>
+visitClassCreation(const NodePtr &node);
 
 // Leaf node visitors
 

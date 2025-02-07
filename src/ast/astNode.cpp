@@ -23,17 +23,17 @@ ClassDecl::ClassDecl(
   bool foundConstructor = false;
   for (const auto &decl : classBodyDecls) {
     auto field = std::dynamic_pointer_cast<FieldDecl>(decl);
-    if (field) {
-      this->fields.push_back(field);
-      continue;
-    }
+    // if (field) {
+    //   this->fields.push_back(field);
+    //   continue;
+    // }
     auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl);
     if (methodDecl && methodDecl->isConstructor()) {
       foundConstructor = true;
-      this->constructors.push_back(methodDecl);
-    } else if (methodDecl) {
-      // Non-constructor
-      this->methods.push_back(methodDecl);
+      //   this->constructors.push_back(methodDecl);
+      // } else if (methodDecl) {
+      //   // Non-constructor
+      //   this->methods.push_back(methodDecl);
     }
     if (field == nullptr && methodDecl == nullptr) {
       throw std::runtime_error("Class Decl Invalid declarations for class " +

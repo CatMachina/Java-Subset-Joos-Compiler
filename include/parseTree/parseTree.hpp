@@ -1,10 +1,10 @@
 #pragma once
 
+#include "3rd_party/magic_enum.hpp"
 #include <array>
 #include <cassert>
 #include <climits>
 #include <iostream>
-#include "3rd_party/magic_enum.hpp"
 #include <memory>
 #include <stdexcept>
 #include <string>
