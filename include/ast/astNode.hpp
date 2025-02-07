@@ -56,11 +56,25 @@ std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 
 class PackageDecl : public Decl {
   std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
+
+public:
+  PackageDecl(std::string_view name,
+              std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier)
+      : Decl{name}, qualifiedIdentifier{qualifiedIdentifier} {}
+
+  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() const {
+    return qualifiedIdentifier;
+  }
 };
 
-struct ImportDecl {
+class ImportDecl {
   std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
   bool hasStar;
+
+public:
+  ImportDecl(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
+             bool hasStar)
+      : qualifiedIdentifier{qualifiedIdentifier}, hasStar{hasStar} {}
 };
 
 class ProgramDecl : public CodeBody {
@@ -72,7 +86,9 @@ public:
   ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
               std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body)
       : package{package}, imports{imports}, body{body} {}
-  std::shared_ptr<CodeBody> getBody() { return body; }
+
+  std::shared_ptr<CodeBody> getBody() const { return body; }
+
   std::ostream &print(std::ostream &os) const;
 };
 
@@ -80,9 +96,7 @@ class ClassDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::shared_ptr<QualifiedIdentifier> superClass;
   std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces;
-  std::vector<std::shared_ptr<FieldDecl>> fields;
-  std::vector<std::shared_ptr<MethodDecl>> constructors;
-  std::vector<std::shared_ptr<MethodDecl>> methods;
+  std::vector<std::shared_ptr<Decl>> classBodyDecls;
 
 public:
   ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
@@ -132,7 +146,9 @@ class VarDecl : public Decl {
 
 public:
   VarDecl(std::shared_ptr<Type> type, std::string_view name)
-      : Decl{name}, type{std::move(type)} {}
+      : Decl{name}, type{type} {}
+
+  // Getters
   std::shared_ptr<Type> getType() const { return type; }
 };
 
@@ -142,12 +158,22 @@ class FieldDecl : public VarDecl {
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
             std::string_view name);
+
+  // Getters
+  std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 };
 
 class Param : public AstNode {
   std::shared_ptr<Type> type;
   std::string name;
-  std::shared_ptr<Modifiers> modifiers;
+
+public:
+  Param(std::shared_ptr<Type> type, std::string_view name)
+      : type{type}, name{name} {}
+
+  // Getters
+  std::shared_ptr<Type> getType() const { return type; }
+  const std::string &getName() const { return name; }
 };
 
 // Statements /////////////////////////////////////////////////////////////
@@ -158,7 +184,9 @@ class Block : public Stmt {
 public:
   Block() : statements{std::vector<std::shared_ptr<Stmt>>{}} {}
   Block(std::vector<std::shared_ptr<Stmt>> statements)
-      : statements{std::move(statements)} {}
+      : statements{statements} {}
+
+  // Getters
   const std::vector<std::shared_ptr<Stmt>> &getStatements() const {
     return statements;
   };
@@ -168,17 +196,48 @@ class IfStmt : public Stmt {
   std::shared_ptr<Expr> condition;
   std::shared_ptr<Stmt> ifBody;
   std::shared_ptr<Stmt> elseBody;
+
+public:
+  IfStmt(std::shared_ptr<Expr> condition, std::shared_ptr<Stmt> ifBody,
+         std::shared_ptr<Stmt> elseBody = nullptr)
+      : condition{condition}, ifBody{ifBody}, elseBody{elseBody} {};
+
+  // Getters
+  std::shared_ptr<Expr> getCondition() const { return condition; };
+  std::shared_ptr<Stmt> getIfBody() const { return ifBody; };
+  std::shared_ptr<Stmt> getElseBody() const { return elseBody; };
 };
 
 class WhileStmt : public Stmt {
   std::shared_ptr<Expr> condition;
   std::shared_ptr<Stmt> whileBody;
+
+public:
+  WhileStmt(std::shared_ptr<Expr> condition, std::shared_ptr<Stmt> whileBody)
+      : condition{condition}, whileBody{whileBody} {};
+
+  // Getters
+  std::shared_ptr<Expr> getCondition() const { return condition; };
+  std::shared_ptr<Stmt> getWhileBody() const { return whileBody; };
 };
 
 class ForStmt : public Stmt {
   std::shared_ptr<Stmt> forInit;
   std::shared_ptr<Expr> condition;
   std::shared_ptr<Stmt> forUpdate;
+  std::shared_ptr<Stmt> forBody;
+
+public:
+  ForStmt(std::shared_ptr<Stmt> forInit, std::shared_ptr<Expr> condition,
+          std::shared_ptr<Stmt> forUpdate, std::shared_ptr<Stmt> forBody)
+      : forInit{forInit}, condition{condition}, forUpdate{forUpdate},
+        forBody{forBody} {};
+
+  // Getters
+  std::shared_ptr<Stmt> getForInit() const { return forInit; };
+  std::shared_ptr<Expr> getCondition() const { return condition; };
+  std::shared_ptr<Stmt> getForUpdate() const { return forUpdate; };
+  std::shared_ptr<Stmt> getForBody() const { return forBody; };
 };
 
 class ReturnStmt : public Stmt {
@@ -188,7 +247,8 @@ public:
   explicit ReturnStmt(std::shared_ptr<Expr> returnExpr = nullptr)
       : returnExpr{returnExpr} {};
 
-  const std::shared_ptr<Expr> getReturnExpr() const { return returnExpr; };
+  // Getters
+  std::shared_ptr<Expr> getReturnExpr() const { return returnExpr; };
 };
 
 class ExpressionStmt : public Stmt {
@@ -197,6 +257,8 @@ class ExpressionStmt : public Stmt {
 public:
   explicit ExpressionStmt(std::shared_ptr<StatementExpr> statementExpr)
       : statementExpr{statementExpr} {};
+
+  // Getters
   std::shared_ptr<StatementExpr> getStatementExpr() const {
     return statementExpr;
   };
@@ -213,52 +275,118 @@ class StatementExpr : public Expr {};
 class Assignment : public StatementExpr {
   std::shared_ptr<LValue> lvalue;
   std::shared_ptr<Expr> expr;
+
+public:
+  Assignment(std::shared_ptr<LValue> lvalue, std::shared_ptr<Expr> expr)
+      : lvalue{lvalue}, expr{expr} {}
+
+  // Getters
+  std::shared_ptr<LValue> getLValue() const { return lvalue; }
+  std::shared_ptr<Expr> getExpr() const { return expr; }
 };
 
 class MethodInvocation : public StatementExpr {
   std::shared_ptr<Expr> expr;
   std::string id;
-  std::shared_ptr<QualifiedIdentifier> qid;
+  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
   std::vector<std::shared_ptr<Expr>> args;
 
 public:
-  MethodInvocation(std::shared_ptr<QualifiedIdentifier> qid,
+  MethodInvocation(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
                    std::vector<std::shared_ptr<Expr>> args)
-      : qid{qid}, args{args} {};
+      : qualifiedIdentifier{qualifiedIdentifier}, args{args} {};
 
   MethodInvocation(std::shared_ptr<Expr> expr, std::string identifier,
                    std::vector<std::shared_ptr<Expr>> args)
       : expr{expr}, id{id}, args{args} {};
 
+  // Getters
   std::string getIdentifier() { return id; }
-  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() { return qid; }
+  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() {
+    return qualifiedIdentifier;
+  }
 };
 
 class ClassCreation : public StatementExpr {
-  std::shared_ptr<Type> type;
+  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifer;
   std::vector<std::shared_ptr<Expr>> args;
+
+public:
+  ClassCreation(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifer,
+                std::vector<std::shared_ptr<Expr>> args)
+      : qualifiedIdentifer{qualifiedIdentifer}, args{args} {}
+
+  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() const {
+    return qualifiedIdentifer;
+  }
+  const std::vector<std::shared_ptr<Expr>> &getArgs() const { return args; }
 };
 
-class FieldAccess : public Expr {
+class FieldAccess : public LValue {
   std::shared_ptr<Expr> expr;
   std::string fieldName;
+
+public:
+  FieldAccess(std::shared_ptr<Expr> expr, std::string fieldName)
+      : expr{expr}, fieldName{fieldName} {}
+
+  // Getters
+  std::shared_ptr<Expr> getExpr() const { return expr; }
+  const std::string &getFieldName() const { return fieldName; }
 };
 
 class ArrayCreation : public Expr {
   std::shared_ptr<QualifiedIdentifier> name;
   std::shared_ptr<Expr> size;
   std::shared_ptr<Type> type;
+
+public:
+  ArrayCreation(std::shared_ptr<QualifiedIdentifier> name,
+                std::shared_ptr<Expr> size, std::shared_ptr<Type> type)
+      : name{name}, size{size}, type{type} {}
+
+  // Getters
+  std::shared_ptr<QualifiedIdentifier> getName() const { return name; }
+  std::shared_ptr<Expr> getSize() const { return size; }
+  std::shared_ptr<Type> getType() const { return type; }
 };
 
-class ArrayAccess : public Expr {
-  std::shared_ptr<Expr> primaryNoArray;
-  std::shared_ptr<QualifiedIdentifier> qid;
+class ArrayAccess : public LValue {
+  std::shared_ptr<Expr> expr;
+  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
   std::shared_ptr<Expr> index;
+
+public:
+  ArrayAccess(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
+              std::shared_ptr<Expr> index)
+      : expr{nullptr}, qualifiedIdentifier{qualifiedIdentifier}, index{index} {}
+
+  ArrayAccess(std::shared_ptr<Expr> primaryNoArrayExpr,
+              std::shared_ptr<Expr> index)
+      : expr{nullptr}, qualifiedIdentifier{qualifiedIdentifier}, index{index} {}
+
+  // Getters
+  std::shared_ptr<Expr> getExpr() const { return expr; }
+  std::shared_ptr<QualifiedIdentifier> getqualifiedIdentifier() const {
+    return qualifiedIdentifier;
+  }
+  std::shared_ptr<Expr> getIndex() const { return index; }
 };
 
 class ArrayCast : public Expr {
-  std::shared_ptr<QualifiedIdentifier> qid;
+  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
   std::shared_ptr<Type> type;
+
+public:
+  ArrayCast(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
+            std::shared_ptr<Type> type)
+      : qualifiedIdentifier{qualifiedIdentifier}, type{type} {}
+
+  // Getters
+  std::shared_ptr<QualifiedIdentifier> getqualifiedIdentifier() const {
+    return qualifiedIdentifier;
+  }
+  std::shared_ptr<Type> getType() const { return type; }
 };
 
 // Operators /////////////////////////////////////////////////////////////
@@ -351,7 +479,7 @@ public:
 };
 */
 
-class QualifiedIdentifier {
+class QualifiedIdentifier : public LValue {
   std::vector<std::string> identifiers;
 
 public:
@@ -375,9 +503,9 @@ public:
     return result;
   }
 
-  friend std::ostream &operator<<(std::ostream &os,
-                                  const QualifiedIdentifier &qid) {
-    return os << qid.toString();
+  friend std::ostream &
+  operator<<(std::ostream &os, const QualifiedIdentifier &qualifiedIdentifier) {
+    return os << qualifiedIdentifier.toString();
   }
 };
 
