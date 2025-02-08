@@ -85,7 +85,29 @@ class ProgramDecl : public CodeBody {
 public:
   ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
               std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body)
-      : package{package}, imports{imports}, body{body} {}
+      : package{package}, imports{imports}, body{body} {
+    std::unordered_set<std::string_view> simpleImportNames;
+    std::unordered_set<std::string_view> fullQualifiedImportNames;
+
+    for (const auto &importDecl : imports) {
+      if (importDecl.hasStar) {
+        continue;
+      }
+
+      std::string_view simpleName{importDecl.simpleName()};
+      std::string_view qualifiedName{importDecl.type->toString()};
+
+      // Ensure no conflicting single-type-import declarations
+      if (simpleImportNames.contains(simpleName) &&
+          !fullQualifiedImportNames.contains(qualifiedName)) {
+        throw std::runtime_error(
+            "No two single-type-import declarations clash with each other.");
+      }
+
+      simpleImportNames.insert(simpleName);
+      fullQualifiedImportNames.insert(qualifiedName);
+    }
+  }
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
 
@@ -98,6 +120,8 @@ class ClassDecl : public CodeBody, public Decl {
   std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces;
   std::vector<std::shared_ptr<Decl>> classBodyDecls;
 
+  std::vector<std::shared_ptr<FieldDecl>> fields;
+
 public:
   ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
             std::shared_ptr<QualifiedIdentifier> superClass,
@@ -105,6 +129,9 @@ public:
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 
   std::ostream &print(std::ostream &os) const;
+
+  auto fields() const { return std::views::all(fields); }
+  auto interfaces() const { return std::views::all(interfaces); }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {

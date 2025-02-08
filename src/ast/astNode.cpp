@@ -21,12 +21,19 @@ ClassDecl::ClassDecl(
   }
   // Separate fields, constructors and methods
   bool foundConstructor = false;
+  std::unordered_set<std::string> fieldNames;
+
   for (const auto &decl : classBodyDecls) {
     auto field = std::dynamic_pointer_cast<FieldDecl>(decl);
-    // if (field) {
-    //   this->fields.push_back(field);
-    //   continue;
-    // }
+    if (field) {
+      // this->fields.push_back(field);
+      const auto &fieldName = field->name();
+      if (!fieldNames.insert(fieldName).second) {
+        throw std::runtime_error("Field \"" + std::string(fieldName) +
+                                 "\" is already declared.");
+      }
+      continue;
+    }
     auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl);
     if (methodDecl && methodDecl->isConstructor()) {
       foundConstructor = true;
@@ -43,6 +50,15 @@ ClassDecl::ClassDecl(
   if (!foundConstructor) {
     throw std::runtime_error(
         "Every class must contain at least one explicit constructor");
+  }
+
+  std::unordered_set<std::string> interfaceNames;
+  for (const auto &interface : interfaces) {
+    const auto &interfaceName = interface->toString();
+    if (!interfaceNames.insert(interfaceName).second) {
+      throw std::runtime_error("Interface \"" + std::string(interfaceName) +
+                               "\" is already implemented.");
+    }
   }
 }
 
