@@ -69,12 +69,14 @@ public:
 
 class ImportDecl {
   std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
-  bool hasStar;
+  bool hasStar_;
 
 public:
   ImportDecl(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
              bool hasStar)
-      : qualifiedIdentifier{qualifiedIdentifier}, hasStar{hasStar} {}
+      : qualifiedIdentifier{qualifiedIdentifier}, hasStar_{hasStar} {}
+  
+  bool hasStar() const { return hasStar_; }
 };
 
 class ProgramDecl : public CodeBody {
@@ -90,7 +92,7 @@ public:
     std::unordered_set<std::string_view> fullQualifiedImportNames;
 
     for (const auto &importDecl : imports) {
-      if (importDecl.hasStar) {
+      if (importDecl.hasStar()) {
         continue;
       }
 
@@ -120,8 +122,6 @@ class ClassDecl : public CodeBody, public Decl {
   std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces;
   std::vector<std::shared_ptr<Decl>> classBodyDecls;
 
-  std::vector<std::shared_ptr<FieldDecl>> fields;
-
 public:
   ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
             std::shared_ptr<QualifiedIdentifier> superClass,
@@ -129,9 +129,6 @@ public:
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 
   std::ostream &print(std::ostream &os) const;
-
-  auto fields() const { return std::views::all(fields); }
-  auto interfaces() const { return std::views::all(interfaces); }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {
