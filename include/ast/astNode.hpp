@@ -5,6 +5,7 @@
 #include <list>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace parsetree::ast {
@@ -75,8 +76,12 @@ public:
   ImportDecl(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
              bool hasStar)
       : qualifiedIdentifier{qualifiedIdentifier}, hasStar_{hasStar} {}
-  
+
+  // Getters
   bool hasStar() const { return hasStar_; }
+  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() const {
+    return qualifiedIdentifier;
+  }
 };
 
 class ProgramDecl : public CodeBody {
@@ -86,30 +91,7 @@ class ProgramDecl : public CodeBody {
 
 public:
   ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
-              std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body)
-      : package{package}, imports{imports}, body{body} {
-    std::unordered_set<std::string_view> simpleImportNames;
-    std::unordered_set<std::string_view> fullQualifiedImportNames;
-
-    for (const auto &importDecl : imports) {
-      if (importDecl.hasStar()) {
-        continue;
-      }
-
-      std::string_view simpleName{importDecl.simpleName()};
-      std::string_view qualifiedName{importDecl.type->toString()};
-
-      // Ensure no conflicting single-type-import declarations
-      if (simpleImportNames.contains(simpleName) &&
-          !fullQualifiedImportNames.contains(qualifiedName)) {
-        throw std::runtime_error(
-            "No two single-type-import declarations clash with each other.");
-      }
-
-      simpleImportNames.insert(simpleName);
-      fullQualifiedImportNames.insert(qualifiedName);
-    }
-  }
+              std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body);
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
 
@@ -461,48 +443,6 @@ private:
 
 // Types /////////////////////////////////////////////////////////////
 
-/*
-TODO: The commented out BuiltinType didn't look right to me so I rewrote it (see
-below) Needs to check if mine is correct
-
-class BuiltInType : public Type {
-  TypeType type;
-
-public:
-  enum class TypeType {
-    Int,
-    Boolean,
-    Short,
-    Char,
-    Void,
-    Byte
-  }
-
-  BuiltInType(TypeType type) : type{type} {}
-  BuiltInType(parsetree::BasicType::Type type) {
-    switch (type) {
-    case parsetree::BasicType::Type::Byte:
-      kind = Kind::Byte;
-      break;
-    case parsetree::BasicType::Type::Short:
-      kind = Kind::Short;
-      break;
-    case parsetree::BasicType::Type::Int:
-      kind = Kind::Int;
-      break;
-    case parsetree::BasicType::Type::Char:
-      kind = Kind::Char;
-      break;
-    case parsetree::BasicType::Type::Boolean:
-      kind = Kind::Boolean;
-      break;
-    default:
-      break;
-    }
-  }
-};
-*/
-
 class QualifiedIdentifier : public LValue {
   std::vector<std::string> identifiers;
 
@@ -533,40 +473,40 @@ public:
   }
 };
 
-class BuiltInType : public Type {
+class BasicType : public Type {
 public:
-  enum class Kind { Int, Boolean, Short, Char, Void, Byte };
+  enum class Type { Int, Boolean, Short, Char, Void, Byte };
 
-  BuiltInType(Kind kind) : kind{kind} {}
-  BuiltInType(parsetree::BasicType::Type type) {
+  BasicType(Type type) : type_{type} {}
+  BasicType(parsetree::BasicType::Type type) {
     switch (type) {
     case parsetree::BasicType::Type::Byte:
-      kind = Kind::Byte;
+      type_ = Type::Byte;
       break;
     case parsetree::BasicType::Type::Short:
-      kind = Kind::Short;
+      type_ = Type::Short;
       break;
     case parsetree::BasicType::Type::Int:
-      kind = Kind::Int;
+      type_ = Type::Int;
       break;
     case parsetree::BasicType::Type::Char:
-      kind = Kind::Char;
+      type_ = Type::Char;
       break;
     case parsetree::BasicType::Type::Boolean:
-      kind = Kind::Boolean;
+      type_ = Type::Boolean;
       break;
     default:
       break;
     }
   }
 
-  Kind getKind() const { return kind; }
+  Type getType() const { return type_; }
   std::string toString() const override {
-    return std::string(magic_enum::enum_name(kind));
+    return std::string(magic_enum::enum_name(type_));
   }
 
 private:
-  Kind kind;
+  Type type_;
 };
 
 class ArrayType : public Type {

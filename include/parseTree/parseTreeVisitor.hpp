@@ -2,6 +2,7 @@
 
 #include "ast/ast.hpp"
 #include "parseTree/parseTree.hpp"
+#include "staticCheck/envManager.hpp"
 #include <memory>
 #include <stdexcept>
 #include <string_view>
@@ -80,9 +81,9 @@ public:
   visitProgramDecl(const NodePtr &node);
   [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier>
   visitPackageDecl(const NodePtr &node);
-  template <>
-  [[nodiscard]] ast::ImportDecl
-  visit<nodeType::ImportDeclList>(const NodePtr &node);
+  // template <>
+  // [[nodiscard]] ast::ImportDecl
+  // visit<nodeType::ImportDeclList>(const NodePtr &node);
 
   // Classes and Interfaces visitors
 
@@ -101,15 +102,15 @@ public:
   [[nodiscard]] std::shared_ptr<ast::MethodDecl>
   visitAbstractMethodDecl(const NodePtr &node);
 
-  template <>
-  [[nodiscard]] std::shared_ptr<ast::Decl>
-  visit<nodeType::ClassBodyDeclList>(const NodePtr &node);
-  template <>
-  [[nodiscard]] std::shared_ptr<ast::VarDecl>
-  visit<nodeType::ParameterList>(const NodePtr &node);
-  template <>
-  [[nodiscard]] std::shared_ptr<ast::Decl>
-  visit<nodeType::InterfaceBodyDeclList>(const NodePtr &node);
+  // template <>
+  // [[nodiscard]] std::shared_ptr<ast::Decl>
+  // visit<nodeType::ClassBodyDeclList>(const NodePtr &node);
+  // template <>
+  // [[nodiscard]] std::shared_ptr<ast::VarDecl>
+  // visit<nodeType::ParameterList>(const NodePtr &node);
+  // template <>
+  // [[nodiscard]] std::shared_ptr<ast::Decl>
+  // visit<nodeType::InterfaceBodyDeclList>(const NodePtr &node);
 
   // Statement visitors
   struct VariableDecl {
@@ -117,6 +118,7 @@ public:
     std::string_view name;
     std::shared_ptr<ast::Expr> init;
   };
+
   VariableDecl visitVariableDeclarator(const NodePtr &type,
                                        const NodePtr &node);
 
@@ -144,7 +146,9 @@ public:
 
   // Expression visitors
 
-  [[nodiscard]] std::list<ast::ExprOp> visitExpr(const NodePtr &node);
+  [[nodiscard]] std::list<ast::ExprOp> visitExprOp(const NodePtr &node);
+
+  [[nodiscard]] std::shared_ptr<ast::Expr> visitExpression(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::StatementExpr>
   visitStatementExpr(const NodePtr &node);
