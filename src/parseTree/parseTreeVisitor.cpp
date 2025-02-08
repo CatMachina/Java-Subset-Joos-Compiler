@@ -62,9 +62,9 @@ ParseTreeVisitor::visit<nodeType::ImportDeclList>(const NodePtr &node) {
 
   switch (node->get_node_type()) {
   case nodeType::SingleImportDecl:
-    return ast::ImportDecl{id, false};
+    return ast::ImportDecl{id, /* hasStar */ false};
   case nodeType::MultiImportDecl:
-    return ast::ImportDecl{id, true};
+    return ast::ImportDecl{id, /* hasStar */ true};
   default:
     throw std::runtime_error(
         "visit<ImportDeclList> called on an invalid node type");
@@ -260,14 +260,14 @@ ParseTreeVisitor::visitAbstractMethodDecl(const NodePtr &node) {
                                     nullptr);
 }
 
-template <>
-std::shared_ptr<ast::Decl>
-visit<nodeType::InterfaceBodyDeclList>(const NodePtr &node) {
-  return visitAbstractMethodDecl(node);
-}
+// template <>
+// std::shared_ptr<ast::Decl>
+// visit<nodeType::InterfaceBodyDeclList>(const NodePtr &node) {
+//   return visitAbstractMethodDecl(node);
+// }
 
 // Expressions
-std::list<ast::ExprOp> ParseTreeVisitor::visitExpr(const NodePtr &node) {
+std::list<ast::ExprOp> ParseTreeVisitor::visitExprOp(const NodePtr &node) {
   if (!node) {
     return std::list<ast::ExprOp>();
   }
@@ -433,7 +433,7 @@ std::shared_ptr<ast::Block> ParseTreeVisitor::visitBlock(const NodePtr &node) {
   // going into new scope
   size_t scope = envManager.EnterNewScope();
   visitStatementList(node->child_at(0), statements);
-  envManager.LeaveScope(scope);
+  envManager.ExitScope(scope);
   return std::make_shared<ast::Block>(statements);
 }
 
@@ -488,13 +488,13 @@ ParseTreeVisitor::visitForStatement(const NodePtr &node) {
   std::shared_ptr<ast::Stmt> body = nullptr;
 
   auto scope = envManager.EnterNewScope();
-  if (auto initNode = node->child(0)) {
+  if (auto initNode = node->child_at(0)) {
     init = visitStatement(initNode);
   }
-  if (auto conditionNode = node->child(1)) {
-    condition = visitExpr(conditionNode);
+  if (auto conditionNode = node->child_at(1)) {
+    condition = visitExpression(conditionNode);
   }
-  if (auto updateNode = node->child(2)) {
+  if (auto updateNode = node->child_at(2)) {
     update = visitStatement(updateNode);
   }
   // body is always not null
@@ -524,7 +524,7 @@ ParseTreeVisitor::visitQualifiedIdentifier(
   check_num_children(node, 1, 2);
 
   if (!ast_node) {
-    ast_node = envManager.BuildQualifiedIdentifier();
+    ast_node = envManager.BuildQualifiedIdentifier(std::vector<std::string>());
   }
 
   if (node->get_num_children() == 1) {
@@ -571,7 +571,7 @@ std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
 
   if (innerType->get_node_type() == nodeType::BasicType) {
     elemType = envManager.BuildBasicType(
-        std::dynamic_pointer_cast<BasicType>(innerType)->get_type());
+        std::dynamic_pointer_cast<ast::BasicType>(innerType)->getType());
   } else if (innerType->get_node_type() == nodeType::QualifiedName) {
     elemType = std::make_shared<ast::ReferenceType>(
         visitQualifiedIdentifier(innerType));
@@ -593,8 +593,9 @@ std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
   throw std::runtime_error("Expected a Type or ArrayType node");
 }
 
-VariableDecl visitVariableDeclarator(const NodePtr &typeNode,
-                                     const NodePtr &declNode) {
+ParseTreeVisitor::VariableDecl
+ParseTreeVisitor::visitVariableDeclarator(const NodePtr &typeNode,
+                                          const NodePtr &declNode) {
   check_node_type(declNode, nodeType::Variable);
   check_num_children(declNode, 1, 2);
   auto type = visitType(typeNode);
@@ -604,7 +605,7 @@ VariableDecl visitVariableDeclarator(const NodePtr &typeNode,
 
   std::shared_ptr<ast::Expr> init;
   if (declNode->get_num_children() == 2) {
-    init = visitExpr(declNode->child_at(1));
+    init = visitExpression(declNode->child_at(1));
   }
   return VariableDecl{type, name, init};
 }

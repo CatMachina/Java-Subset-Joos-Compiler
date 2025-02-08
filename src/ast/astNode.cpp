@@ -2,6 +2,30 @@
 
 namespace parsetree::ast {
 
+ProgramDecl::ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
+                         std::vector<ImportDecl> imports,
+                         std::shared_ptr<CodeBody> body)
+    : package{package}, imports{imports}, body{body} {
+  std::unordered_set<std::string_view> simpleImportNames;
+
+  for (const auto &importDecl : imports) {
+    if (importDecl.hasStar()) {
+      continue;
+    }
+
+    std::string_view simpleName{
+        importDecl.getQualifiedIdentifier()->toString()};
+
+    // Ensure no conflicting single-type-import declarations
+    if (simpleImportNames.contains(simpleName)) {
+      throw std::runtime_error(
+          "No two single-type-import declarations clash with each other.");
+    }
+
+    simpleImportNames.insert(simpleName);
+  }
+}
+
 ClassDecl::ClassDecl(
     std::shared_ptr<Modifiers> modifiers, std::string_view name,
     std::shared_ptr<QualifiedIdentifier> superClass,
@@ -27,7 +51,7 @@ ClassDecl::ClassDecl(
     auto field = std::dynamic_pointer_cast<FieldDecl>(decl);
     if (field) {
       // this->fields.push_back(field);
-      const auto &fieldName = field->name();
+      const auto &fieldName = field->getName();
       if (!fieldNames.insert(fieldName).second) {
         throw std::runtime_error("Field \"" + std::string(fieldName) +
                                  "\" is already declared.");
@@ -188,15 +212,15 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
                                "parameter for method " +
                                std::string(name));
     }
-    if (auto type = std::dynamic_pointer_cast<BuiltInType>(returnType)) {
-      if (type->getKind() != BuiltInType::Kind::Int) {
+    if (auto type = std::dynamic_pointer_cast<BasicType>(returnType)) {
+      if (type->getType() != BasicType::Type::Int) {
         throw std::runtime_error("A native method must return int for method " +
                                  std::string(name));
       }
     }
     if (auto type =
-            std::dynamic_pointer_cast<BuiltInType>(params[0]->getType())) {
-      if (type->getKind() != BuiltInType::Kind::Int) {
+            std::dynamic_pointer_cast<BasicType>(params[0]->getType())) {
+      if (type->getType() != BasicType::Type::Int) {
         throw std::runtime_error("A native method must have parameter of type "
                                  "int for method " +
                                  std::string(name));

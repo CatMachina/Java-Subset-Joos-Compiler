@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ast/ast.hpp"
-#include "parsetree/parseTree.hpp"
+#include "parseTree/parseTree.hpp"
 
 namespace parsetree::ast {
 
@@ -9,7 +9,7 @@ class EnvManager {
 public:
   [[nodiscard]] std::shared_ptr<ast::ProgramDecl>
   BuildProgramDecl(const std::shared_ptr<ast::QualifiedIdentifier> &package,
-                   const std::vector<std::shared_ptr<ast::ImportDecl>> &imports,
+                   std::vector<ast::ImportDecl> imports,
                    const std::shared_ptr<ast::CodeBody> &body);
 
   [[nodiscard]] std::shared_ptr<ast::ClassDecl> BuildClassDecl(
@@ -57,13 +57,13 @@ public:
   }
 
   bool AddToLocalScope(std::shared_ptr<VarDecl> decl) {
-    const std::string_view name = decl->name();
+    const std::string name = decl->getName();
     if (localScope_.contains(name)) {
       return false;
     }
-    lexicalLocalScope_.emplace(name);
-    lexicalLocalDecls_.emplace_back(decl);
-    lexicalLocalDeclStack_.emplace_back(decl);
+    localScope_.emplace(name);
+    localDecls_.emplace_back(decl);
+    localDeclStack_.emplace_back(decl);
     return true;
   }
 
@@ -73,7 +73,7 @@ public:
 
   void ExitScope(std::size_t size) {
     for (auto i = localDeclStack_.size(); i > size; --i) {
-      localScope_.erase(localDeclStack_[i - 1]->name());
+      localScope_.erase(localDeclStack_[i - 1]->getName());
     }
     localDeclStack_.resize(size);
   }

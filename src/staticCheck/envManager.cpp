@@ -1,10 +1,11 @@
 #include "staticCheck/envManager.hpp"
+#include <string_view>
 
 namespace parsetree::ast {
 
 std::shared_ptr<ProgramDecl> EnvManager::BuildProgramDecl(
     const std::shared_ptr<ast::QualifiedIdentifier> &package,
-    const std::vector<std::shared_ptr<ast::ImportDecl>> &imports,
+    const std::vector<ast::ImportDecl> imports,
     const std::shared_ptr<ast::CodeBody> &body) {
   return std::make_shared<ast::ProgramDecl>(package, imports, body);
 }
@@ -14,9 +15,8 @@ std::shared_ptr<ast::ClassDecl> EnvManager::BuildClassDecl(
     const std::shared_ptr<ast::QualifiedIdentifier> &super,
     const std::vector<std::shared_ptr<ast::QualifiedIdentifier>> &interfaces,
     const std::vector<std::shared_ptr<ast::Decl>> &classBodyDecls) {
-  return std::shared_ptr<ast::ClassDecl> classDecl =
-             std::make_shared<ast::ClassDecl>(modifiers, name, super,
-                                              interfaces, classBodyDecls);
+  return std::make_shared<ast::ClassDecl>(modifiers, name, super, interfaces,
+                                          classBodyDecls);
 }
 
 std::shared_ptr<ast::FieldDecl>
