@@ -397,7 +397,7 @@ public:
 // For AST
 class UnOp : public Expr {
 public:
-  enum class OpType { Not, Plus, Minus, BitWiseNot };
+  enum class OpType { Not, Plus, Minus };
   UnOp(OpType op, std::shared_ptr<Expr> operand) : op{op}, operand{operand} {}
 
 private:
@@ -446,7 +446,7 @@ private:
 
 class UnaryOp : ExprOp {
 public:
-  enum class OpType { Not, Plus, Minus, BitWiseNot };
+  enum class OpType { Not, Plus, Minus };
   UnaryOp(OpType op) : op{op}, ExprOp{1} {}
 
 private:
