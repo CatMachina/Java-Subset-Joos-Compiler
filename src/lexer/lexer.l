@@ -1,6 +1,7 @@
 %option never-interactive
 %option c++ yyclass="myFlexLexer"
 %option noyywrap
+%option yylineno
 
 %{
 #include <iostream>
@@ -136,13 +137,14 @@ using basicType = parsetree::BasicType::Type;
 
 %%
 
-int yylex(YYSTYPE* lvalp, myFlexLexer& lexer) {
-    return lexer.bison_lex(lvalp);
+int yylex(YYSTYPE* lvalp, YYLTYPE* loc, myFlexLexer& lexer) {
+    return lexer.bison_lex(lvalp, loc);
 }
 
-int myFlexLexer::bison_lex(YYSTYPE *lvalp) {
+int myFlexLexer::bison_lex(YYSTYPE *lvalp, YYLTYPE* loc) {
     auto res = yylex();
     *lvalp = std::move(yylval);
+    // std::cout << yylloc.first_column << "\n";
     return res;
 }
 
