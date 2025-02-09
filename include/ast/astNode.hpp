@@ -379,24 +379,63 @@ public:
   std::shared_ptr<Expr> getIndex() const { return index; }
 };
 
-class ArrayCast : public Expr {
-  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
+class Cast : public Expr {
   std::shared_ptr<Type> type;
+  std::shared_ptr<Expr> operand;
 
 public:
-  ArrayCast(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
-            std::shared_ptr<Type> type)
-      : qualifiedIdentifier{qualifiedIdentifier}, type{type} {}
+  Cast(std::shared_ptr<Type> type, std::shared_ptr<Expr> toCast)
+      : type{type}, operand{operand} {}
 
   // Getters
-  std::shared_ptr<QualifiedIdentifier> getqualifiedIdentifier() const {
-    return qualifiedIdentifier;
-  }
   std::shared_ptr<Type> getType() const { return type; }
+  std::shared_ptr<Expr> getOperand() const { return operand; }
 };
 
 // Operators /////////////////////////////////////////////////////////////
 
+// For AST
+class UnOp : public Expr {
+public:
+  enum class OpType { Not, Plus, Minus, BitWiseNot };
+  UnOp(OpType op, std::shared_ptr<Expr> operand) : op{op}, operand{operand} {}
+
+private:
+  OpType op;
+  std::shared_ptr<Expr> operand;
+};
+
+class BinOp : public Expr {
+public:
+  enum class OpType {
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
+    Equal,
+    NotEqual,
+    Assign,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo,
+    BitWiseAnd,
+    BitWiseOr,
+    Plus,
+    Minus,
+    InstanceOf
+  };
+  BinOp(OpType op, std::shared_ptr<Expr> left, std::shared_ptr<Expr> right)
+      : op{op}, left{left}, right{right} {}
+
+private:
+  OpType op;
+  std::shared_ptr<Expr> left;
+  std::shared_ptr<Expr> right;
+};
+
+// TODO: For later phases
 class ExprOp {
 protected:
   ExprOp(int num_args) : num_args{num_args} {}
