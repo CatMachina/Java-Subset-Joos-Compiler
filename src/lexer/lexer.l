@@ -18,6 +18,14 @@ void print_token(const std::string& token_name, const std::string& token_value) 
     // std::cout << "Token: " << token_name << ", Value: \"" << token_value << "\"" << std::endl;
 }
 
+int yycolumn = 1; // Track column location
+
+#define YY_USER_ACTION \
+    yylloc.first_line = yylineno; \
+    yylloc.first_column = yycolumn; \
+    yylloc.last_line = yylineno; \
+    yylloc.last_column = yycolumn + yyleng - 1;
+
 using literalType = parsetree::Literal::Type;
 using operatorType = parsetree::Operator::Type;
 using modifierType = parsetree::Modifier::Type;
@@ -34,7 +42,7 @@ using basicType = parsetree::BasicType::Type;
 "/*"                              { BEGIN(COMMENT); }
 <COMMENT>"*/"                     { BEGIN(INITIAL); }
 <COMMENT>.                        { }
-<COMMENT>\n                       { }
+<COMMENT>\n                       { yycolumn = 1; }
 
 "abstract"                          { yylval = make_modifier(modifierType::Abstract); print_token("MODIFIER", yytext); return ABSTRACT ; }
 "if"                                { yylval = make_corrupted(yytext); print_token("KEYWORD", yytext); return IF ; }
@@ -131,7 +139,8 @@ using basicType = parsetree::BasicType::Type;
     return ID;
 }
 
-[ \t\n\r]+
+[ \t\r]+
+[ \n]+                              { yycolumn = 1; }
 
 .                                   { std::cout << "Unrecognized character: " << yytext << std::endl; return YYUNDEF; }
 
@@ -144,7 +153,7 @@ int yylex(YYSTYPE* lvalp, YYLTYPE* loc, myFlexLexer& lexer) {
 int myFlexLexer::bison_lex(YYSTYPE *lvalp, YYLTYPE* loc) {
     auto res = yylex();
     *lvalp = std::move(yylval);
-    // std::cout << yylloc.first_column << "\n";
+    *loc = yylloc;
     return res;
 }
 
