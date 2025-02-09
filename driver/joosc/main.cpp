@@ -12,6 +12,7 @@
 #include "parseTree/parseTree.hpp"
 #include "parseTree/parseTreeVisitor.hpp"
 #include "parser/myBisonParser.hpp"
+#include "parseTree/sourceNode.hpp"
 
 #include <memory>
 
@@ -32,88 +33,95 @@ bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
 
 int main(int argc, char **argv) {
   try {
-    if (argc != 2) {
-      std::cerr << "Usage: " << argv[0] << " input-file " << std::endl;
+    if (argc == 1) {
+      std::cerr << "Usage: " << argv[0] << " input-files... " << std::endl;
       return EXIT_FAILURE;
     }
+    
+    source::SourceManager sm = source::SourceManager();
 
-    // Extract file path and validate extension
-    const std::string filePath = argv[1];
-    const std::string fileName =
-        std::filesystem::path(filePath).stem().string();
-    if (!filePath.ends_with(".java")) {
-      std::cerr << "Error: not a valid .java file" << std::endl;
-      return 42;
-    }
+    for(int file_number = 1; file_number < argc; ++file_number) {
+      // Extract file path and validate extension
+      const std::string filePath = argv[file_number];
+      const std::string fileName =
+          std::filesystem::path(filePath).stem().string();
+      if (!filePath.ends_with(".java")) {
+        std::cerr << "Error: not a valid .java file" << std::endl;
+        return 42;
+      }
 
-    // Read file content
-    std::ifstream inputFile(filePath, std::ios::binary);
-    if (!inputFile.is_open()) {
-      std::cerr << "Error! Could not open input file \"" << filePath << "\""
-                << std::endl;
-      return EXIT_FAILURE;
-    }
-    const std::string fileContent((std::istreambuf_iterator<char>(inputFile)),
-                                  std::istreambuf_iterator<char>());
+      // Track file
+      sm.addFile(fileName);
 
-    // Check for non-ASCII characters
-    if (std::any_of(fileContent.begin(), fileContent.end(), [](char c) {
-          return static_cast<unsigned char>(c) > 127;
-        })) {
-      std::cerr << "Parse error: non-ASCII character in input" << std::endl;
-      return 42;
-    }
+      // Read file content
+      std::ifstream inputFile(filePath, std::ios::binary);
+      if (!inputFile.is_open()) {
+        std::cerr << "Error! Could not open input file \"" << filePath << "\""
+                  << std::endl;
+        return EXIT_FAILURE;
+      }
+      const std::string fileContent((std::istreambuf_iterator<char>(inputFile)),
+                                    std::istreambuf_iterator<char>());
 
-    // Parse the input
-    std::shared_ptr<parsetree::Node> parse_tree;
-    myBisonParser parser{fileContent};
-    int result = parser.parse(parse_tree);
+      // Check for non-ASCII characters
+      if (std::any_of(fileContent.begin(), fileContent.end(), [](char c) {
+            return static_cast<unsigned char>(c) > 127;
+          })) {
+        std::cerr << "Parse error: non-ASCII character in input" << std::endl;
+        return 42;
+      }
 
-    // Validate parse result
-    if (!parse_tree || result) {
-      return 42;
-    }
-    if (parse_tree->is_corrupted()) {
-      std::cerr << "Parse error: parse tree is invalid" << std::endl;
-      // comment out if not debugging
-      // parse_tree->print(std::cerr);
-      return 42;
-    }
+      // Parse the input
+      std::shared_ptr<parsetree::Node> parse_tree;
+      myBisonParser parser{fileContent};
+      int result = parser.parse(parse_tree);
 
-    // Validate literal types
-    if (!isLiteralTypeValid(parse_tree)) {
-      std::cerr << "Parse error: invalid literal type" << std::endl;
-      return 42;
-    }
+      // Validate parse result
+      if (!parse_tree || result) {
+        return 42;
+      }
+      if (parse_tree->is_corrupted()) {
+        std::cerr << "Parse error: parse tree is invalid" << std::endl;
+        // comment out if not debugging
+        // parse_tree->print(std::cerr);
+        return 42;
+      }
 
-    // Build AST from the parse tree
-    std::shared_ptr<parsetree::ast::ProgramDecl> ast;
-    try {
-      if (parse_tree->is_corrupted())
-        throw std::runtime_error("Parse tree is invalid");
-      ast = parsetree::visitProgramDecl(parse_tree);
-    } catch (const std::exception &ex) {
-      std::cerr << "Runtime error: " << ex.what() << std::endl;
-      return 42;
-    } catch (...) {
-      std::cerr << "Unknown failure occurred." << std::endl;
-      return EXIT_FAILURE;
-    }
+      // Validate literal types
+      if (!isLiteralTypeValid(parse_tree)) {
+        std::cerr << "Parse error: invalid literal type" << std::endl;
+        return 42;
+      }
 
-    if (!ast) {
-      return 42;
-    }
+      // Build AST from the parse tree
+      std::shared_ptr<parsetree::ast::ProgramDecl> ast;
+      try {
+        if (parse_tree->is_corrupted())
+          throw std::runtime_error("Parse tree is invalid");
+        ast = parsetree::visitProgramDecl(parse_tree);
+      } catch (const std::exception &ex) {
+        std::cerr << "Runtime error: " << ex.what() << std::endl;
+        return 42;
+      } catch (...) {
+        std::cerr << "Unknown failure occurred." << std::endl;
+        return EXIT_FAILURE;
+      }
 
-    // Validate class/interface name matches file name
-    const auto cuBody =
-        std::dynamic_pointer_cast<parsetree::ast::Decl>(ast->getBody());
-    if (!cuBody || cuBody->getName() != fileName) {
-      std::cerr << "Parse error: class/interface name does not match file name"
-                << std::endl;
-      std::cerr << "Class/interface name: "
-                << (cuBody ? cuBody->getName() : "<null>") << std::endl;
-      std::cerr << "File name: " << fileName << std::endl;
-      return 42;
+      if (!ast) {
+        return 42;
+      }
+
+      // Validate class/interface name matches file name
+      const auto cuBody =
+          std::dynamic_pointer_cast<parsetree::ast::Decl>(ast->getBody());
+      if (!cuBody || cuBody->getName() != fileName) {
+        std::cerr << "Parse error: class/interface name does not match file name"
+                  << std::endl;
+        std::cerr << "Class/interface name: "
+                  << (cuBody ? cuBody->getName() : "<null>") << std::endl;
+        std::cerr << "File name: " << fileName << std::endl;
+        return 42;
+      }
     }
 
     return EXIT_SUCCESS;
