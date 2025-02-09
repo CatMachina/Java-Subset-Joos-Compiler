@@ -77,7 +77,7 @@ struct Node {
     ExprStatement,
 
     Expression,
-    ArrayCreate,
+    ArrayCreation,
     ArrayAccess,
     ArrayCastType,
 
@@ -85,7 +85,7 @@ struct Node {
     ClassCreation,
     FieldAccess,
     MethodInvocation,
-
+    Casting
   };
 
   /// leaf nodes
@@ -202,6 +202,9 @@ public:
     }
     return true;
   }
+
+  Type getType() const { return type; }
+  std::string getValue() const { return value; }
 
 private:
   Type type;
@@ -322,7 +325,7 @@ public:
   // Constructor for BasicType
   BasicType(Type type) : Node{Node::Type::BasicType}, type{type} {}
 
-  Type get_type() const { return type; }
+  Type getType() const { return type; }
 
   // Print the string representation of the basic type
   std::ostream &print(std::ostream &os, int depth = 0) const override {
