@@ -234,7 +234,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// A node representing  operator.
+// A node representing operator.
 class Operator : public Node {
   friend class ::myFlexLexer;
   friend class ::myBisonParser;

@@ -145,10 +145,17 @@ public:
                           std::vector<std::shared_ptr<ast::Stmt>> &statements);
 
   // Expression visitors
-
   [[nodiscard]] std::list<ast::ExprOp> visitExprOp(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::Expr> visitExpression(const NodePtr &node);
+
+  [[nodiscard]] ast::UnOp::OpType getUnOpType(const NodePtr &node);
+
+  [[nodiscard]] ast::BinOp::OpType getBinOpType(const NodePtr &node);
+
+  [[nodiscard]] std::shared_ptr<ast::UnOp> visitUnOp(const NodePtr &node);
+
+  [[nodiscard]] std::shared_ptr<ast::BinOp> visitBinOp(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::StatementExpr>
   visitStatementExpr(const NodePtr &node);
