@@ -1,22 +1,60 @@
 #include "parseTree/parseTree.hpp"
 #include "parseTree/parseTreeVisitor.hpp"
 
+#include <unordered_map>
+
 namespace parsetree {
 
 using NodeType = Node::Type;
 using NodePtr = std::shared_ptr<Node>;
+using PtOp = Operator::Type;
+using AstUnOp = ast::UnOp::OpType;
+using AstBinOp = ast::BinOp::OpType;
+
+// Lookup tables
+static std::unordered_map<PtOp, AstUnOp> UnOpTable = {
+    {PtOp::Not, AstUnOp::Not},
+    {PtOp::Plus, AstUnOp::Plus},
+    {PtOp::Minus, AstUnOp::Minus}};
+
+static std::unordered_map<PtOp, AstBinOp> BinOpTable = {
+    {PtOp::Assign, AstBinOp::Assign},
+    {PtOp::GreaterThan, AstBinOp::GreaterThan},
+    {PtOp::GreaterThanOrEqual, AstBinOp::GreaterThanOrEqual},
+    {PtOp::LessThan, AstBinOp::LessThan},
+    {PtOp::LessThanOrEqual, AstBinOp::LessThanOrEqual},
+    {PtOp::Equal, AstBinOp::Equal},
+    {PtOp::NotEqual, AstBinOp::NotEqual},
+    {PtOp::Add, AstBinOp::Add},
+    {PtOp::Subtract, AstBinOp::Subtract},
+    {PtOp::Multiply, AstBinOp::Multiply},
+    {PtOp::Divide, AstBinOp::Divide},
+    {PtOp::Modulo, AstBinOp::Modulo},
+    {PtOp::BitwiseAnd, AstBinOp::BitWiseAnd},
+    {PtOp::BitwiseOr, AstBinOp::BitWiseOr},
+    {PtOp::Plus, AstBinOp::Plus},
+    {PtOp::Minus, AstBinOp::Minus},
+    {PtOp::InstanceOf, AstBinOp::InstanceOf}};
 
 // Helpers
-ast::UnOp::OpType ParseTreeVisitor::getUnOpType(const NodePtr &node) {
+AstUnOp ParseTreeVisitor::getUnOpType(const NodePtr &node) {
   check_node_type(node, NodeType::Operator);
-  // TODO
-  return ast::UnOp::OpType::Not;
+  PtOp type = std::dynamic_pointer_cast<Operator>(node)->getType();
+  auto result = UnOpTable.find(type);
+  if (result == UnOpTable.end()) {
+    throw std::runtime_error("Unary Op not found");
+  }
+  return result->second;
 }
 
-ast::BinOp::OpType ParseTreeVisitor::getBinOpType(const NodePtr &node) {
+AstBinOp ParseTreeVisitor::getBinOpType(const NodePtr &node) {
   check_node_type(node, NodeType::Operator);
-  // TODO
-  return ast::BinOp::OpType::GreaterThan;
+  PtOp type = std::dynamic_pointer_cast<Operator>(node)->getType();
+  auto result = BinOpTable.find(type);
+  if (result == BinOpTable.end()) {
+    throw std::runtime_error("Binary Op not found");
+  }
+  return result->second;
 }
 
 // All Expression visitors

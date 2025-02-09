@@ -256,6 +256,7 @@ public:
     Or,
     BitwiseAnd,
     BitwiseOr,
+    BitwiseNot,
     Add,
     Subtract,
     Multiply,
@@ -273,6 +274,9 @@ public:
     std::string indent(depth * 2, ' ');
     return os << indent << "(Type: " << magic_enum::enum_name(type) << ")\n";
   }
+
+  // Getter
+  Type getType() const { return type; }
 
 private:
   Type type;
