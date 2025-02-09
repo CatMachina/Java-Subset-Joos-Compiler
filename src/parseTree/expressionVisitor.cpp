@@ -37,9 +37,8 @@ static std::unordered_map<PtOp, AstBinOp> BinOpTable = {
     {PtOp::InstanceOf, AstBinOp::InstanceOf}};
 
 // Helpers
-AstUnOp ParseTreeVisitor::getUnOpType(const NodePtr &node) {
-  check_node_type(node, NodeType::Operator);
-  PtOp type = std::dynamic_pointer_cast<Operator>(node)->getType();
+AstUnOp ParseTreeVisitor::getUnOpType(const std::shared_ptr<Operator> &node) {
+  PtOp type = node->getType();
   auto result = UnOpTable.find(type);
   if (result == UnOpTable.end()) {
     throw std::runtime_error("Unary Op not found");
@@ -47,9 +46,8 @@ AstUnOp ParseTreeVisitor::getUnOpType(const NodePtr &node) {
   return result->second;
 }
 
-AstBinOp ParseTreeVisitor::getBinOpType(const NodePtr &node) {
-  check_node_type(node, NodeType::Operator);
-  PtOp type = std::dynamic_pointer_cast<Operator>(node)->getType();
+AstBinOp ParseTreeVisitor::getBinOpType(const std::shared_ptr<Operator> &node) {
+  PtOp type = node->getType();
   auto result = BinOpTable.find(type);
   if (result == BinOpTable.end()) {
     throw std::runtime_error("Binary Op not found");
@@ -60,81 +58,43 @@ AstBinOp ParseTreeVisitor::getBinOpType(const NodePtr &node) {
 // All Expression visitors
 std::shared_ptr<ast::Expr>
 ParseTreeVisitor::visitExpression(const NodePtr &node) {
-  using namespace NodeType;
+  // TODO: I don't think this works?
+  // using namespace NodeType;
 
   switch (node->get_node_type()) {
-  case Expression:
+  case NodeType::Expression:
     return std::make_shared<ast::Expr>(visitExprNode(node));
-  case MethodInvocation:
+  case NodeType::MethodInvocation:
     return std::make_shared<ast::Expr>(visitMethodInvocation(node));
-  case ArrayAccess:
+  case NodeType::ArrayAccess:
     return std::make_shared<ast::Expr>(visitArrayAccess(node));
-  case FieldAccess:
+  case NodeType::FieldAccess:
     return std::make_shared<ast::Expr>(visitFieldAccess(node));
-  case CastExpression:
+  case NodeType::CastExpression:
     return std::make_shared<ast::Expr>(visitCastExpression(node));
-  case ArrayCreate:
+  case NodeType::ArrayCreate:
     return std::make_shared<ast::Expr>(visitArrayCreation(node));
-  case ClassCreation:
+  case NodeType::ClassCreation:
     return std::make_shared<ast::Expr>(visitClassCreation(node));
-  case Literal:
+  case NodeType::Literal:
     return std::make_shared<ast::Expr>(visitLiteral(node));
-  case Type:
+  case NodeType::Type:
     return std::make_shared<ast::Expr>(visitRegularType(node));
-  case ArrayType:
+  case NodeType::ArrayType:
     return std::make_shared<ast::Expr>(visitArrayType(node));
-  case ArrayCastType:
+  case NodeType::ArrayCastType:
     return std::make_shared<ast::Expr>(visitArrayType(node));
-  case Identifier: {
+  case NodeType::Identifier: {
     auto name = visitIdentifier(node);
     if (name == "this") {
       return std::make_shared<ast::ThisNode>();
     }
     return std::make_shared<ast::MemberName>(name);
   }
-  case QualifiedIdentifier:
+  case NodeType::QualifiedName:
     return std::make_shared<ast::Expr>(visitQualifiedIdentifierInExpr(node));
   default:
     throw std::runtime_error("Invalid Expression");
-  }
-}
-
-std::vector<std::shared_ptr<ast::ExprNode>>
-ParseTreeVisitor::visitExprNode(const NodePtr &node) {
-  check_node_type(node, NodeType::Expression);
-  check_num_children(node, 1, 3);
-
-  switch (node->num_children()) {
-  case 1:
-    return visitExpression(node->child_at(0));
-  case 2: { // Unary expression
-    auto right = visitExpression(node->child_at(1));
-
-    auto op = std::dynamic_pointer_cast<Operator>(node->child_at(0));
-    if (!op) {
-      throw std::runtime_error(
-          "Expected an operator node for unary expression");
-    }
-
-    right.push_back(getUnOpType(op));
-    return right;
-  }
-  case 3: { // Binary expression
-    auto left = visitExpression(node->child_at(0));
-    auto right = visitExpression(node->child_at(2));
-
-    auto op = std::dynamic_pointer_cast<Operator>(node->child_at(1));
-    if (!op) {
-      throw std::logic_error("Expected an operator node for binary expression");
-    }
-
-    left.insert(left.end(), std::make_move_iterator(right.begin()),
-                std::make_move_iterator(right.end()));
-    left.push_back(getBinOpType(op));
-    return left;
-  }
-  default:
-    throw std::logic_error("Unexpected number of children in expression node");
   }
 }
 
@@ -222,8 +182,7 @@ ParseTreeVisitor::visitCastExpression(const NodePtr &node) {
     } else {
       ops.push_back(std::make_shared<ast::TypeNode>(type));
     }
-  } else if (node->child_at(0)->get_node_type() ==
-             NodeType::QualifiedIdentifier) {
+  } else if (node->child_at(0)->get_node_type() == NodeType::QualifiedName) {
     auto type = visitQualifiedIdentifier(node->child_at(0));
     ops.push_back(std::make_shared<ast::TypeNode>(type));
   } else {

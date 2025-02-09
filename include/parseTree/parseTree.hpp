@@ -102,7 +102,7 @@ struct Node {
                   "All arguments must be convertible to std::shared_ptr<Node>");
   }
 
-  size_t get_num_children() const { return num_args; }
+  size_t num_children() const { return num_args; }
 
   // Gets the child at index i of this child
   std::shared_ptr<Node> child_at(size_t i) const { return args[i]; }
