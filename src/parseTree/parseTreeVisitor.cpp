@@ -157,7 +157,7 @@ ParseTreeVisitor::visitMethodDecl(const NodePtr &node) {
       std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
   // type could be void
   std::shared_ptr<ast::Type> type =
-      (node->get_num_children() == 5) ? visitType(node->child_at(1)) : nullptr;
+      (node->num_children() == 5) ? visitType(node->child_at(1)) : nullptr;
   std::string name = visitIdentifier(node->child_at(type ? 2 : 1));
 
   std::vector<std::shared_ptr<ast::VarDecl>> params;
@@ -244,7 +244,7 @@ ParseTreeVisitor::visitAbstractMethodDecl(const NodePtr &node) {
       std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
   // type could be void
   auto type =
-      (node->get_num_children() == 4) ? visitType(node->child_at(1)) : nullptr;
+      (node->num_children() == 4) ? visitType(node->child_at(1)) : nullptr;
   auto name = visitIdentifier(node->child_at(type ? 2 : 1));
 
   std::vector<std::shared_ptr<ast::VarDecl>> params;
@@ -262,7 +262,7 @@ ParseTreeVisitor::visitAbstractMethodDecl(const NodePtr &node) {
 
 template <>
 std::shared_ptr<ast::Decl>
-visit<NodeType::InterfaceBodyDeclList>(const NodePtr &node) {
+ParseTreeVisitor::visit<NodeType::InterfaceBodyDeclList>(const NodePtr &node) {
   return visitAbstractMethodDecl(node);
 }
 
@@ -278,7 +278,7 @@ void ParseTreeVisitor::visitStatementList(
   }
   std::shared_ptr<ast::Stmt> astNode = visitStatement(node);
   statements.push_back(astNode);
-  if (node->get_num_children() == 2) {
+  if (node->num_children() == 2) {
     visitStatementList(node->child_at(1), statements);
   }
 }
@@ -327,7 +327,7 @@ std::shared_ptr<ast::ReturnStmt>
 ParseTreeVisitor::visitReturnStatement(const NodePtr &node) {
   check_node_type(node, NodeType::ReturnStatement);
   check_num_children(node, 0, 1);
-  if (node->get_num_children() == 0) {
+  if (node->num_children() == 0) {
     return std::make_shared<ast::ReturnStmt>();
   } else {
     return std::make_shared<ast::ReturnStmt>(
@@ -344,10 +344,9 @@ ParseTreeVisitor::visitIfStatement(const NodePtr &node) {
   auto stmt = visitStatement(node->child_at(1));
   envManager.ExitScope(scope);
 
-  return std::make_shared<ast::IfStmt>(visitExpression(node->child_at(0)), stmt,
-                                       node->get_num_children() == 3
-                                           ? visitStatement(node->child_at(2))
-                                           : nullptr);
+  return std::make_shared<ast::IfStmt>(
+      visitExpression(node->child_at(0)), stmt,
+      node->num_children() == 3 ? visitStatement(node->child_at(2)) : nullptr);
 }
 
 std::shared_ptr<ast::WhileStmt>
@@ -413,7 +412,7 @@ ParseTreeVisitor::visitQualifiedIdentifier(
     ast_node = envManager.BuildQualifiedIdentifier(std::vector<std::string>());
   }
 
-  if (node->get_num_children() == 1) {
+  if (node->num_children() == 1) {
     ast_node->addIdentifier(visitIdentifier(node->child_at(0)));
   } else {
     ast_node = visitQualifiedIdentifier(node->child_at(0), ast_node);
@@ -435,9 +434,9 @@ ast::Modifiers ParseTreeVisitor::visitModifierList(const NodePtr &node,
   check_node_type(node, NodeType::ModifierList);
   check_num_children(node, 1, 2);
 
-  if (node->get_num_children() == 1) {
+  if (node->num_children() == 1) {
     modifiers.set(visitModifier(node->child_at(0)));
-  } else if (node->get_num_children() == 2) {
+  } else if (node->num_children() == 2) {
     modifiers = visitModifierList(node->child_at(0), modifiers);
     modifiers.set(visitModifier(node->child_at(1)));
   }
@@ -468,7 +467,8 @@ std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
   }
 
   if (!elemType) {
-    throw std::runtime_error("Expected a BasicType or QualifiedName node");
+    throw std::runtime_error(
+        "Expected a BasicType or QualifiedIdentifier node");
   }
 
   if (node->get_node_type() == NodeType::ArrayType) {
@@ -490,7 +490,7 @@ ParseTreeVisitor::visitVariableDeclarator(const NodePtr &typeNode,
   auto name = visitIdentifier(nameNode);
 
   std::shared_ptr<ast::Expr> init;
-  if (declNode->get_num_children() == 2) {
+  if (declNode->num_children() == 2) {
     init = visitExpression(declNode->child_at(1));
   }
   return VariableDecl{type, name, init};

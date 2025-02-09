@@ -32,14 +32,13 @@ private:
 
   static void check_num_children(const NodePtr &node, std::size_t min,
                                  std::size_t max) {
-    if (!node || node->get_num_children() < min ||
-        node->get_num_children() > max) {
+    if (!node || node->num_children() < min || node->num_children() > max) {
       throw std::runtime_error(
           "Node has incorrect number of children!"
           " Type: " +
           (node ? node->type_string() : "null") +
           " Expected: " + std::to_string(min) + " to " + std::to_string(max) +
-          " Actual: " + std::to_string(node ? node->get_num_children() : 0));
+          " Actual: " + std::to_string(node ? node->num_children() : 0));
     }
   }
 
@@ -66,7 +65,7 @@ private:
     check_node_type(node, N);
     check_num_children(node, 1, 2);
 
-    if (node->get_num_children() == 1) {
+    if (node->num_children() == 1) {
       list.push_back(visit<N, T>(node->child_at(0)));
     } else {
       visitListPattern<N, T, nullable>(node->child_at(0), list);
@@ -149,9 +148,11 @@ public:
 
   [[nodiscard]] std::shared_ptr<ast::Expr> visitExpression(const NodePtr &node);
 
-  [[nodiscard]] ast::UnOp::OpType getUnOpType(const NodePtr &node);
+  [[nodiscard]] ast::UnOp::OpType
+  getUnOpType(const std::shared_ptr<Operator> &node);
 
-  [[nodiscard]] ast::BinOp::OpType getBinOpType(const NodePtr &node);
+  [[nodiscard]] ast::BinOp::OpType
+  getBinOpType(const std::shared_ptr<Operator> &node);
 
   [[nodiscard]] std::shared_ptr<ast::UnOp> visitUnOp(const NodePtr &node);
 
