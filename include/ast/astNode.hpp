@@ -14,6 +14,7 @@ namespace parsetree::ast {
 
 class QualifiedIdentifier;
 class ExprOp;
+class ExprNode;
 class Modifiers;
 class FieldDecl;
 class MethodDecl;
@@ -48,8 +49,23 @@ class Stmt : public AstNode {};
 
 class Expr : public AstNode {
   // Reverse Polish Notation
-  std::list<ExprOp> rpn_ops;
+  // std::list<ExprOp> rpn_ops;
+
+  // TODO: We use vector for now
+  std::vector<std::shared_ptr<ExprNode>> exprNodes;
+
+public:
+  Expr();
+  Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes)
+      : exprNodes{exprNodes} {}
+
+  // Getter
+  const std::vector<std::shared_ptr<ExprNode>> &getExprNodes() const {
+    return exprNodes;
+  }
 };
+
+class ExprNode {};
 
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 
@@ -272,7 +288,20 @@ public:
 
 // Expressions /////////////////////////////////////////////////////////////
 
-class Literal : public Expr {};
+class Literal : public ExprNode {
+public:
+  enum class Type { Integer, Character, String, Boolean, Null };
+
+  Literal(Type type, std::string value) : type{type}, value{value} {}
+
+  // Getters
+  Type getType() const { return type; }
+  std::string getValue() const { return value; }
+
+private:
+  Type type;
+  std::string value;
+};
 
 class LValue : public Expr {};
 
@@ -291,7 +320,7 @@ public:
   std::shared_ptr<Expr> getExpr() const { return expr; }
 };
 
-class MethodInvocation : public StatementExpr {
+class MethodInvocation : public StatementExpr, public ExprNode {
   std::shared_ptr<Expr> expr;
   std::string id;
   std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
@@ -313,7 +342,7 @@ public:
   }
 };
 
-class ClassCreation : public StatementExpr {
+class ClassCreation : public StatementExpr, public ExprNode {
   std::shared_ptr<QualifiedIdentifier> qualifiedIdentifer;
   std::vector<std::shared_ptr<Expr>> args;
 
@@ -328,7 +357,7 @@ public:
   const std::vector<std::shared_ptr<Expr>> &getArgs() const { return args; }
 };
 
-class FieldAccess : public LValue {
+class FieldAccess : public LValue, public ExprNode {
   std::shared_ptr<Expr> expr;
   std::string fieldName;
 
@@ -341,7 +370,7 @@ public:
   const std::string &getFieldName() const { return fieldName; }
 };
 
-class ArrayCreation : public Expr {
+class ArrayCreation : public Expr, public ExprNode {
   std::shared_ptr<QualifiedIdentifier> name;
   std::shared_ptr<Expr> size;
   std::shared_ptr<Type> type;
@@ -357,7 +386,7 @@ public:
   std::shared_ptr<Type> getType() const { return type; }
 };
 
-class ArrayAccess : public LValue {
+class ArrayAccess : public LValue, public ExprNode {
   std::shared_ptr<Expr> expr;
   std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
   std::shared_ptr<Expr> index;
@@ -379,18 +408,14 @@ public:
   std::shared_ptr<Expr> getIndex() const { return index; }
 };
 
-class Cast : public Expr {
-  std::shared_ptr<Type> type;
-  std::shared_ptr<Expr> operand;
+class TypeNode : public ExprNode {
+  std::shared_ptr<BasicType> type;
 
 public:
-  Cast(std::shared_ptr<Type> type, std::shared_ptr<Expr> toCast)
-      : type{type}, operand{operand} {}
-
-  // Getters
-  std::shared_ptr<Type> getType() const { return type; }
-  std::shared_ptr<Expr> getOperand() const { return operand; }
+  TypeNode(std::shared_ptr<BasicType> type) : type{type} {};
 };
+
+class Cast : public ExprNode {};
 
 // Operators /////////////////////////////////////////////////////////////
 
@@ -482,7 +507,7 @@ private:
 
 // Types /////////////////////////////////////////////////////////////
 
-class QualifiedIdentifier : public LValue {
+class QualifiedIdentifier : public LValue, public ExprNode {
   std::vector<std::string> identifiers;
 
 public:
@@ -512,7 +537,7 @@ public:
   }
 };
 
-class BasicType : public Type {
+class BasicType : public Type, public ExprNode {
 public:
   enum class Type { Int, Boolean, Short, Char, Void, Byte };
 
@@ -548,7 +573,7 @@ private:
   Type type_;
 };
 
-class ArrayType : public Type {
+class ArrayType : public Type, public ExprNode {
   std::shared_ptr<Type> elementType;
 
 public:
@@ -565,6 +590,18 @@ public:
   ReferenceType(std::shared_ptr<QualifiedIdentifier> name) : name{name} {}
   std::string toString() const override { return name->toString(); }
 };
+
+class ThisNode : public ExprNode {};
+
+class MemberName : public ExprNode {
+public:
+  MemberName(std::string name) : name{name} {};
+
+private:
+  std::string name;
+};
+
+class MemberAccess : public ExprNode {};
 
 // Other classes /////////////////////////////////////////////////////////////
 

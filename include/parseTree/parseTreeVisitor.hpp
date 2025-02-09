@@ -144,7 +144,30 @@ public:
                           std::vector<std::shared_ptr<ast::Stmt>> &statements);
 
   // Expression visitors
-  [[nodiscard]] std::list<ast::ExprOp> visitExprOp(const NodePtr &node);
+  // [[nodiscard]] std::list<ast::ExprOp> visitExprOp(const NodePtr &node);
+
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitExprNode(const NodePtr &node);
+
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitCasting(const NodePtr &node);
+
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitLiteral(const NodePtr &node);
+
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitRegularType(const NodePtr &node);
+
+  [[nodiscard]] std::shared_ptr<ast::ExprNode>
+  visitArrayType(const NodePtr &node);
+
+  [[nodiscard]] std::shared_ptr<ast::ExprNode>
+  visitArrayTypeInExpr(const NodePtr &node);
+
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitQualifiedIdentifierInExpr(const NodePtr &node);
+
+  std::shared_ptr<ast::ExprNode> visitBasicType(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::Expr> visitExpression(const NodePtr &node);
 
@@ -166,17 +189,23 @@ public:
 
   [[nodiscard]] std::shared_ptr<ast::LValue> visitLValue(const NodePtr &node);
 
-  [[nodiscard]] std::shared_ptr<ast::FieldAccess>
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitFieldAccess(const NodePtr &node);
 
-  [[nodiscard]] std::shared_ptr<ast::ArrayAccess>
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitArrayAccess(const NodePtr &node);
 
-  [[nodiscard]] std::shared_ptr<ast::MethodInvocation>
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitMethodInvocation(const NodePtr &node);
 
-  [[nodiscard]] std::shared_ptr<ast::ClassCreation>
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitArrayCreation(const NodePtr &node);
+
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitClassCreation(const NodePtr &node);
+
+  void visitArgumentList(const NodePtr &node,
+                         std::vector<std::shared_ptr<ast::ExprNode>> &args);
 
   // Leaf node visitors
 

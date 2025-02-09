@@ -577,7 +577,7 @@ cast_expr:
         // $2 is a qualified name and or an array type
         bool isQI = $2->get_node_type() == NodeType::QualifiedName;
         bool isArr = $2->get_node_type() == NodeType::ArrayCastType;
-        bool hasOneChild = $2->get_num_children() == 1;
+        bool hasOneChild = $2->num_children() == 1;
         if (isQI || (isArr && hasOneChild)) {
             $$ = lexer.make_node(@$, NodeType::Expression, std::move($2), std::move($4));
         } else {
@@ -610,7 +610,7 @@ primary_without_array:
     ;
 
 array_create:
-    NEW non_array_type LBRACK expr RBRACK { $$ = lexer.make_node(@$, NodeType::ArrayCreate, std::move($2), std::move($4)); }
+    NEW non_array_type LBRACK expr RBRACK { $$ = lexer.make_node(@$, NodeType::ArrayCreation, std::move($2), std::move($4)); }
 ;
 
 array_access_expr:
