@@ -571,7 +571,7 @@ post_fix_expr:
 ;
 
 cast_expr:
-    LPAREN cast_type RPAREN unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Expression, std::move($2), std::move($4)); }
+    LPAREN cast_type RPAREN unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Casting, std::move($2), std::move($4)); }
     | LPAREN expr RPAREN unary_expr {
         // Cast is valid iff
         // $2 is a qualified name and or an array type

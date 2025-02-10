@@ -277,8 +277,9 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
 }
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
-                     std::shared_ptr<Type> type, std::string_view name)
-    : modifiers{modifiers}, VarDecl{type, name} {
+                     std::shared_ptr<Type> type, std::string_view name,
+                     std::shared_ptr<Expr> initializer)
+    : modifiers{modifiers}, VarDecl{type, name, initializer} {
   if (!modifiers) {
     throw std::runtime_error("Field Decl Invalid modifiers.");
   }

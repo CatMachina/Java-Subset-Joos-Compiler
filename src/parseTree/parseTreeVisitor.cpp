@@ -300,6 +300,8 @@ ParseTreeVisitor::visitStatement(const NodePtr &node) {
     return visitForStatement(node);
   case NodeType::ExprStatement:
     return visitExprStatement(node);
+  case NodeType::LocalDecl:
+    return visitLocalDeclStatement(node);
   default:
     throw std::runtime_error("Not a statement!");
   }
@@ -327,7 +329,7 @@ std::shared_ptr<ast::ReturnStmt>
 ParseTreeVisitor::visitReturnStatement(const NodePtr &node) {
   check_node_type(node, NodeType::ReturnStatement);
   check_num_children(node, 0, 1);
-  if (node->num_children() == 0) {
+  if (node->child_at(0) == nullptr) {
     return std::make_shared<ast::ReturnStmt>();
   } else {
     return std::make_shared<ast::ReturnStmt>(
@@ -339,6 +341,10 @@ std::shared_ptr<ast::IfStmt>
 ParseTreeVisitor::visitIfStatement(const NodePtr &node) {
   check_node_type(node, NodeType::IfStatement);
   check_num_children(node, 2, 3);
+
+  if (node->child_at(0) == nullptr || node->child_at(1) == nullptr) {
+    throw std::runtime_error("Invalid if-then statement");
+  }
 
   auto scope = envManager.EnterNewScope();
   auto stmt = visitStatement(node->child_at(1));
@@ -354,6 +360,10 @@ ParseTreeVisitor::visitWhileStatement(const NodePtr &node) {
   check_node_type(node, NodeType::WhileStatement);
   check_num_children(node, 2, 2);
 
+  if (node->child_at(0) == nullptr || node->child_at(1) == nullptr) {
+    throw std::runtime_error("Invalid while statement");
+  }
+
   auto scope = envManager.EnterNewScope();
   auto stmt = visitStatement(node->child_at(1));
   envManager.ExitScope(scope);
@@ -366,6 +376,10 @@ std::shared_ptr<ast::ForStmt>
 ParseTreeVisitor::visitForStatement(const NodePtr &node) {
   check_node_type(node, NodeType::ForStatement);
   check_num_children(node, 4, 4);
+
+  if (node->child_at(3) == nullptr) {
+    throw std::runtime_error("Invalid for statement");
+  }
 
   std::shared_ptr<ast::Stmt> init = nullptr;
   std::shared_ptr<ast::Expr> condition = nullptr;
@@ -398,6 +412,30 @@ ParseTreeVisitor::visitExprStatement(const NodePtr &node) {
   }
   return std::make_shared<ast::ExpressionStmt>(
       visitStatementExpr(node->child_at(0)));
+}
+
+ParseTreeVisitor::VariableDecl
+ParseTreeVisitor::visitLocalDecl(const NodePtr &typeNode,
+                                 const NodePtr &declNode) {
+  check_node_type(node, NodeType::Variable);
+  check_num_children(node, 1, 2);
+
+  auto type = visitType(typeNode);
+  auto name = visitIdentifier(node->child_at(0));
+  std::shared_ptr<ast::Expr> init;
+  if (node->num_children() == 2) {
+    init = visitExpression(node->child_at(1));
+  }
+  return VariableDecl{type, name, init};
+}
+
+std::shared_ptr<ast::DeclStmt>
+ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
+  check_node_type(node, NodeType::LocalDecl);
+  check_num_children(node, 2, 2);
+
+  auto decl = visitLocalDecl(node->child_at(0), node->child_at(1));
+  return envManager.BuildVarDecl(decl.type, decl.name, decl.init);
 }
 
 // Leaf Nodes!!
@@ -477,23 +515,6 @@ std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
     return elemType;
   }
   throw std::runtime_error("Expected a Type or ArrayType node");
-}
-
-ParseTreeVisitor::VariableDecl
-ParseTreeVisitor::visitVariableDeclarator(const NodePtr &typeNode,
-                                          const NodePtr &declNode) {
-  check_node_type(declNode, NodeType::Variable);
-  check_num_children(declNode, 1, 2);
-  auto type = visitType(typeNode);
-
-  auto nameNode = declNode->child_at(0);
-  auto name = visitIdentifier(nameNode);
-
-  std::shared_ptr<ast::Expr> init;
-  if (declNode->num_children() == 2) {
-    init = visitExpression(declNode->child_at(1));
-  }
-  return VariableDecl{type, name, init};
 }
 
 } // namespace parsetree
