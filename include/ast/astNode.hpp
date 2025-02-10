@@ -47,26 +47,6 @@ public:
 
 class Stmt : public AstNode {};
 
-class Expr : public AstNode {
-  // Reverse Polish Notation
-  // std::list<ExprOp> rpn_ops;
-
-  // TODO: We use vector for now
-  std::vector<std::shared_ptr<ExprNode>> exprNodes;
-
-public:
-  Expr();
-  Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes)
-      : exprNodes{exprNodes} {}
-
-  // Getter
-  const std::vector<std::shared_ptr<ExprNode>> &getExprNodes() const {
-    return exprNodes;
-  }
-};
-
-class ExprNode {};
-
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 
 // Decls /////////////////////////////////////////////////////////////
@@ -165,13 +145,18 @@ public:
 
 class VarDecl : public Decl {
   std::shared_ptr<Type> type;
+  std::shared_ptr<Expr> initializer;
 
 public:
-  VarDecl(std::shared_ptr<Type> type, std::string_view name)
-      : Decl{name}, type{type} {}
+  VarDecl(std::shared_ptr<Type> type, std::string_view name,
+          std::shared_ptr<Expr> initializer)
+      : Decl{name}, type{type}, initializer{initializer} {}
+
+  bool hasInit() const { return initializer != nullptr; }
 
   // Getters
   std::shared_ptr<Type> getType() const { return type; }
+  std::shared_ptr<Expr> getInitializer() const { return initializer; }
 };
 
 class FieldDecl : public VarDecl {
@@ -179,7 +164,7 @@ class FieldDecl : public VarDecl {
 
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
-            std::string_view name);
+            std::string_view name, std::shared_ptr<Expr> initializer);
 
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
@@ -274,236 +259,27 @@ public:
 };
 
 class ExpressionStmt : public Stmt {
-  std::shared_ptr<StatementExpr> statementExpr;
+  std::shared_ptr<Expr> statementExpr;
 
 public:
-  explicit ExpressionStmt(std::shared_ptr<StatementExpr> statementExpr)
+  explicit ExpressionStmt(std::shared_ptr<Expr> statementExpr)
       : statementExpr{statementExpr} {};
 
   // Getters
-  std::shared_ptr<StatementExpr> getStatementExpr() const {
-    return statementExpr;
-  };
+  std::shared_ptr<Expr> getStatementExpr() const { return statementExpr; };
 };
 
-// Expressions /////////////////////////////////////////////////////////////
+class DeclStmt : public Stmt {
+  std::shared_ptr<VarDecl> decl;
 
-class Literal : public ExprNode {
 public:
-  enum class Type { Integer, Character, String, Boolean, Null };
-
-  Literal(Type type, std::string value) : type{type}, value{value} {}
+  explicit DeclStmt(std::shared_ptr<VarDecl> decl) : decl{decl} {};
 
   // Getters
-  Type getType() const { return type; }
-  std::string getValue() const { return value; }
-
-private:
-  Type type;
-  std::string value;
+  std::shared_ptr<VarDecl> getDecl() const { return decl; };
 };
 
-class LValue : public Expr {};
-
-class StatementExpr : public Expr {};
-
-class Assignment : public StatementExpr {
-  std::shared_ptr<LValue> lvalue;
-  std::shared_ptr<Expr> expr;
-
-public:
-  Assignment(std::shared_ptr<LValue> lvalue, std::shared_ptr<Expr> expr)
-      : lvalue{lvalue}, expr{expr} {}
-
-  // Getters
-  std::shared_ptr<LValue> getLValue() const { return lvalue; }
-  std::shared_ptr<Expr> getExpr() const { return expr; }
-};
-
-class MethodInvocation : public StatementExpr, public ExprNode {
-  std::shared_ptr<Expr> expr;
-  std::string id;
-  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
-  std::vector<std::shared_ptr<Expr>> args;
-
-public:
-  MethodInvocation(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
-                   std::vector<std::shared_ptr<Expr>> args)
-      : qualifiedIdentifier{qualifiedIdentifier}, args{args} {};
-
-  MethodInvocation(std::shared_ptr<Expr> expr, std::string identifier,
-                   std::vector<std::shared_ptr<Expr>> args)
-      : expr{expr}, id{id}, args{args} {};
-
-  // Getters
-  std::string getIdentifier() { return id; }
-  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() {
-    return qualifiedIdentifier;
-  }
-};
-
-class ClassCreation : public StatementExpr, public ExprNode {
-  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifer;
-  std::vector<std::shared_ptr<Expr>> args;
-
-public:
-  ClassCreation(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifer,
-                std::vector<std::shared_ptr<Expr>> args)
-      : qualifiedIdentifer{qualifiedIdentifer}, args{args} {}
-
-  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() const {
-    return qualifiedIdentifer;
-  }
-  const std::vector<std::shared_ptr<Expr>> &getArgs() const { return args; }
-};
-
-class FieldAccess : public LValue, public ExprNode {
-  std::shared_ptr<Expr> expr;
-  std::string fieldName;
-
-public:
-  FieldAccess(std::shared_ptr<Expr> expr, std::string fieldName)
-      : expr{expr}, fieldName{fieldName} {}
-
-  // Getters
-  std::shared_ptr<Expr> getExpr() const { return expr; }
-  const std::string &getFieldName() const { return fieldName; }
-};
-
-class ArrayCreation : public Expr, public ExprNode {
-  std::shared_ptr<QualifiedIdentifier> name;
-  std::shared_ptr<Expr> size;
-  std::shared_ptr<Type> type;
-
-public:
-  ArrayCreation(std::shared_ptr<QualifiedIdentifier> name,
-                std::shared_ptr<Expr> size, std::shared_ptr<Type> type)
-      : name{name}, size{size}, type{type} {}
-
-  // Getters
-  std::shared_ptr<QualifiedIdentifier> getName() const { return name; }
-  std::shared_ptr<Expr> getSize() const { return size; }
-  std::shared_ptr<Type> getType() const { return type; }
-};
-
-class ArrayAccess : public LValue, public ExprNode {
-  std::shared_ptr<Expr> expr;
-  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
-  std::shared_ptr<Expr> index;
-
-public:
-  ArrayAccess(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
-              std::shared_ptr<Expr> index)
-      : expr{nullptr}, qualifiedIdentifier{qualifiedIdentifier}, index{index} {}
-
-  ArrayAccess(std::shared_ptr<Expr> primaryNoArrayExpr,
-              std::shared_ptr<Expr> index)
-      : expr{nullptr}, qualifiedIdentifier{qualifiedIdentifier}, index{index} {}
-
-  // Getters
-  std::shared_ptr<Expr> getExpr() const { return expr; }
-  std::shared_ptr<QualifiedIdentifier> getqualifiedIdentifier() const {
-    return qualifiedIdentifier;
-  }
-  std::shared_ptr<Expr> getIndex() const { return index; }
-};
-
-class TypeNode : public ExprNode {
-  std::shared_ptr<BasicType> type;
-
-public:
-  TypeNode(std::shared_ptr<BasicType> type) : type{type} {};
-};
-
-class Cast : public ExprNode {};
-
-// Operators /////////////////////////////////////////////////////////////
-
-// For AST
-class UnOp : public Expr {
-public:
-  enum class OpType { Not, Plus, Minus };
-  UnOp(OpType op, std::shared_ptr<Expr> operand) : op{op}, operand{operand} {}
-
-private:
-  OpType op;
-  std::shared_ptr<Expr> operand;
-};
-
-class BinOp : public Expr {
-public:
-  enum class OpType {
-    GreaterThan,
-    GreaterThanOrEqual,
-    LessThan,
-    LessThanOrEqual,
-    Equal,
-    NotEqual,
-    Assign,
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-    BitWiseAnd,
-    BitWiseOr,
-    Plus,
-    Minus,
-    InstanceOf
-  };
-  BinOp(OpType op, std::shared_ptr<Expr> left, std::shared_ptr<Expr> right)
-      : op{op}, left{left}, right{right} {}
-
-private:
-  OpType op;
-  std::shared_ptr<Expr> left;
-  std::shared_ptr<Expr> right;
-};
-
-// TODO: For later phases
-class ExprOp {
-protected:
-  ExprOp(int num_args) : num_args{num_args} {}
-
-private:
-  int num_args;
-};
-
-class UnaryOp : ExprOp {
-public:
-  enum class OpType { Not, Plus, Minus };
-  UnaryOp(OpType op) : op{op}, ExprOp{1} {}
-
-private:
-  OpType op;
-};
-
-class BinaryOp : ExprOp {
-public:
-  enum class OpType {
-    GreaterThan,
-    GreaterThanOrEqual,
-    LessThan,
-    LessThanOrEqual,
-    Equal,
-    NotEqual,
-    Assign,
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
-    Modulo,
-    BitWiseAnd,
-    BitWiseOr,
-    Plus,
-    Minus,
-    InstanceOf
-  };
-  BinaryOp(OpType op) : op{op}, ExprOp{2} {}
-
-private:
-  OpType op;
-};
+class NullStmt : public Stmt {};
 
 // Types /////////////////////////////////////////////////////////////
 

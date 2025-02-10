@@ -30,7 +30,8 @@ public:
       bool isConstructor, const std::shared_ptr<ast::Block> &methodBody);
 
   [[nodiscard]] std::shared_ptr<ast::VarDecl>
-  BuildVarDecl(const std::shared_ptr<ast::Type> &type, std::string_view name);
+  BuildVarDecl(const std::shared_ptr<ast::Type> &type, std::string_view name,
+               const std::shared_ptr<ast::Expr> &initializer);
 
   [[nodiscard]] std::shared_ptr<ast::InterfaceDecl> BuildInterfaceDecl(
       const std::shared_ptr<ast::Modifiers> &modifiers, std::string_view name,

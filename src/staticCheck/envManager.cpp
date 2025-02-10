@@ -40,9 +40,10 @@ std::shared_ptr<MethodDecl> EnvManager::BuildMethodDecl(
 
 std::shared_ptr<ast::VarDecl>
 EnvManager::BuildVarDecl(const std::shared_ptr<ast::Type> &type,
-                         std::string_view name) {
+                         std::string_view name,
+                         const std::shared_ptr<ast::Expr> &initializer) {
   std::shared_ptr<ast::VarDecl> varDecl =
-      std::make_shared<ast::VarDecl>(type, name);
+      std::make_shared<ast::VarDecl>(type, name, initializer);
   if (!AddToLocalScope(varDecl)) {
     throw std::runtime_error("Variable " + std::string(name) +
                              " already declared in this scope.");

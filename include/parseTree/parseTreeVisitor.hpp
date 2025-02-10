@@ -118,8 +118,7 @@ public:
     std::shared_ptr<ast::Expr> init;
   };
 
-  VariableDecl visitVariableDeclarator(const NodePtr &type,
-                                       const NodePtr &node);
+  VariableDecl visitLocalDecl(const NodePtr &type, const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::Block> visitBlock(const NodePtr &node);
 
