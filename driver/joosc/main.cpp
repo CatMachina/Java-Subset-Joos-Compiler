@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
       try {
         if (parse_tree->is_corrupted())
           throw std::runtime_error("Parse tree is invalid");
-        ast = parsetree::visitProgramDecl(parse_tree);
+        ast = visitor.visitProgramDecl(parse_tree);
       } catch (const std::exception &ex) {
         std::cerr << "Runtime error: " << ex.what() << std::endl;
         return 42;

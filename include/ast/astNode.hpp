@@ -102,6 +102,10 @@ public:
       : qualifiedIdentifier{qualifiedIdentifier}, hasStar_{hasStar} {}
 
   // Getters
+  bool hasStar() const { return hasStar_; }
+  std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
+    return qualifiedIdentifier;
+  }
 };
 
 class ProgramDecl : public CodeBody {
@@ -114,10 +118,18 @@ public:
               std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body);
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
+
   std::ostream &print(std::ostream &os) const;
+};
+
+class ClassDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::shared_ptr<ReferenceType> superClass;
   std::vector<std::shared_ptr<ReferenceType>> interfaces;
+  std::vector<std::shared_ptr<Decl>> classBodyDecls;
+
+public:
+  ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
             std::shared_ptr<ReferenceType> superClass,
             std::vector<std::shared_ptr<ReferenceType>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
@@ -308,8 +320,13 @@ class NullStmt : public Stmt {};
 // Types /////////////////////////////////////////////////////////////
 
 class QualifiedIdentifier : public ExprNode {
-    return identifiers;
-  };
+  std::vector<std::string> identifiers;
+
+  public:
+    const std::vector<std::string> &getIdentifiers() const {
+      return identifiers;
+    };
+  
 
   void addIdentifier(std::string_view identifier) {
     identifiers.emplace_back(identifier);
@@ -403,18 +420,6 @@ public:
     identifiers.emplace_back(identifier);
   }
 };
-
-class ThisNode : public ExprNode {};
-
-class MemberName : public ExprNode {
-public:
-  MemberName(std::string name) : name{name} {};
-
-private:
-  std::string name;
-};
-
-class MemberAccess : public ExprNode {};
 
 // Other classes /////////////////////////////////////////////////////////////
 

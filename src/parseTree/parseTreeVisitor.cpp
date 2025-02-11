@@ -439,30 +439,6 @@ ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
   return envManager.BuildDeclStmt(varDecl);
 }
 
-ParseTreeVisitor::VariableDecl
-ParseTreeVisitor::visitLocalDecl(const NodePtr &typeNode,
-                                 const NodePtr &declNode) {
-  check_node_type(node, NodeType::Variable);
-  check_num_children(node, 1, 2);
-
-  auto type = visitType(typeNode);
-  auto name = visitIdentifier(node->child_at(0));
-  std::shared_ptr<ast::Expr> init;
-  if (node->num_children() == 2) {
-    init = visitExpression(node->child_at(1));
-  }
-  return VariableDecl{type, name, init};
-}
-
-std::shared_ptr<ast::DeclStmt>
-ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
-  check_node_type(node, NodeType::LocalDecl);
-  check_num_children(node, 2, 2);
-
-  auto decl = visitLocalDecl(node->child_at(0), node->child_at(1));
-  return envManager.BuildVarDecl(decl.type, decl.name, decl.init);
-}
-
 // Leaf Nodes!!
 
 std::shared_ptr<ast::UnresolvedType> ParseTreeVisitor::visitReferenceType(
