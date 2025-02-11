@@ -10,6 +10,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include "sourceNode.hpp"
 
 class myFlexLexer;
 class myBisonParser;
@@ -89,12 +90,12 @@ struct Node {
   };
 
   /// leaf nodes
-  Node(Type type) : type{type}, args{nullptr}, num_args{0} {}
+  Node(source::SourceRange loc, Type type) : loc{loc}, type{type}, args{nullptr}, num_args{0} {}
 
   // Non leaf nodes
   template <typename... Args_>
-  Node(Type type, Args_ &&...args_)
-      : type{type}, args{std::vector<std::shared_ptr<Node>>{
+  Node(source::SourceRange loc, Type type, Args_ &&...args_)
+      : loc{loc}, type{type}, args{std::vector<std::shared_ptr<Node>>{
                         std::forward<Args_>(args_)...}},
         num_args{sizeof...(Args_)} {
     static_assert(sizeof...(Args_) > 0, "Must have at least one child");
@@ -134,6 +135,7 @@ struct Node {
   }
 
   const std::vector<std::shared_ptr<Node>> &children() const { return args; }
+  source::SourceRange loc;
 
 private:
   Type type;
@@ -147,7 +149,7 @@ class Corrupted : public Node {
   std::string_view name;
 
 public:
-  Corrupted(const char *name) : Node{Node::Type::Corrupted}, name{name} {}
+  Corrupted(const char *name) : Node{loc, Node::Type::Corrupted}, name{name} {}
   std::ostream &print(std::ostream &os, int depth = 0) const override {
     std::string indent(depth * 2, ' ');
     os << indent << "(Corrupted: '" << name << "')\n";
@@ -168,7 +170,7 @@ public:
 
   // Constructor for Literal
   Literal(Type type, char const *value)
-      : Node{Node::Type::Literal}, type{type}, isNegative{false}, value{value} {
+      : Node{loc, Node::Type::Literal}, type{type}, isNegative{false}, value{value} {
   }
 
   // Override printing for this leaf node
@@ -221,7 +223,7 @@ class Identifier : public Node {
 
 public:
   Identifier(std::string name)
-      : Node{Node::Type::Identifier}, name{std::move(name)} {}
+      : Node{loc, Node::Type::Identifier}, name{std::move(name)} {}
 
   const char *get_name() const { return name.c_str(); }
 
@@ -269,7 +271,7 @@ public:
   };
 
   // Constructor for Operator
-  Operator(Type type) : Node{Node::Type::Operator}, type{type} {}
+  Operator(Type type) : Node{loc, Node::Type::Operator}, type{type} {}
 
   std::ostream &print(std::ostream &os, int depth = 0) const override {
     std::string indent(depth * 2, ' ');
@@ -295,7 +297,7 @@ public:
   enum class Type { Public, Protected, Static, Abstract, Final, Native };
 
   // Constructor for Modifier
-  Modifier(Type type) : Node{Node::Type::Modifier}, type{type} {}
+  Modifier(Type type) : Node{loc, Node::Type::Modifier}, type{type} {}
 
   // Get the type of the modifier
   Type get_type() const { return type; }
@@ -323,7 +325,7 @@ public:
   enum class Type { Byte, Short, Int, Char, Boolean };
 
   // Constructor for BasicType
-  BasicType(Type type) : Node{Node::Type::BasicType}, type{type} {}
+  BasicType(Type type) : Node{loc, Node::Type::BasicType}, type{type} {}
 
   Type getType() const { return type; }
 

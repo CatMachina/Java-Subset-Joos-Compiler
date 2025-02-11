@@ -7,6 +7,7 @@
 #endif
 
 #include "parseTree/parseTree.hpp"
+#include "parseTree/sourceNode.hpp"
 
 #include "parser.tab.h"
 
@@ -25,10 +26,10 @@ public:
   // generated Flex lexer function
   int yylex();
   // bison-specific lexer function, implemented in the .l file
-  int bison_lex(YYSTYPE *lvalp);
+  int bison_lex(YYSTYPE *lvalp, YYLTYPE *yylloc);
 
-  template <typename... Args> std::shared_ptr<Node> make_node(Args &&...args) {
-    auto nodePtr = std::make_shared<Node>(std::forward<Args>(args)...);
+  template <typename... Args> std::shared_ptr<Node> make_node(source::SourceRange loc, Args &&...args) {
+    auto nodePtr = std::make_shared<Node>(loc, std::forward<Args>(args)...);
     nodes.push_back(nodePtr);
     return nodePtr;
   }
@@ -47,5 +48,6 @@ public:
 
 private:
   YYSTYPE yylval;
+  YYLTYPE yylloc;
   std::vector<std::shared_ptr<Node>> nodes;
 };
