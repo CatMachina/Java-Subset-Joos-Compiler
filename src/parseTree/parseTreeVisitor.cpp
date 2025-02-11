@@ -274,7 +274,7 @@ void ParseTreeVisitor::visitStatementList(
   check_num_children(node, 1, 2);
   auto statement = node->child_at(0);
   if (!statement) {
-    throw std::runtime_error("Invalid StatementList!");
+    throw std::runtime_error("Invalid StatementList");
   }
   std::shared_ptr<ast::Stmt> astNode = visitStatement(statement);
   statements.push_back(astNode);
@@ -287,6 +287,8 @@ std::shared_ptr<ast::Stmt>
 ParseTreeVisitor::visitStatement(const NodePtr &node) {
   std::shared_ptr<ast::Stmt> astNode;
   switch (node->get_node_type()) {
+  case NodeType::Statement:
+    return visitStatement(node->child_at(0));
   case NodeType::Block:
     return visitBlock(node);
   case NodeType::ReturnStatement:
@@ -302,7 +304,7 @@ ParseTreeVisitor::visitStatement(const NodePtr &node) {
   case NodeType::LocalDecl:
     return visitLocalDeclStatement(node);
   default:
-    throw std::runtime_error("Not a statement!");
+    throw std::runtime_error("Not a Statement");
   }
 }
 
@@ -498,7 +500,7 @@ ast::BasicType::Type ParseTreeVisitor::getAstBasicType(BasicType::Type type) {
   case BasicType::Type::Boolean:
     return ast::BasicType::Type::Boolean;
   default:
-    throw std::runtime_error("Invalid basic type!");
+    throw std::runtime_error("Invalid basic type");
   }
 }
 
