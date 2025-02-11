@@ -2,6 +2,30 @@
 
 namespace parsetree::ast {
 
+ProgramDecl::ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
+                         std::vector<ImportDecl> imports,
+                         std::shared_ptr<CodeBody> body)
+    : package{package}, imports{imports}, body{body} {
+  std::unordered_set<std::string_view> simpleImportNames;
+
+  for (const auto &importDecl : imports) {
+    if (importDecl.hasStar()) {
+      continue;
+    }
+
+    std::string_view simpleName{
+        importDecl.getQualifiedIdentifier()->toString()};
+
+    // Ensure no conflicting single-type-import declarations
+    if (simpleImportNames.contains(simpleName)) {
+      throw std::runtime_error(
+          "No two single-type-import declarations clash with each other.");
+    }
+
+    simpleImportNames.insert(simpleName);
+  }
+}
+
 ClassDecl::ClassDecl(
     std::shared_ptr<Modifiers> modifiers, std::string_view name,
     std::shared_ptr<QualifiedIdentifier> superClass,
@@ -21,19 +45,26 @@ ClassDecl::ClassDecl(
   }
   // Separate fields, constructors and methods
   bool foundConstructor = false;
+  std::unordered_set<std::string> fieldNames;
+
   for (const auto &decl : classBodyDecls) {
     auto field = std::dynamic_pointer_cast<FieldDecl>(decl);
     if (field) {
-      this->fields.push_back(field);
+      // this->fields.push_back(field);
+      const auto &fieldName = field->getName();
+      if (!fieldNames.insert(fieldName).second) {
+        throw std::runtime_error("Field \"" + std::string(fieldName) +
+                                 "\" is already declared.");
+      }
       continue;
     }
     auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl);
     if (methodDecl && methodDecl->isConstructor()) {
       foundConstructor = true;
-      this->constructors.push_back(methodDecl);
-    } else if (methodDecl) {
-      // Non-constructor
-      this->methods.push_back(methodDecl);
+      //   this->constructors.push_back(methodDecl);
+      // } else if (methodDecl) {
+      //   // Non-constructor
+      //   this->methods.push_back(methodDecl);
     }
     if (field == nullptr && methodDecl == nullptr) {
       throw std::runtime_error("Class Decl Invalid declarations for class " +
@@ -43,6 +74,15 @@ ClassDecl::ClassDecl(
   if (!foundConstructor) {
     throw std::runtime_error(
         "Every class must contain at least one explicit constructor");
+  }
+
+  std::unordered_set<std::string> interfaceNames;
+  for (const auto &interface : interfaces) {
+    const auto &interfaceName = interface->toString();
+    if (!interfaceNames.insert(interfaceName).second) {
+      throw std::runtime_error("Interface \"" + std::string(interfaceName) +
+                               "\" is already implemented.");
+    }
   }
 }
 
@@ -172,15 +212,15 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
                                "parameter for method " +
                                std::string(name));
     }
-    if (auto type = std::dynamic_pointer_cast<BuiltInType>(returnType)) {
-      if (type->getKind() != BuiltInType::Kind::Int) {
+    if (auto type = std::dynamic_pointer_cast<BasicType>(returnType)) {
+      if (type->getType() != BasicType::Type::Int) {
         throw std::runtime_error("A native method must return int for method " +
                                  std::string(name));
       }
     }
     if (auto type =
-            std::dynamic_pointer_cast<BuiltInType>(params[0]->getType())) {
-      if (type->getKind() != BuiltInType::Kind::Int) {
+            std::dynamic_pointer_cast<BasicType>(params[0]->getType())) {
+      if (type->getType() != BasicType::Type::Int) {
         throw std::runtime_error("A native method must have parameter of type "
                                  "int for method " +
                                  std::string(name));
@@ -237,8 +277,9 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
 }
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
-                     std::shared_ptr<Type> type, std::string_view name)
-    : modifiers{modifiers}, VarDecl{type, name} {
+                     std::shared_ptr<Type> type, std::string_view name,
+                     std::shared_ptr<Expr> initializer)
+    : modifiers{modifiers}, VarDecl{type, name, initializer} {
   if (!modifiers) {
     throw std::runtime_error("Field Decl Invalid modifiers.");
   }

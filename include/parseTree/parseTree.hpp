@@ -1,10 +1,10 @@
 #pragma once
 
+#include "3rd_party/magic_enum.hpp"
 #include <array>
 #include <cassert>
 #include <climits>
 #include <iostream>
-#include "3rd_party/magic_enum.hpp"
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -78,7 +78,7 @@ struct Node {
     ExprStatement,
 
     Expression,
-    ArrayCreate,
+    ArrayCreation,
     ArrayAccess,
     ArrayCastType,
 
@@ -86,7 +86,7 @@ struct Node {
     ClassCreation,
     FieldAccess,
     MethodInvocation,
-
+    Casting
   };
 
   /// leaf nodes
@@ -103,7 +103,7 @@ struct Node {
                   "All arguments must be convertible to std::shared_ptr<Node>");
   }
 
-  size_t get_num_children() const { return num_args; }
+  size_t num_children() const { return num_args; }
 
   // Gets the child at index i of this child
   std::shared_ptr<Node> child_at(size_t i) const { return args[i]; }
@@ -205,6 +205,9 @@ public:
     return true;
   }
 
+  Type getType() const { return type; }
+  std::string getValue() const { return value; }
+
 private:
   Type type;
   bool isNegative;
@@ -236,7 +239,7 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// A node representing  operator.
+// A node representing operator.
 class Operator : public Node {
   friend class ::myFlexLexer;
   friend class ::myBisonParser;
@@ -256,6 +259,7 @@ public:
     Or,
     BitwiseAnd,
     BitwiseOr,
+    BitwiseNot,
     Add,
     Subtract,
     Multiply,
@@ -273,6 +277,9 @@ public:
     std::string indent(depth * 2, ' ');
     return os << indent << "(Type: " << magic_enum::enum_name(type) << ")\n";
   }
+
+  // Getter
+  Type getType() const { return type; }
 
 private:
   Type type;
@@ -320,7 +327,7 @@ public:
   // Constructor for BasicType
   BasicType(Type type) : Node{loc, Node::Type::BasicType}, type{type} {}
 
-  Type get_type() const { return type; }
+  Type getType() const { return type; }
 
   // Print the string representation of the basic type
   std::ostream &print(std::ostream &os, int depth = 0) const override {
