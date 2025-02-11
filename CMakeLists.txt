@@ -53,13 +53,20 @@ add_library(CompilerLib
     # flex bison
     "${LEXER_OUT}"
     "${PARSER_OUT}"
+
     # ast
     "src/ast/astNode.cpp"
+
     # parser
     "src/lexer/joos1w.cpp"
+
     # parseTree
     "src/parseTree/parseTree.cpp"
     "src/parseTree/parseTreeVisitor.cpp"
+    "src/parseTree/expressionVisitor.cpp"
+
+    # static check
+    "src/staticCheck/envManager.cpp"
 )
 target_include_directories(
     CompilerLib
