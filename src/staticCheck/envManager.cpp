@@ -3,17 +3,17 @@
 
 namespace parsetree::ast {
 
-std::shared_ptr<ProgramDecl> EnvManager::BuildProgramDecl(
-    const std::shared_ptr<ast::QualifiedIdentifier> &package,
-    const std::vector<ast::ImportDecl> imports,
-    const std::shared_ptr<ast::CodeBody> &body) {
+std::shared_ptr<ProgramDecl>
+EnvManager::BuildProgramDecl(const std::shared_ptr<ast::ReferenceType> &package,
+                             const std::vector<ast::ImportDecl> imports,
+                             const std::shared_ptr<ast::CodeBody> &body) {
   return std::make_shared<ast::ProgramDecl>(package, imports, body);
 }
 
 std::shared_ptr<ast::ClassDecl> EnvManager::BuildClassDecl(
     const std::shared_ptr<ast::Modifiers> &modifiers, std::string_view name,
-    const std::shared_ptr<ast::QualifiedIdentifier> &super,
-    const std::vector<std::shared_ptr<ast::QualifiedIdentifier>> &interfaces,
+    const std::shared_ptr<ast::ReferenceType> &super,
+    const std::vector<std::shared_ptr<ast::ReferenceType>> &interfaces,
     const std::vector<std::shared_ptr<ast::Decl>> &classBodyDecls) {
   return std::make_shared<ast::ClassDecl>(modifiers, name, super, interfaces,
                                           classBodyDecls);
@@ -51,17 +51,21 @@ EnvManager::BuildVarDecl(const std::shared_ptr<ast::Type> &type,
   return varDecl;
 }
 
+std::shared_ptr<ast::UnresolvedType> EnvManager::BuildUnresolvedType() {
+  return std::make_shared<ast::UnresolvedType>();
+}
+
+std::shared_ptr<ast::DeclStmt>
+EnvManager::BuildDeclStmt(const std::shared_ptr<ast::VarDecl> decl) {
+  return std::make_shared<ast::DeclStmt>(decl);
+}
+
 std::shared_ptr<ast::InterfaceDecl> EnvManager::BuildInterfaceDecl(
     const std::shared_ptr<ast::Modifiers> &modifiers, std::string_view name,
-    const std::vector<std::shared_ptr<ast::QualifiedIdentifier>> &extends,
+    const std::vector<std::shared_ptr<ast::ReferenceType>> &extends,
     const std::vector<std::shared_ptr<ast::Decl>> &interfaceBodyDecls) {
   return std::make_shared<ast::InterfaceDecl>(modifiers, name, extends,
                                               interfaceBodyDecls);
-}
-
-std::shared_ptr<ast::QualifiedIdentifier> EnvManager::BuildQualifiedIdentifier(
-    const std::vector<std::string> &identifiers) {
-  return std::make_shared<ast::QualifiedIdentifier>(identifiers);
 }
 
 std::shared_ptr<ast::BasicType>
@@ -70,7 +74,7 @@ EnvManager::BuildBasicType(ast::BasicType::Type basicType) {
 }
 
 std::shared_ptr<ast::ArrayType>
-EnvManager::BuildArrayType(const std::shared_ptr<ast::Type> &elemType) {
+EnvManager::BuildArrayType(const std::shared_ptr<ast::Type> elemType) {
   return std::make_shared<ast::ArrayType>(elemType);
 }
 

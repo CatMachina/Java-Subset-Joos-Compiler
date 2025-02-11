@@ -13,6 +13,7 @@ namespace parsetree::ast {
 // Base class for all AST nodes //////////////////////////////////////////////
 
 class QualifiedIdentifier;
+class ReferenceType;
 class ExprOp;
 class ExprNode;
 class Modifiers;
@@ -49,44 +50,71 @@ class Stmt : public AstNode {};
 
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 
+class ExprNode {
+public:
+  virtual ~ExprNode() = default;
+};
+
+class Expr {
+  // Reverse Polish Notation
+  // TODO: We use vector for now
+  std::vector<std::shared_ptr<ExprNode>> exprNodes;
+
+public:
+  Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes)
+      : exprNodes{exprNodes} {}
+
+  // Getter
+  // right now we return a copy, inefficient i know...
+  std::vector<std::shared_ptr<ExprNode>> getExprNodes() const {
+    return exprNodes;
+  }
+
+  const std::shared_ptr<ExprNode> getLastExprNode() const {
+    if (exprNodes.empty()) {
+      throw std::runtime_error("Empty expression");
+    }
+    return exprNodes.back();
+  }
+};
+
 // Decls /////////////////////////////////////////////////////////////
 
 class PackageDecl : public Decl {
-  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
+  std::shared_ptr<ReferenceType> qualifiedIdentifier;
 
 public:
   PackageDecl(std::string_view name,
-              std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier)
+              std::shared_ptr<ReferenceType> qualifiedIdentifier)
       : Decl{name}, qualifiedIdentifier{qualifiedIdentifier} {}
 
-  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() const {
+  std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
     return qualifiedIdentifier;
   }
 };
 
 class ImportDecl {
-  std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier;
+  std::shared_ptr<ReferenceType> qualifiedIdentifier;
   bool hasStar_;
 
 public:
-  ImportDecl(std::shared_ptr<QualifiedIdentifier> qualifiedIdentifier,
-             bool hasStar)
+  ImportDecl(std::shared_ptr<ReferenceType> qualifiedIdentifier, bool hasStar)
       : qualifiedIdentifier{qualifiedIdentifier}, hasStar_{hasStar} {}
 
   // Getters
   bool hasStar() const { return hasStar_; }
-  std::shared_ptr<QualifiedIdentifier> getQualifiedIdentifier() const {
+  std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
     return qualifiedIdentifier;
   }
 };
 
 class ProgramDecl : public CodeBody {
-  std::shared_ptr<QualifiedIdentifier> package;
+  std::shared_ptr<ReferenceType> package;
   std::vector<ImportDecl> imports;
   std::shared_ptr<CodeBody> body;
 
 public:
-  ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
+  ProgramDecl(std::shared_ptr<ReferenceType> package,
               std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body);
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
@@ -96,14 +124,14 @@ public:
 
 class ClassDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
-  std::shared_ptr<QualifiedIdentifier> superClass;
-  std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces;
+  std::shared_ptr<ReferenceType> superClass;
+  std::vector<std::shared_ptr<ReferenceType>> interfaces;
   std::vector<std::shared_ptr<Decl>> classBodyDecls;
 
 public:
   ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
-            std::shared_ptr<QualifiedIdentifier> superClass,
-            std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces,
+            std::shared_ptr<ReferenceType> superClass,
+            std::vector<std::shared_ptr<ReferenceType>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 
   std::ostream &print(std::ostream &os) const;
@@ -111,14 +139,13 @@ public:
 
 class InterfaceDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
-  std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces;
+  std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces;
   std::vector<std::shared_ptr<Decl>> interfaceBody;
 
 public:
-  InterfaceDecl(
-      std::shared_ptr<Modifiers> modifiers, std::string_view name,
-      std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces,
-      std::vector<std::shared_ptr<Decl>> interfaceBody);
+  InterfaceDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
+                std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces,
+                std::vector<std::shared_ptr<Decl>> interfaceBody);
 
   std::ostream &print(std::ostream &os) const;
 };
@@ -127,6 +154,7 @@ class MethodDecl : public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::shared_ptr<Type> returnType;
   std::vector<std::shared_ptr<VarDecl>> params;
+  std::vector<std::shared_ptr<VarDecl>> localDecls;
   std::shared_ptr<Block> methodBody;
   bool isConstructor_;
 
@@ -138,6 +166,14 @@ public:
              std::shared_ptr<Type> returnType,
              std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
              std::shared_ptr<Block> methodBody);
+
+  template <std::ranges::range T>
+  requires std::same_as<std::ranges::range_value_t<T>, std::shared_ptr<VarDecl>>
+  void addDecls(T decls) {
+    localDecls.reserve(decls.size());
+    localDecls.insert(localDecls.end(), decls.begin(), decls.end());
+  }
+
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
   bool isConstructor() const { return isConstructor_; }
   bool hasBody() const { return methodBody != nullptr; };
@@ -283,13 +319,14 @@ class NullStmt : public Stmt {};
 
 // Types /////////////////////////////////////////////////////////////
 
-class QualifiedIdentifier : public LValue, public ExprNode {
+class QualifiedIdentifier : public ExprNode {
   std::vector<std::string> identifiers;
 
-public:
-  const std::vector<std::string> &getIdentifiers() const {
-    return identifiers;
-  };
+  public:
+    const std::vector<std::string> &getIdentifiers() const {
+      return identifiers;
+    };
+  
 
   void addIdentifier(std::string_view identifier) {
     identifiers.emplace_back(identifier);
@@ -360,24 +397,29 @@ public:
 };
 
 class ReferenceType : public Type {
-  std::shared_ptr<QualifiedIdentifier> name;
+  std::shared_ptr<Decl> decl;
+
+protected:
+  // Only used by unresolved types.
+  ReferenceType() : Type(), decl{nullptr} {}
 
 public:
-  ReferenceType(std::shared_ptr<QualifiedIdentifier> name) : name{name} {}
-  std::string toString() const override { return name->toString(); }
+  ReferenceType(std::shared_ptr<Decl> decl) : decl{decl} {}
+  std::string toString() const override { return "ReferenceType"; }
 };
 
-class ThisNode : public ExprNode {};
+class UnresolvedType : public ReferenceType {
+  std::vector<std::string> identifiers;
 
-class MemberName : public ExprNode {
 public:
-  MemberName(std::string name) : name{name} {};
+  const std::vector<std::string> &getIdentifiers() const {
+    return identifiers;
+  };
 
-private:
-  std::string name;
+  void addIdentifier(std::string_view identifier) {
+    identifiers.emplace_back(identifier);
+  }
 };
-
-class MemberAccess : public ExprNode {};
 
 // Other classes /////////////////////////////////////////////////////////////
 

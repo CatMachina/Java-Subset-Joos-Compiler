@@ -95,10 +95,12 @@ int main(int argc, char **argv) {
 
       // Build AST from the parse tree
       std::shared_ptr<parsetree::ast::ProgramDecl> ast;
+      parsetree::ast::EnvManager env;
+      parsetree::ParseTreeVisitor visitor{env};
       try {
         if (parse_tree->is_corrupted())
           throw std::runtime_error("Parse tree is invalid");
-        ast = parsetree::visitProgramDecl(parse_tree);
+        ast = visitor.visitProgramDecl(parse_tree);
       } catch (const std::exception &ex) {
         std::cerr << "Runtime error: " << ex.what() << std::endl;
         return 42;

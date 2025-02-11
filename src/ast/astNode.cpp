@@ -1,8 +1,8 @@
-#include "ast/astNode.hpp"
+#include "ast/ast.hpp"
 
 namespace parsetree::ast {
 
-ProgramDecl::ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
+ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
                          std::vector<ImportDecl> imports,
                          std::shared_ptr<CodeBody> body)
     : package{package}, imports{imports}, body{body} {
@@ -26,11 +26,11 @@ ProgramDecl::ProgramDecl(std::shared_ptr<QualifiedIdentifier> package,
   }
 }
 
-ClassDecl::ClassDecl(
-    std::shared_ptr<Modifiers> modifiers, std::string_view name,
-    std::shared_ptr<QualifiedIdentifier> superClass,
-    std::vector<std::shared_ptr<QualifiedIdentifier>> interfaces,
-    std::vector<std::shared_ptr<Decl>> classBodyDecls)
+ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers,
+                     std::string_view name,
+                     std::shared_ptr<ReferenceType> superClass,
+                     std::vector<std::shared_ptr<ReferenceType>> interfaces,
+                     std::vector<std::shared_ptr<Decl>> classBodyDecls)
     : Decl{name}, modifiers{modifiers}, superClass{superClass},
       interfaces{interfaces} {
   // Check for valid modifiers.
@@ -88,7 +88,7 @@ ClassDecl::ClassDecl(
 
 InterfaceDecl::InterfaceDecl(
     std::shared_ptr<Modifiers> modifiers, std::string_view name,
-    std::vector<std::shared_ptr<QualifiedIdentifier>> extendsInterfaces,
+    std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces,
     std::vector<std::shared_ptr<Decl>> interfaceBody)
     : Decl{name}, modifiers{modifiers}, extendsInterfaces{extendsInterfaces},
       interfaceBody{interfaceBody} {
@@ -242,14 +242,16 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
     }
     if (auto expressionStmt =
             std::dynamic_pointer_cast<ExpressionStmt>(statement)) {
-      if (auto methodInvocation = std::dynamic_pointer_cast<MethodInvocation>(
-              expressionStmt->getStatementExpr())) {
+      auto opNode = expressionStmt->getStatementExpr()->getLastExprNode();
+      if (auto methodInvocation =
+              std::dynamic_pointer_cast<MethodInvocation>(opNode)) {
         methodToCheck = methodInvocation;
       }
     } else if (auto returnStmt =
                    std::dynamic_pointer_cast<ReturnStmt>(statement)) {
-      if (auto methodInvocation = std::dynamic_pointer_cast<MethodInvocation>(
-              returnStmt->getReturnExpr())) {
+      auto opNode = returnStmt->getReturnExpr()->getLastExprNode();
+      if (auto methodInvocation =
+              std::dynamic_pointer_cast<MethodInvocation>(opNode)) {
         methodToCheck = methodInvocation;
       }
     }
@@ -257,12 +259,17 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
       continue;
     }
     auto qid = methodToCheck->getQualifiedIdentifier();
-    if (!qid) {
+    if (qid.empty()) {
       // TODO: This is the primary DOT ID case. Need to check whether the
       // primary (i.e. expr) is a this() or super() method invocation.
       continue;
     }
-    for (const auto &id : qid->getIdentifiers()) {
+    for (const auto &expr : qid) {
+      auto memberName = std::dynamic_pointer_cast<MemberName>(expr);
+      if (!memberName) {
+        continue; // will it happen?
+      }
+      auto id = memberName->getName();
       if (id == "this") {
         throw std::runtime_error("A method or constructor must not contain "
                                  "explicit this() calls for method " +

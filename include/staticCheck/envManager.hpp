@@ -2,20 +2,21 @@
 
 #include "ast/ast.hpp"
 #include "parseTree/parseTree.hpp"
+#include <ranges>
 
 namespace parsetree::ast {
 
 class EnvManager {
 public:
   [[nodiscard]] std::shared_ptr<ast::ProgramDecl>
-  BuildProgramDecl(const std::shared_ptr<ast::QualifiedIdentifier> &package,
+  BuildProgramDecl(const std::shared_ptr<ast::ReferenceType> &package,
                    std::vector<ast::ImportDecl> imports,
                    const std::shared_ptr<ast::CodeBody> &body);
 
   [[nodiscard]] std::shared_ptr<ast::ClassDecl> BuildClassDecl(
       const std::shared_ptr<ast::Modifiers> &modifiers, std::string_view name,
-      const std::shared_ptr<ast::QualifiedIdentifier> &super,
-      const std::vector<std::shared_ptr<ast::QualifiedIdentifier>> &interfaces,
+      const std::shared_ptr<ast::ReferenceType> &super,
+      const std::vector<std::shared_ptr<ast::ReferenceType>> &interfaces,
       const std::vector<std::shared_ptr<ast::Decl>> &classBodyDecls);
 
   [[nodiscard]] std::shared_ptr<ast::FieldDecl>
@@ -31,21 +32,26 @@ public:
 
   [[nodiscard]] std::shared_ptr<ast::VarDecl>
   BuildVarDecl(const std::shared_ptr<ast::Type> &type, std::string_view name,
-               const std::shared_ptr<ast::Expr> &initializer);
+               const std::shared_ptr<ast::Expr> &initializer = nullptr);
 
   [[nodiscard]] std::shared_ptr<ast::InterfaceDecl> BuildInterfaceDecl(
       const std::shared_ptr<ast::Modifiers> &modifiers, std::string_view name,
-      const std::vector<std::shared_ptr<ast::QualifiedIdentifier>> &extends,
+      const std::vector<std::shared_ptr<ast::ReferenceType>> &extends,
       const std::vector<std::shared_ptr<ast::Decl>> &interfaceBodyDecls);
 
-  [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier>
+  [[nodiscard]] std::shared_ptr<ast::ReferenceType>
   BuildQualifiedIdentifier(const std::vector<std::string> &identifiers);
 
   [[nodiscard]] std::shared_ptr<ast::BasicType>
   BuildBasicType(ast::BasicType::Type basicType);
 
   [[nodiscard]] std::shared_ptr<ast::ArrayType>
-  BuildArrayType(const std::shared_ptr<ast::Type> &elemType);
+  BuildArrayType(const std::shared_ptr<ast::Type> elemType);
+
+  [[nodiscard]] std::shared_ptr<ast::DeclStmt>
+  BuildDeclStmt(const std::shared_ptr<ast::VarDecl> decl);
+
+  [[nodiscard]] std::shared_ptr<ast::UnresolvedType> BuildUnresolvedType();
 
   void ClearLocalScope() noexcept {
     localDecls_.clear();
@@ -53,9 +59,7 @@ public:
     localScope_.clear();
   }
 
-  const std::vector<std::shared_ptr<VarDecl>> &getAllDecls() const noexcept {
-    return localDecls_;
-  }
+  auto getAllDecls() const noexcept { return std::views::all(localDecls_); }
 
   bool AddToLocalScope(std::shared_ptr<VarDecl> decl) {
     const std::string name = decl->getName();

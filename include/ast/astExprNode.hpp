@@ -4,26 +4,6 @@
 
 namespace parsetree::ast {
 
-class ExprNode {
-public:
-  virtual ~ExprNode() = default;
-};
-
-class Expr {
-  // Reverse Polish Notation
-  // TODO: We use vector for now
-  std::vector<std::shared_ptr<ExprNode>> exprNodes;
-
-public:
-  Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes)
-      : exprNodes{exprNodes} {}
-
-  // Getter
-  const std::vector<std::shared_ptr<ExprNode>> &getExprNodes() const {
-    return exprNodes;
-  }
-};
-
 // Expressions /////////////////////////////////////////////////////////////
 
 class Literal : public ExprNode {
@@ -44,6 +24,9 @@ private:
 class MemberName : public ExprNode {
 public:
   MemberName(std::string_view name) : name{name} {}
+
+  // Getters
+  std::string getName() const { return name; }
 
 private:
   std::string name;
@@ -189,7 +172,7 @@ private:
 // For AST
 
 // we don't need operand because they are already saved in Expr rpn
-class UnOp : public Expr {
+class UnOp : public ExprOp {
 public:
   enum class OpType { Not, Plus, Minus };
   UnOp(OpType op) : ExprOp{1}, op{op} {}
@@ -198,7 +181,7 @@ private:
   OpType op;
 };
 
-class BinOp : public Expr {
+class BinOp : public ExprOp {
 public:
   enum class OpType {
     GreaterThan,
@@ -226,8 +209,15 @@ private:
 };
 
 class MethodInvocation : public ExprOp {
+  std::vector<std::shared_ptr<ast::ExprNode>> qualifiedIdentifier;
+
 public:
-  MethodInvocation(int num_args) : ExprOp(num_args) {}
+  MethodInvocation(int num_args,
+                   std::vector<std::shared_ptr<ast::ExprNode>> &qid)
+      : ExprOp(num_args), qualifiedIdentifier{qid} {}
+  std::vector<std::shared_ptr<ast::ExprNode>> &getQualifiedIdentifier() {
+    return qualifiedIdentifier;
+  }
 };
 
 class ClassCreation : public ExprOp {

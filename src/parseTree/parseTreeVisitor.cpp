@@ -45,20 +45,20 @@ ParseTreeVisitor::visitProgramDecl(const NodePtr &node) {
   return envManager.BuildProgramDecl(package, imports, body_ast_node);
 }
 
-std::shared_ptr<ast::QualifiedIdentifier>
+std::shared_ptr<ast::ReferenceType>
 ParseTreeVisitor::visitPackageDecl(const NodePtr &node) {
   if (!node)
     return nullptr;
   check_node_type(node, NodeType::PackageDecl);
   check_num_children(node, 1, 1);
-  return visitQualifiedIdentifier(node->child_at(0));
+  return visitReferenceType(node->child_at(0));
 }
 
 template <>
 ast::ImportDecl
 ParseTreeVisitor::visit<NodeType::ImportDeclList>(const NodePtr &node) {
   check_num_children(node, 1, 1);
-  auto id = visitQualifiedIdentifier(node->child_at(0));
+  auto id = visitReferenceType(node->child_at(0));
 
   switch (node->get_node_type()) {
   case NodeType::SingleImportDecl:
@@ -84,10 +84,10 @@ ParseTreeVisitor::visitClassDecl(const NodePtr &node) {
   auto name = visitIdentifier(node->child_at(1));
   auto super = visitSuper(node->child_at(2));
 
-  std::vector<std::shared_ptr<ast::QualifiedIdentifier>> interfaces;
+  std::vector<std::shared_ptr<ast::ReferenceType>> interfaces;
   visitListPattern<NodeType::InterfaceTypeList,
-                   std::shared_ptr<ast::QualifiedIdentifier>, true>(
-      node->child_at(3), interfaces);
+                   std::shared_ptr<ast::ReferenceType>, true>(node->child_at(3),
+                                                              interfaces);
 
   // Visit Class Body
   std::vector<std::shared_ptr<ast::Decl>> classBodyDecls;
@@ -99,19 +99,19 @@ ParseTreeVisitor::visitClassDecl(const NodePtr &node) {
                                    classBodyDecls);
 }
 
-std::shared_ptr<ast::QualifiedIdentifier>
+std::shared_ptr<ast::ReferenceType>
 ParseTreeVisitor::visitSuper(const NodePtr &node) {
   if (!node)
     return nullptr;
   check_node_type(node, NodeType::SuperClass);
   check_num_children(node, 1, 1);
-  return visitQualifiedIdentifier(node->child_at(0));
+  return visitReferenceType(node->child_at(0));
 }
 
 template <>
-std::shared_ptr<ast::QualifiedIdentifier>
+std::shared_ptr<ast::ReferenceType>
 ParseTreeVisitor::visit<NodeType::InterfaceTypeList>(const NodePtr &node) {
-  return visitQualifiedIdentifier(node);
+  return visitReferenceType(node);
 }
 
 template <>
@@ -139,7 +139,7 @@ ParseTreeVisitor::visitFieldDecl(const NodePtr &node) {
   std::shared_ptr<ast::Modifiers> modifiers =
       std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
 
-  auto decl = visitVariableDeclarator(node->child_at(1), node->child_at(2));
+  auto decl = visitLocalDecl(node->child_at(1), node->child_at(2));
   return envManager.BuildFieldDecl(modifiers, decl.type, decl.name, decl.init);
 }
 
@@ -220,10 +220,10 @@ ParseTreeVisitor::visitInterfaceDecl(const NodePtr &node) {
       visitModifierList(node->child_at(0), ast::Modifiers{}));
   auto name = visitIdentifier(node->child_at(1));
 
-  std::vector<std::shared_ptr<ast::QualifiedIdentifier>> extends;
+  std::vector<std::shared_ptr<ast::ReferenceType>> extends;
   visitListPattern<NodeType::InterfaceTypeList,
-                   std::shared_ptr<ast::QualifiedIdentifier>, true>(
-      node->child_at(2), extends);
+                   std::shared_ptr<ast::ReferenceType>, true>(node->child_at(2),
+                                                              extends);
 
   std::vector<std::shared_ptr<ast::Decl>> interfaceBodyDecls;
   visitListPattern<NodeType::InterfaceBodyDeclList, std::shared_ptr<ast::Decl>,
@@ -411,20 +411,20 @@ ParseTreeVisitor::visitExprStatement(const NodePtr &node) {
     throw std::runtime_error("Invalid StatementExpr");
   }
   return std::make_shared<ast::ExpressionStmt>(
-      visitStatementExpr(node->child_at(0)));
+      visitExpression(node->child_at(0)));
 }
 
 ParseTreeVisitor::VariableDecl
 ParseTreeVisitor::visitLocalDecl(const NodePtr &typeNode,
                                  const NodePtr &declNode) {
-  check_node_type(node, NodeType::Variable);
-  check_num_children(node, 1, 2);
+  check_node_type(declNode, NodeType::Variable);
+  check_num_children(declNode, 1, 2);
 
   auto type = visitType(typeNode);
-  auto name = visitIdentifier(node->child_at(0));
+  auto name = visitIdentifier(declNode->child_at(0));
   std::shared_ptr<ast::Expr> init;
-  if (node->num_children() == 2) {
-    init = visitExpression(node->child_at(1));
+  if (declNode->num_children() == 2) {
+    init = visitExpression(declNode->child_at(1));
   }
   return VariableDecl{type, name, init};
 }
@@ -435,25 +435,25 @@ ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
   check_num_children(node, 2, 2);
 
   auto decl = visitLocalDecl(node->child_at(0), node->child_at(1));
-  return envManager.BuildVarDecl(decl.type, decl.name, decl.init);
+  auto varDecl = envManager.BuildVarDecl(decl.type, decl.name, decl.init);
+  return envManager.BuildDeclStmt(varDecl);
 }
 
 // Leaf Nodes!!
 
-std::shared_ptr<ast::QualifiedIdentifier>
-ParseTreeVisitor::visitQualifiedIdentifier(
-    const NodePtr &node, std::shared_ptr<ast::QualifiedIdentifier> ast_node) {
+std::shared_ptr<ast::UnresolvedType> ParseTreeVisitor::visitReferenceType(
+    const NodePtr &node, std::shared_ptr<ast::UnresolvedType> ast_node) {
   check_node_type(node, NodeType::QualifiedName);
   check_num_children(node, 1, 2);
 
   if (!ast_node) {
-    ast_node = envManager.BuildQualifiedIdentifier(std::vector<std::string>());
+    ast_node = envManager.BuildUnresolvedType();
   }
 
   if (node->num_children() == 1) {
     ast_node->addIdentifier(visitIdentifier(node->child_at(0)));
   } else {
-    ast_node = visitQualifiedIdentifier(node->child_at(0), ast_node);
+    ast_node = visitReferenceType(node->child_at(0), ast_node);
     ast_node->addIdentifier(visitIdentifier(node->child_at(1)));
   }
   return ast_node;
@@ -496,8 +496,7 @@ std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
     elemType = envManager.BuildBasicType(
         std::dynamic_pointer_cast<ast::BasicType>(innerType)->getType());
   } else if (innerType->get_node_type() == NodeType::QualifiedName) {
-    elemType = std::make_shared<ast::ReferenceType>(
-        visitQualifiedIdentifier(innerType));
+    elemType = visitReferenceType(innerType);
   } else {
     throw std::runtime_error(
         "Expected a BasicType or QualifiedIdentifier node but got " +

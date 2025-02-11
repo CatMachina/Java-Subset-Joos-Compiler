@@ -78,7 +78,7 @@ public:
 
   [[nodiscard]] std::shared_ptr<ast::ProgramDecl>
   visitProgramDecl(const NodePtr &node);
-  [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier>
+  [[nodiscard]] std::shared_ptr<ast::ReferenceType>
   visitPackageDecl(const NodePtr &node);
   // template <>
   // [[nodiscard]] ast::ImportDecl
@@ -88,7 +88,7 @@ public:
 
   [[nodiscard]] std::shared_ptr<ast::ClassDecl>
   visitClassDecl(const NodePtr &node);
-  [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier>
+  [[nodiscard]] std::shared_ptr<ast::ReferenceType>
   visitSuper(const NodePtr &node);
   [[nodiscard]] std::shared_ptr<ast::InterfaceDecl>
   visitInterfaceDecl(const NodePtr &node);
@@ -117,8 +117,10 @@ public:
     std::string_view name;
     std::shared_ptr<ast::Expr> init;
   };
-
-  VariableDecl visitLocalDecl(const NodePtr &type, const NodePtr &node);
+  [[nodiscard]] VariableDecl visitLocalDecl(const NodePtr &type,
+                                            const NodePtr &node);
+  [[nodiscard]] std::shared_ptr<ast::DeclStmt>
+  visitLocalDeclStatement(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::Block> visitBlock(const NodePtr &node);
 
@@ -183,11 +185,6 @@ public:
   [[nodiscard]] std::shared_ptr<ast::StatementExpr>
   visitStatementExpr(const NodePtr &node);
 
-  [[nodiscard]] std::shared_ptr<ast::Assignment>
-  visitAssignment(const NodePtr &node);
-
-  [[nodiscard]] std::shared_ptr<ast::LValue> visitLValue(const NodePtr &node);
-
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitFieldAccess(const NodePtr &node);
 
@@ -208,10 +205,9 @@ public:
 
   // Leaf node visitors
 
-  [[nodiscard]] std::shared_ptr<ast::QualifiedIdentifier>
-  visitQualifiedIdentifier(
-      const NodePtr &node,
-      std::shared_ptr<ast::QualifiedIdentifier> ast_node = nullptr);
+  [[nodiscard]] std::shared_ptr<ast::UnresolvedType>
+  visitReferenceType(const NodePtr &node,
+                     std::shared_ptr<ast::UnresolvedType> ast_node = nullptr);
   [[nodiscard]] std::string visitIdentifier(const NodePtr &node);
   [[nodiscard]] ast::Modifiers
   visitModifierList(const NodePtr &node,
