@@ -486,6 +486,23 @@ Modifier ParseTreeVisitor::visitModifier(const NodePtr &node) {
   return *std::dynamic_pointer_cast<Modifier>(node);
 }
 
+ast::BasicType::Type ParseTreeVisitor::getAstBasicType(BasicType::Type type) {
+  switch (type) {
+  case BasicType::Type::Byte:
+    return ast::BasicType::Type::Byte;
+  case BasicType::Type::Short:
+    return ast::BasicType::Type::Short;
+  case BasicType::Type::Int:
+    return ast::BasicType::Type::Int;
+  case BasicType::Type::Char:
+    return ast::BasicType::Type::Char;
+  case BasicType::Type::Boolean:
+    return ast::BasicType::Type::Boolean;
+  default:
+    throw std::runtime_error("Invalid basic type!");
+  }
+}
+
 std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
   check_num_children(node, 1, 1);
 
@@ -493,8 +510,8 @@ std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
   std::shared_ptr<ast::Type> elemType;
 
   if (innerType->get_node_type() == NodeType::BasicType) {
-    elemType = envManager.BuildBasicType(
-        std::dynamic_pointer_cast<ast::BasicType>(innerType)->getType());
+    BasicType::Type basicType = std::dynamic_pointer_cast<BasicType>(innerType)->getType();
+    elemType = envManager.BuildBasicType(getAstBasicType(basicType));
   } else if (innerType->get_node_type() == NodeType::QualifiedName) {
     elemType = visitReferenceType(innerType);
   } else {

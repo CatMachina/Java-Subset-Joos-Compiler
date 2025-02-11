@@ -46,6 +46,8 @@ private:
     throw std::runtime_error("Unreachable code reached!");
   }
 
+  static ast::BasicType::Type getAstBasicType(BasicType::Type type);
+
   // Templated visitor patterns
 
   template <nodeType N, typename T> [[nodiscard]] T visit(const NodePtr &node) {
