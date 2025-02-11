@@ -324,14 +324,19 @@ ParseTreeVisitor::visitLiteral(const NodePtr &node) {
   switch (lit->getType()) {
   case Literal::Type::Integer:
     type = ast::Literal::Type::Integer;
+    break;
   case Literal::Type::Character:
     type = ast::Literal::Type::Character;
+    break;
   case Literal::Type::String:
     type = ast::Literal::Type::String;
+    break;
   case Literal::Type::Boolean:
     type = ast::Literal::Type::Boolean;
+    break;
   case Literal::Type::Null:
     type = ast::Literal::Type::Null;
+    break;
   default:
     throw std::runtime_error("Invalid literal type");
   }
