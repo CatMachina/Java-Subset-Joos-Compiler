@@ -272,11 +272,11 @@ void ParseTreeVisitor::visitStatementList(
     const NodePtr &node, std::vector<std::shared_ptr<ast::Stmt>> &statements) {
   check_node_type(node, NodeType::StatementList);
   check_num_children(node, 1, 2);
-  auto child = node->child_at(0);
-  if (!child) {
-    // TODO
+  auto statement = node->child_at(0);
+  if (!statement) {
+    throw std::runtime_error("Invalid StatementList!");
   }
-  std::shared_ptr<ast::Stmt> astNode = visitStatement(node);
+  std::shared_ptr<ast::Stmt> astNode = visitStatement(statement);
   statements.push_back(astNode);
   if (node->num_children() == 2) {
     visitStatementList(node->child_at(1), statements);
@@ -285,7 +285,6 @@ void ParseTreeVisitor::visitStatementList(
 
 std::shared_ptr<ast::Stmt>
 ParseTreeVisitor::visitStatement(const NodePtr &node) {
-  check_node_type(node, NodeType::Statement);
   std::shared_ptr<ast::Stmt> astNode;
   switch (node->get_node_type()) {
   case NodeType::Block:
