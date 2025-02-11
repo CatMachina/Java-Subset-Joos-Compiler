@@ -86,7 +86,7 @@ struct Node {
     ClassCreation,
     FieldAccess,
     MethodInvocation,
-    Casting
+    Cast
   };
 
   /// leaf nodes

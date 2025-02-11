@@ -153,7 +153,7 @@ public:
   visitExprNode(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
-  visitCasting(const NodePtr &node);
+  visitCast(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitLiteral(const NodePtr &node);

@@ -571,15 +571,15 @@ post_fix_expr:
 ;
 
 cast_expr:
-    LPAREN cast_type RPAREN unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Casting, std::move($2), std::move($4)); }
+    LPAREN cast_type RPAREN unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Cast, std::move($2), std::move($4)); }
     | LPAREN expr RPAREN unary_expr {
         // Cast is valid iff
-        // $2 is a qualified name and or an array type
+        // $2 is a qualified name or an array type
         bool isQI = $2->get_node_type() == NodeType::QualifiedName;
         bool isArr = $2->get_node_type() == NodeType::ArrayCastType;
         bool hasOneChild = $2->num_children() == 1;
         if (isQI || (isArr && hasOneChild)) {
-            $$ = lexer.make_node(@$, NodeType::Expression, std::move($2), std::move($4));
+            $$ = lexer.make_node(@$, NodeType::Cast, std::move($2), std::move($4));
         } else {
             std::cerr << "Cast expression is not valid" << std::endl;
             $$ = lexer.make_corrupted("some cast expression");

@@ -70,8 +70,8 @@ ParseTreeVisitor::visitExpression(const NodePtr &node) {
     return std::make_shared<ast::Expr>(visitArrayAccess(node));
   case NodeType::FieldAccess:
     return std::make_shared<ast::Expr>(visitFieldAccess(node));
-  case NodeType::Casting:
-    return std::make_shared<ast::Expr>(visitCasting(node));
+  case NodeType::Cast:
+    return std::make_shared<ast::Expr>(visitCast(node));
   case NodeType::ArrayCreation:
     return std::make_shared<ast::Expr>(visitArrayCreation(node));
   case NodeType::ClassCreation:
@@ -165,9 +165,9 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
     return ops;
   }
   if (node->num_children() == 3) {
-    auto expr = visitExpression(node->child_at(0));
-    ops.insert(ops.end(), std::make_move_iterator(expr->getExprNodes().begin()),
-               std::make_move_iterator(expr->getExprNodes().end()));
+    auto exprNodes = visitExpression(node->child_at(0))->getExprNodes();
+    ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
+               std::make_move_iterator(exprNodes.end()));
 
     auto id =
         std::make_shared<ast::MemberName>(visitIdentifier(node->child_at(1)));
@@ -219,30 +219,26 @@ ParseTreeVisitor::visitFieldAccess(const NodePtr &node) {
 }
 
 std::vector<std::shared_ptr<ast::ExprNode>>
-ParseTreeVisitor::visitCasting(const NodePtr &node) {
-  check_node_type(node, NodeType::Casting);
-  check_num_children(node, 2, 3);
+ParseTreeVisitor::visitCast(const NodePtr &node) {
+  check_node_type(node, NodeType::Cast);
+  check_num_children(node, 2, 2);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
 
-  if (auto basicType =
-          std::dynamic_pointer_cast<BasicType>(node->child_at(0))) {
-    auto type = std::make_shared<ast::BasicType>(basicType->getType());
-    if (node->num_children() == 3 && node->child_at(1) != nullptr) {
-      ops.push_back(std::make_shared<ast::ArrayType>(type));
-    } else {
-      ops.push_back(std::make_shared<ast::TypeNode>(type));
-    }
-  } else if (node->child_at(0)->get_node_type() == NodeType::QualifiedName) {
-    auto type = visitReferenceType(node->child_at(0));
+  auto child = node->child_at(0);
+  if (child->get_node_type() == NodeType::Type) {
+    ops.push_back(visitBasicType(child));
+  } else if (child->get_node_type() == NodeType::QualifiedName) {
+    auto type = visitReferenceType(child);
     ops.push_back(std::make_shared<ast::TypeNode>(type));
+  } else if (child->get_node_type() == NodeType::ArrayType ||
+             child->get_node_type() == NodeType::ArrayCastType) {
+    ops.push_back(visitArrayType(child));
   } else {
-    ops.push_back(visitArrayType(node->child_at(0)));
+    throw std::runtime_error("Invalid Cast Expression");
   }
-
-  auto expr = visitExpression(node->child_at(node->num_children() - 1));
-  ops.insert(ops.end(), std::make_move_iterator(expr->getExprNodes().begin()),
-             std::make_move_iterator(expr->getExprNodes().end()));
-  ops.push_back(std::make_shared<ast::Cast>());
+  auto exprNodes = visitExpression(node->child_at(1))->getExprNodes();
+  ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
+             std::make_move_iterator(exprNodes.end()));
   return ops;
 }
 
@@ -252,9 +248,9 @@ ParseTreeVisitor::visitArrayCreation(const NodePtr &node) {
   check_num_children(node, 2, 2);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
   ops.push_back(visitArrayTypeInExpr(node->child_at(0)));
-  auto expr = visitExpression(node->child_at(1));
-  ops.insert(ops.end(), std::make_move_iterator(expr->getExprNodes().begin()),
-             std::make_move_iterator(expr->getExprNodes().end()));
+  auto exprNodes = visitExpression(node->child_at(1))->getExprNodes();
+  ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
+             std::make_move_iterator(exprNodes.end()));
   ops.push_back(std::make_shared<ast::ArrayCreation>());
   return ops;
 }
@@ -283,14 +279,14 @@ void ParseTreeVisitor::visitArgumentList(
   check_node_type(node, NodeType::ArgumentList);
   check_num_children(node, 1, 2);
   if (node->num_children() == 1) {
-    auto expr = visitExpression(node->child_at(0));
-    ops.insert(ops.end(), std::make_move_iterator(expr->getExprNodes().begin()),
-               std::make_move_iterator(expr->getExprNodes().end()));
+    auto exprNodes = visitExpression(node->child_at(0))->getExprNodes();
+    ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
+               std::make_move_iterator(exprNodes.end()));
   } else if (node->num_children() == 2) {
     visitArgumentList(node->child_at(0), ops);
-    auto expr = visitExpression(node->child_at(1));
-    ops.insert(ops.end(), std::make_move_iterator(expr->getExprNodes().begin()),
-               std::make_move_iterator(expr->getExprNodes().end()));
+    auto exprNodes = visitExpression(node->child_at(1))->getExprNodes();
+    ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
+               std::make_move_iterator(exprNodes.end()));
   }
 }
 
