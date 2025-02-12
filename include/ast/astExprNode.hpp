@@ -200,7 +200,9 @@ public:
     BitWiseOr,
     Plus,
     Minus,
-    InstanceOf
+    InstanceOf,
+    And,
+    Or
   };
   BinOp(OpType op) : ExprOp{2}, op{op} {}
 

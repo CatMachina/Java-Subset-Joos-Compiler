@@ -34,7 +34,9 @@ static std::unordered_map<PtOp, AstBinOp> BinOpTable = {
     {PtOp::BitwiseOr, AstBinOp::BitWiseOr},
     {PtOp::Plus, AstBinOp::Plus},
     {PtOp::Minus, AstBinOp::Minus},
-    {PtOp::InstanceOf, AstBinOp::InstanceOf}};
+    {PtOp::InstanceOf, AstBinOp::InstanceOf},
+    {PtOp::And, AstBinOp::And},
+    {PtOp::Or, AstBinOp::Or}};
 
 // Helpers
 AstUnOp ParseTreeVisitor::getUnOpType(const std::shared_ptr<Operator> &node) {
