@@ -197,6 +197,9 @@ public:
   visitMethodInvocation(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitAssignment(const NodePtr &node);
+
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitArrayCreation(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>

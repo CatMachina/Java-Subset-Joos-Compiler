@@ -76,6 +76,7 @@ struct Node {
     WhileStatement,
     ForStatement,
     ExprStatement,
+    LocalDeclStatement,
 
     Expression,
     ArrayCreation,

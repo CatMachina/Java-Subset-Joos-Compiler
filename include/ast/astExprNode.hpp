@@ -210,6 +210,11 @@ private:
   OpType op;
 };
 
+class Assignment : public ExprOp {
+public:
+  Assignment() : ExprOp(2) {};
+};
+
 class MethodInvocation : public ExprOp {
   std::vector<std::shared_ptr<ast::ExprNode>> qualifiedIdentifier;
 
@@ -229,6 +234,7 @@ public:
 
 class FieldAccess : public ExprOp {
 public:
+  // Question: Why 1?
   FieldAccess() : ExprOp(1) {}
 };
 
