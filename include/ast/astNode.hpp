@@ -53,6 +53,7 @@ std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 class ExprNode {
 public:
   virtual ~ExprNode() = default;
+  virtual std::ostream &print(std::ostream &os) const = 0;
 };
 
 class Expr : public AstNode {
@@ -75,6 +76,15 @@ public:
       throw std::runtime_error("Empty expression");
     }
     return exprNodes.back();
+  }
+
+  std::ostream &print(std::ostream &os) const {
+    os << "(Expr: ";
+    for (const auto &exprNode : exprNodes) {
+      exprNode->print(os);
+      os << " ";
+    }
+    return os << ")";
   }
 };
 
@@ -322,11 +332,10 @@ class NullStmt : public Stmt {};
 class QualifiedIdentifier : public ExprNode {
   std::vector<std::string> identifiers;
 
-  public:
-    const std::vector<std::string> &getIdentifiers() const {
-      return identifiers;
-    };
-  
+public:
+  const std::vector<std::string> &getIdentifiers() const {
+    return identifiers;
+  };
 
   void addIdentifier(std::string_view identifier) {
     identifiers.emplace_back(identifier);
@@ -343,6 +352,8 @@ class QualifiedIdentifier : public ExprNode {
     result.pop_back();
     return result;
   }
+
+  std::ostream &print(std::ostream &os) const { return os << toString(); }
 
   friend std::ostream &
   operator<<(std::ostream &os, const QualifiedIdentifier &qualifiedIdentifier) {
@@ -382,6 +393,11 @@ public:
     return std::string(magic_enum::enum_name(type_));
   }
 
+  std::ostream &print(std::ostream &os) const override {
+    os << "(BasicType " << magic_enum::enum_name(type_) << ")";
+    return os;
+  }
+
 private:
   Type type_;
 };
@@ -393,6 +409,13 @@ public:
   ArrayType(std::shared_ptr<Type> elementType) : elementType{elementType} {}
   std::string toString() const override {
     return elementType->toString() + "[]";
+  }
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(ArrayType ";
+    elementType->print(os);
+    os << ")";
+    return os;
   }
 };
 

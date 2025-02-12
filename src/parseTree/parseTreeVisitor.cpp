@@ -444,7 +444,8 @@ ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
   auto innerLocalDecl = node->child_at(0);
   check_num_children(innerLocalDecl, 2, 2);
 
-  auto decl = visitLocalDecl(innerLocalDecl->child_at(0), innerLocalDecl->child_at(1));
+  auto decl =
+      visitLocalDecl(innerLocalDecl->child_at(0), innerLocalDecl->child_at(1));
   auto varDecl = envManager.BuildVarDecl(decl.type, decl.name, decl.init);
   return envManager.BuildDeclStmt(varDecl);
 }
@@ -520,7 +521,8 @@ std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
   std::shared_ptr<ast::Type> elemType;
 
   if (innerType->get_node_type() == NodeType::BasicType) {
-    BasicType::Type basicType = std::dynamic_pointer_cast<BasicType>(innerType)->getType();
+    BasicType::Type basicType =
+        std::dynamic_pointer_cast<BasicType>(innerType)->getType();
     elemType = envManager.BuildBasicType(getAstBasicType(basicType));
   } else if (innerType->get_node_type() == NodeType::QualifiedName) {
     elemType = visitReferenceType(innerType);

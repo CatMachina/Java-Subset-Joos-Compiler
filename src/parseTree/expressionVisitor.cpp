@@ -154,12 +154,12 @@ ParseTreeVisitor::visitAssignment(const NodePtr &node) {
 
   auto lvalue = visitExpression(node->child_at(0))->getExprNodes();
   ops.insert(ops.end(), std::make_move_iterator(lvalue.begin()),
-    std::make_move_iterator(lvalue.end()));
+             std::make_move_iterator(lvalue.end()));
 
   auto exprNodes = visitExpression(node->child_at(2))->getExprNodes();
   ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
-    std::make_move_iterator(exprNodes.end()));
-  
+             std::make_move_iterator(exprNodes.end()));
+
   ops.push_back(std::make_shared<ast::Assignment>());
 
   return ops;
@@ -173,8 +173,7 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
 
   if (node->num_children() == 2) {
     auto qualifiedId = visitQualifiedIdentifierInExpr(node->child_at(0));
-    ops.insert(ops.end(), std::make_move_iterator(qualifiedId.begin()),
-               std::make_move_iterator(qualifiedId.end()));
+    ops.insert(ops.end(), qualifiedId.begin(), qualifiedId.end());
 
     std::vector<std::shared_ptr<ast::ExprNode>> args;
     visitArgumentList(node->child_at(1), args);
