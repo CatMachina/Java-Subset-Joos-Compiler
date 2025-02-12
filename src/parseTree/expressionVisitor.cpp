@@ -267,7 +267,7 @@ ParseTreeVisitor::visitArrayCreation(const NodePtr &node) {
   check_node_type(node, NodeType::ArrayCreation);
   check_num_children(node, 2, 2);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
-  ops.push_back(visitArrayTypeInExpr(node->child_at(0)));
+  ops.push_back(visitArrayTypeInExpr(node->child_at(0)->child_at(0)));
   auto exprNodes = visitExpression(node->child_at(1))->getExprNodes();
   ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
              std::make_move_iterator(exprNodes.end()));
