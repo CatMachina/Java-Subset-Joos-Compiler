@@ -76,6 +76,7 @@ struct Node {
     WhileStatement,
     ForStatement,
     ExprStatement,
+    LocalDeclStatement,
 
     Expression,
     ArrayCreation,
@@ -86,7 +87,7 @@ struct Node {
     ClassCreation,
     FieldAccess,
     MethodInvocation,
-    Casting
+    Cast
   };
 
   /// leaf nodes

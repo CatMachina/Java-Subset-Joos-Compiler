@@ -53,9 +53,10 @@ std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 class ExprNode {
 public:
   virtual ~ExprNode() = default;
+  virtual std::ostream &print(std::ostream &os) const = 0;
 };
 
-class Expr {
+class Expr : public AstNode {
   // Reverse Polish Notation
   // TODO: We use vector for now
   std::vector<std::shared_ptr<ExprNode>> exprNodes;
@@ -75,6 +76,15 @@ public:
       throw std::runtime_error("Empty expression");
     }
     return exprNodes.back();
+  }
+
+  std::ostream &print(std::ostream &os) const {
+    os << "(Expr: ";
+    for (const auto &exprNode : exprNodes) {
+      exprNode->print(os);
+      os << " ";
+    }
+    return os << ")";
   }
 };
 
@@ -265,21 +275,21 @@ public:
 };
 
 class ForStmt : public Stmt {
-  std::shared_ptr<Stmt> forInit;
+  std::shared_ptr<AstNode> forInit;
   std::shared_ptr<Expr> condition;
-  std::shared_ptr<Stmt> forUpdate;
+  std::shared_ptr<Expr> forUpdate;
   std::shared_ptr<Stmt> forBody;
 
 public:
-  ForStmt(std::shared_ptr<Stmt> forInit, std::shared_ptr<Expr> condition,
-          std::shared_ptr<Stmt> forUpdate, std::shared_ptr<Stmt> forBody)
+  ForStmt(std::shared_ptr<AstNode> forInit, std::shared_ptr<Expr> condition,
+          std::shared_ptr<Expr> forUpdate, std::shared_ptr<Stmt> forBody)
       : forInit{forInit}, condition{condition}, forUpdate{forUpdate},
         forBody{forBody} {};
 
   // Getters
-  std::shared_ptr<Stmt> getForInit() const { return forInit; };
+  std::shared_ptr<AstNode> getForInit() const { return forInit; };
   std::shared_ptr<Expr> getCondition() const { return condition; };
-  std::shared_ptr<Stmt> getForUpdate() const { return forUpdate; };
+  std::shared_ptr<Expr> getForUpdate() const { return forUpdate; };
   std::shared_ptr<Stmt> getForBody() const { return forBody; };
 };
 
@@ -322,11 +332,10 @@ class NullStmt : public Stmt {};
 class QualifiedIdentifier : public ExprNode {
   std::vector<std::string> identifiers;
 
-  public:
-    const std::vector<std::string> &getIdentifiers() const {
-      return identifiers;
-    };
-  
+public:
+  const std::vector<std::string> &getIdentifiers() const {
+    return identifiers;
+  };
 
   void addIdentifier(std::string_view identifier) {
     identifiers.emplace_back(identifier);
@@ -343,6 +352,8 @@ class QualifiedIdentifier : public ExprNode {
     result.pop_back();
     return result;
   }
+
+  std::ostream &print(std::ostream &os) const { return os << toString(); }
 
   friend std::ostream &
   operator<<(std::ostream &os, const QualifiedIdentifier &qualifiedIdentifier) {
@@ -382,6 +393,11 @@ public:
     return std::string(magic_enum::enum_name(type_));
   }
 
+  std::ostream &print(std::ostream &os) const override {
+    os << "(BasicType " << magic_enum::enum_name(type_) << ")";
+    return os;
+  }
+
 private:
   Type type_;
 };
@@ -393,6 +409,13 @@ public:
   ArrayType(std::shared_ptr<Type> elementType) : elementType{elementType} {}
   std::string toString() const override {
     return elementType->toString() + "[]";
+  }
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(ArrayType ";
+    elementType->print(os);
+    os << ")";
+    return os;
   }
 };
 

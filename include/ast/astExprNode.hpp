@@ -12,6 +12,11 @@ public:
 
   Literal(Type type, std::string value) : type{type}, value{value} {}
 
+  std::ostream &print(std::ostream &os) const override {
+    os << "(Literal " << magic_enum::enum_name(type) << ", " << value << ")";
+    return os;
+  }
+
   // Getters
   Type getType() const { return type; }
   std::string getValue() const { return value; }
@@ -25,6 +30,11 @@ class MemberName : public ExprNode {
 public:
   MemberName(std::string_view name) : name{name} {}
 
+  std::ostream &print(std::ostream &os) const override {
+    os << "(Member name: " << name << ")";
+    return os;
+  }
+
   // Getters
   std::string getName() const { return name; }
 
@@ -32,7 +42,13 @@ private:
   std::string name;
 };
 
-class ThisNode : public ExprNode {};
+class ThisNode : public ExprNode {
+public:
+  std::ostream &print(std::ostream &os) const override {
+    os << "(This)";
+    return os;
+  }
+};
 
 // class LValue : public Expr {};
 
@@ -157,6 +173,10 @@ class TypeNode : public ExprNode {
 
 public:
   TypeNode(std::shared_ptr<Type> type) : type{type} {};
+
+  std::ostream &print(std::ostream &os) const {
+    return os << "(Type: " << type->toString() << ")";
+  }
 };
 
 // Operators /////////////////////////////////////////////////////////////
@@ -176,6 +196,11 @@ class UnOp : public ExprOp {
 public:
   enum class OpType { Not, Plus, Minus };
   UnOp(OpType op) : ExprOp{1}, op{op} {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(UnOp " << magic_enum::enum_name(op) << ")";
+    return os;
+  }
 
 private:
   OpType op;
@@ -200,12 +225,29 @@ public:
     BitWiseOr,
     Plus,
     Minus,
-    InstanceOf
+    InstanceOf,
+    And,
+    Or
   };
   BinOp(OpType op) : ExprOp{2}, op{op} {}
 
+  std::ostream &print(std::ostream &os) const override {
+    os << "(BinOp " << magic_enum::enum_name(op) << ")";
+    return os;
+  }
+
 private:
   OpType op;
+};
+
+class Assignment : public ExprOp {
+public:
+  Assignment() : ExprOp(2){};
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(Assignment)";
+    return os;
+  }
 };
 
 class MethodInvocation : public ExprOp {
@@ -218,31 +260,71 @@ public:
   std::vector<std::shared_ptr<ast::ExprNode>> &getQualifiedIdentifier() {
     return qualifiedIdentifier;
   }
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(MethodInvocation: ";
+    for (const auto &qid : qualifiedIdentifier) {
+      if (!qid) {
+        os << "null";
+      } else {
+        qid->print(os);
+      }
+      os << " ";
+    }
+    os << ")";
+    return os;
+  }
 };
 
 class ClassCreation : public ExprOp {
 public:
   ClassCreation(int num_args) : ExprOp(num_args) {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(ClassCreation)";
+    return os;
+  }
 };
 
 class FieldAccess : public ExprOp {
 public:
+  // Question: Why 1?
   FieldAccess() : ExprOp(1) {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(FieldAccess)";
+    return os;
+  }
 };
 
 class ArrayCreation : public ExprOp {
 public:
   ArrayCreation() : ExprOp(2) {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(ArrayCreation)";
+    return os;
+  }
 };
 
 class ArrayAccess : public ExprOp {
 public:
   ArrayAccess() : ExprOp(2) {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(ArrayAccess)";
+    return os;
+  }
 };
 
 class Cast : public ExprOp {
 public:
   Cast() : ExprOp(2) {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(Cast)";
+    return os;
+  }
 };
 
 } // namespace parsetree::ast

@@ -46,6 +46,8 @@ private:
     throw std::runtime_error("Unreachable code reached!");
   }
 
+  static ast::BasicType::Type getAstBasicType(BasicType::Type type);
+
   // Templated visitor patterns
 
   template <nodeType N, typename T> [[nodiscard]] T visit(const NodePtr &node) {
@@ -151,7 +153,7 @@ public:
   visitExprNode(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
-  visitCasting(const NodePtr &node);
+  visitCast(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitLiteral(const NodePtr &node);
@@ -193,6 +195,9 @@ public:
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitMethodInvocation(const NodePtr &node);
+
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitAssignment(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitArrayCreation(const NodePtr &node);

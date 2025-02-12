@@ -383,10 +383,10 @@ statements:
 statement:
     local_decl_statement
     | statement_no_substatement
-    | if_then_statement { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
-    | if_then_else_statement { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
-    | while_statement { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
-    | for_statement { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
+    | if_then_statement
+    | if_then_else_statement
+    | while_statement
+    | for_statement
 ;
 
 statement_no_substatement:
@@ -398,9 +398,9 @@ statement_no_substatement:
 
 statement_no_short_if:
     statement_no_substatement
-    | if_then_else_statement_no_short_if { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
-    | while_statement_no_short_if { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
-    | for_statement_no_short_if { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
+    | if_then_else_statement_no_short_if
+    | while_statement_no_short_if
+    | for_statement_no_short_if
 ;
 
 expr_statement:
@@ -458,13 +458,13 @@ for_statement_no_short_if:
 
 for_init_opt:
     %empty { $$ = nullptr; }
-    | local_decl { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
-    | statement_expr { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
+    | local_decl
+    | statement_expr
 ;
 
 for_update_opt:
     %empty { $$ = nullptr; }
-    | statement_expr { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
+    | statement_expr 
 ;
 
 //////////////////// Expressions ////////////////////
@@ -571,15 +571,15 @@ post_fix_expr:
 ;
 
 cast_expr:
-    LPAREN cast_type RPAREN unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Casting, std::move($2), std::move($4)); }
+    LPAREN cast_type RPAREN unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Cast, std::move($2), std::move($4)); }
     | LPAREN expr RPAREN unary_expr {
         // Cast is valid iff
-        // $2 is a qualified name and or an array type
+        // $2 is a qualified name or an array type
         bool isQI = $2->get_node_type() == NodeType::QualifiedName;
         bool isArr = $2->get_node_type() == NodeType::ArrayCastType;
         bool hasOneChild = $2->num_children() == 1;
         if (isQI || (isArr && hasOneChild)) {
-            $$ = lexer.make_node(@$, NodeType::Expression, std::move($2), std::move($4));
+            $$ = lexer.make_node(@$, NodeType::Cast, std::move($2), std::move($4));
         } else {
             std::cerr << "Cast expression is not valid" << std::endl;
             $$ = lexer.make_corrupted("some cast expression");
@@ -649,7 +649,7 @@ arg_list:
 
 //////////////////// Var and Arr ////////////////////
 local_decl_statement:
-    local_decl SEMI { $$ = lexer.make_node(@$, NodeType::Statement, std::move($1)); }
+    local_decl SEMI { $$ = lexer.make_node(@$, NodeType::LocalDeclStatement, std::move($1)); }
 ;
 
 local_decl:
