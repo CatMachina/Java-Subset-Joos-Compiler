@@ -610,8 +610,7 @@ primary_without_array:
     ;
 
 array_create:
-    NEW basic_type LBRACK expr RBRACK { $$ = lexer.make_node(@$, NodeType::ArrayCreation, std::move($2), std::move($4)); }
-    | NEW qualified_name LBRACK expr RBRACK { $$ = lexer.make_node(@$, NodeType::ArrayCreation, std::move($2), std::move($4)); }
+    NEW non_array_type LBRACK expr RBRACK { $$ = lexer.make_node(@$, NodeType::ArrayCreation, std::move($2), std::move($4)); }
 ;
 
 array_access_expr:
