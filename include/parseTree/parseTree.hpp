@@ -1,6 +1,7 @@
 #pragma once
 
 #include "3rd_party/magic_enum.hpp"
+#include "sourceNode.hpp"
 #include <array>
 #include <cassert>
 #include <climits>
@@ -10,7 +11,6 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include "sourceNode.hpp"
 
 class myFlexLexer;
 class myBisonParser;
@@ -91,13 +91,14 @@ struct Node {
   };
 
   /// leaf nodes
-  Node(source::SourceRange loc, Type type) : loc{loc}, type{type}, args{nullptr}, num_args{0} {}
+  Node(source::SourceRange loc, Type type)
+      : loc{loc}, type{type}, args{nullptr}, num_args{0} {}
 
   // Non leaf nodes
   template <typename... Args_>
   Node(source::SourceRange loc, Type type, Args_ &&...args_)
       : loc{loc}, type{type}, args{std::vector<std::shared_ptr<Node>>{
-                        std::forward<Args_>(args_)...}},
+                                  std::forward<Args_>(args_)...}},
         num_args{sizeof...(Args_)} {
     static_assert(sizeof...(Args_) > 0, "Must have at least one child");
     static_assert((std::is_convertible_v<Args_, std::shared_ptr<Node>> && ...),
@@ -171,8 +172,8 @@ public:
 
   // Constructor for Literal
   Literal(Type type, char const *value)
-      : Node{loc, Node::Type::Literal}, type{type}, isNegative{false}, value{value} {
-  }
+      : Node{loc, Node::Type::Literal}, type{type},
+        isNegative{false}, value{value} {}
 
   // Override printing for this leaf node
   std::ostream &print(std::ostream &os, int depth = 0) const override {

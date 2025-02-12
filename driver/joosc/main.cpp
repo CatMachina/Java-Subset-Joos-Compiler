@@ -11,8 +11,9 @@
 #include "ast/ast.hpp"
 #include "parseTree/parseTree.hpp"
 #include "parseTree/parseTreeVisitor.hpp"
-#include "parser/myBisonParser.hpp"
 #include "parseTree/sourceNode.hpp"
+#include "parser/myBisonParser.hpp"
+#include "staticCheck/envManager.hpp"
 
 #include <memory>
 
@@ -37,10 +38,11 @@ int main(int argc, char **argv) {
       std::cerr << "Usage: " << argv[0] << " input-files... " << std::endl;
       return EXIT_FAILURE;
     }
-    
-    source::SourceManager sm = source::SourceManager();
 
-    for(int file_number = 1; file_number < argc; ++file_number) {
+    source::SourceManager sm = source::SourceManager();
+    parsetree::ast::ASTManager astManager;
+
+    for (int file_number = 1; file_number < argc; ++file_number) {
       // Extract file path and validate extension
       const std::string filePath = argv[file_number];
       const std::string fileName =
@@ -95,7 +97,7 @@ int main(int argc, char **argv) {
 
       // Build AST from the parse tree
       std::shared_ptr<parsetree::ast::ProgramDecl> ast;
-      parsetree::ast::EnvManager env;
+      static_check::EnvManager env;
       parsetree::ParseTreeVisitor visitor{env};
       try {
         if (parse_tree->is_corrupted())
@@ -117,13 +119,16 @@ int main(int argc, char **argv) {
       const auto cuBody =
           std::dynamic_pointer_cast<parsetree::ast::Decl>(ast->getBody());
       if (!cuBody || cuBody->getName() != fileName) {
-        std::cerr << "Parse error: class/interface name does not match file name"
-                  << std::endl;
+        std::cerr
+            << "Parse error: class/interface name does not match file name"
+            << std::endl;
         std::cerr << "Class/interface name: "
                   << (cuBody ? cuBody->getName() : "<null>") << std::endl;
         std::cerr << "File name: " << fileName << std::endl;
         return 42;
       }
+
+      astManager.addAST(ast);
     }
 
     return EXIT_SUCCESS;
