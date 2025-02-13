@@ -268,8 +268,29 @@ void TypeLinker::buildSymbolTable() {
 
 // Second pass
 void TypeLinker::resolve() {
-  for (auto programDecl : astManager->getASTs()) {
-    visitProgramDecl(programDecl, /* envBuildingMode */ false);
+  // for (auto programDecl : astManager->getASTs()) {
+  //   visitProgramDecl(programDecl, /* envBuildingMode */ false);
+  // }
+  // notes
+  resolveRecursive(root);
+}
+
+// notes 
+void resolveRecursive(AstNode node) {
+  for(auto child : node->children()) {
+     if(!child) continue;
+     if(auto child = ProgramDecl) {
+        if(!child->body()) return;
+        // clear imports map
+        // resolve imports
+        BeginContext(child);
+        resolveRecursive(child->body());
+     } else if(child = Type(child)) {
+        if(!child->isResolved()) child->resolve();
+     } else {
+        // generic node, just resolve its children
+        resolveRecursive(child);
+     }
   }
 }
 
