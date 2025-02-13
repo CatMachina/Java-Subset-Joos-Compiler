@@ -117,10 +117,18 @@ public:
   const std::string &getName() const { return name; }
 };
 
-// Maybe this is for the stack of scopes
 class Environment {
+  // Hashmap to map names to Decls
   std::unordered_map<std::string, std::shared_ptr<Decl>> simpleNamesToDecls;
+  
+  // Reference to the scope (AST node) which the environment is for
+  std::shared_ptr<parsetree::ast::AstNode> scope;
 
+  // Reference to the outer enclosing environment?
+  // Do we need this, given we maintain a stack?
+};
+
+class GlobalEnvironment {
   // Maybe this is the "global symbol table". According to some previous course
   // notes, "The global environment should record all class names along with
   // their corresponding package names from the files passed to the compiler for
@@ -136,13 +144,11 @@ public:
                              std::string &packageName);
 
   [[nodiscard]] std::string getPackageName(const std::string &typeName) const;
-
+  
 private:
   // From fully qualified names to declarations
   std::unordered_map<std::string, std::shared_ptr<Decl>> qualifiedNamesToDecls;
 
-  // From class/interface names to package names
-  std::unordered_map<std::string, std::string> typeNamesToPackageNames;
 };
 
 } // namespace static_check

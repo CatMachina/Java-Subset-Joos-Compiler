@@ -1,7 +1,9 @@
 #pragma once
 
 #include "ast/ast.hpp"
-#include "globalEnvironment.hpp"
+#include "environment.hpp"
+#include <memory>
+#include <stack>
 
 namespace static_check {
 
@@ -26,13 +28,18 @@ public:
   ////////////////////// Checkers ////////////////////
 
 private:
+  // First pass?
   void buildSymbolTable();
 
-  std::stack<Environment> envs;
+  std::stack<std::shared_ptr<Environment>> envs;
   std::unique_ptr<parsetree::ast::ASTManager> astManager;
-  // Env manager (for local envs)
 
   // Global env? (package - classes/interfaces - fields/methods - variables)
+  std::unique_ptr<GlobalEnvironment> globalEnv;
+
+  void enterScope() { envs.push( std::make_shared<Environment>()); };
+  void leaveScope() { envs.pop(); };
+
 };
 
 } // namespace static_check
