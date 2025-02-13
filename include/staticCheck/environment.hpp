@@ -136,15 +136,9 @@ class GlobalEnvironment {
 public:
   GlobalEnvironment();
 
-  void registerDecl(const std::string &name, std::shared_ptr<Decl> decl);
+  void addDecl(const std::string &qualifiedName, std::shared_ptr<Decl> decl);
+  [[nodiscard]] std::shared_ptr<Decl> getDecl(const std::string &qualifiedName) const;
 
-  [[nodiscard]] std::shared_ptr<Decl> getDecl(const std::string &name) const;
-
-  void registerTypeToPackage(const std::string &typeName,
-                             std::string &packageName);
-
-  [[nodiscard]] std::string getPackageName(const std::string &typeName) const;
-  
 private:
   // From fully qualified names to declarations
   std::unordered_map<std::string, std::shared_ptr<Decl>> qualifiedNamesToDecls;

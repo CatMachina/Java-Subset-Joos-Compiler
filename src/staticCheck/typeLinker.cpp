@@ -2,115 +2,37 @@
 
 namespace static_check {
 
-//////////////////// Declaration Visitors ////////////////////
+//////////////////// Helpers ////////////////////
 
-void TypeLinker::visitProgramDecl(parsetree::ast::ProgramDecl node) {
-  enterScope();
-  visitPackageDecl();
-  for (auto import : imports) {
-    visitImportDecl(import);
+// Find the fully qualified name given the current scope.
+std::string TypeLinker::getQualifiedName(const std::string &name) {
+  if (envs.empty()) {
+    return name;
   }
-  visitCodeBody();
-  leaveScope()
-}
-
-void TypeLinker::visitCodeBody(parsetree::ast::CodeBody node) {
-  switch (node->type()) {
-    case ProgramDecl:
-      visitProgramDecl();
-      break;
-    case ClassDecl:
-      visitPackageDecl();
-      break;
-    case InterfaceDecl:
-      visitInterfaceDecl();
-      break;
-    default:
-      // not a codebody
-  }
-}
-
-void TypeLinker::visitPackageDecl(parsetree::ast::PackageDecl node) {
-  enterScope();
-  registerDecl();
-  leaveScope();
-}
-
-void TypeLinker::visitImportDecl(parsetree::ast::ImportDecl node) {
-  resolve(node);
-}
-
-void TypeLinker::visitClassDecl(parsetree::ast::ClassDecl node) {
-  enterScope();
-  registerDecl();
-  for (auto decl : classBodyDecls) {
-    visitDecl();
-  }
-  leaveScope();
-}
-
-void TypeLinker::visitInterfaceDecl(parsetree::ast::InterfaceDecl node) {
-  enterScope();
-  registerDecl();
-  for (auto decl : interfaceBodyDecls) {
-    visitDecl();
-  }
-  leaveScope();
-}
-
-void TypeLinker::visitMethodDecl(parsetree::ast::MethodDecl node) {
-  enterScope();
-  registerDecl();
-  for (auto param : params) {
-     visitVarDecl(param);
-  }
-  visitBlock(methodBody);
-  leaveScope();
-}
-
-void TypeLinker::visitFieldDecl(parsetree::ast::FieldDecl node) {
-  registerDecl();
-}
-
-void TypeLinker::visitVarDecl(parsetree::ast::VarDecl node) {
-  registerDecl();
-}
-
-//////////////////// Statement Visitors ////////////////////
-
-void TypeLinker::visitBlock(parsetree::ast::Block node) {
-  enterScope();
-  for (auto statement : node->getStatements()) {
-    visitStatement(statement);
-  }
-  leaveScope();
-}
-
-void TypeLinker::visitStatement(parsetree::ast::Stmt node) {
-  // TODO: Different kinds of statements
-}
-
-void TypeLinker::visitDeclStmt(parsetree::ast::DeclStmt node) {
-  visitVarDecl(node->getDecl());
-}
-
-//////////////////// Expression Visitors ////////////////////
-
-// TODO
-void TypeLinker::visitExpression(parsetree::ast::Expr node) {
-  auto exprNodes = node->getExprNodes();
-  auto lastExprNode = node->getLastExprNode();
-  for (auto exprNode : exprNodes) {
-    if (auto typeNode = std::dynamic_pointer_cast<TypeNode>(exprNode)) {
-      // resolve
-    } else if (auto arrayType = std::dynamic_pointer_cast<ArrayType>(exprNode)) {
-      // resolve
-    } else if (auto qid = std::dynamic_pointer_cast<QualifiedIdentifier>(exprNode)) {
-      // resolve
-    } else if (auto memberName = std::dynamic_pointer_cast<MemberName>(exprNode)) {
-      // resolve
+  
+  std::string qualifiedName = name;
+  bool foundPackage = false;
+  for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
+    auto node = it->getScope();
+    std::string newPart;
+    if (auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node)) {
+      continue;
+    } else if (auto methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
+      newPart = methodDecl->getName();
+    } else if (auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
+      newPart = classDecl->getName();
+    } else if (auto interfaceDecl = std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(node)) {
+      newPart = interfaceDecl->getName();
+    } else if (auto packageDecl = std::dynamic_pointer_cast<parsetree::ast::PackageDecl>) {
+      foundPackage = true;
+      newPart = packageDecl->getName(); 
     }
+    qualifiedName = newPart + "." + qualifiedName;   
   }
+  if (!foundPackage) {
+    qualifiedName = DEFAULT_PACKAGE_NAME + "." + qualifiedName;
+  }
+  return qualifiedName;
 }
 
 /*
@@ -123,61 +45,37 @@ void TypeLinker::visitExpression(parsetree::ast::Expr node) {
     2. If not found, search recursively in enclosing environments
     3. If not found in any enclosing environments, ERROR
 */
-void TypeLinker::registerDecl(std::shared_ptr<parsetree::ast::AstNode> astNode) {
-  switch ( /* astNode type */ ) {
-    case PackageDecl:
-      envs.top()->addDecl({packageName, make_shared<Package>});
-      globalEnv->addDecl({fullyQualifiedName, make_shared<Package});
-      break;
-    case ClassDecl:
-      // TODO
-    case InterfaceDecl:
-      // TODO
-    case MethodDecl:
-      // TODO
-    case FieldDecl:
-      // TODO
-    case VarDecl:
-      // TODO
-    default:
-      // not a decl
-  }
-}
-
-// First pass?
-void TypeLinker::buildSymbolTable() {
-  for (auto programDecl : astManager->getASTs()) {
-    /*
-    // ... Entering a new scope, push new env to stack ...
-    Environment env;
-    stack.push(env);
-    */
-    visitProgramDecl(programDecl);
-
-    /*
-    See visitPackageDecl and other methods
-    // it should be UnresolvedType
-    auto packageNode =
-        std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
-            programDecl->getPackage());
-    if (!packageNode) {
-      throw std::runtime_error("Package should be unresolved type!");
-    }
-
-    // for symbol table build
-    for (auto const &id : packageNode->getIdentifiers()) {
-      // find id in symbol table. if not in we add and continue
-      // else traverse into the next subpackage
-    }
-    // after building symbol table we can also check if program decl is in
-    // symbol table if it is then duplicate! add program decl into symbol table
-
-    // How to insert into env:
-    // ... Create package object ...
-      Package package;
-      env.registerDecl({package, object});
-    
-    */
+void TypeLinker::registerDecl(const std::shared_ptr<parsetree::ast::AstNode> astNode) {
+  if (auto packageDecl = std::dynamic_pointer_cast<parsetree::ast::PackageDecl>(astNode)) {
+    auto package = std::make_shared<Package>();
+    std::string qualifiedName = getQualifiedName(packageName);
+    envs.top()->addDecl({packageName, package});
+    globalEnv->addDecl({qualifiedName, package});
+  } else if (auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+    auto cls = std::make_shared<Class>();
+    envs.top()->addDecl({className, cls});
+    std::string qualifiedName = getQualifiedName(className);
+    globalEnv->addDecl({qualifiedName, cls});
+  } else if (auto interfaceDecl = std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode)) {
+    auto interface = std::make_shared<Interface>();
+    envs.top()->addDecl({interfaceName, interface});
+    std::string qualifiedName = getQualifiedName(interfaceName);
+    globalEnv->addDecl({qualifiedName, interface});
+  } else if (auto methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(astNode)) {
+    auto method = std::make_shared<Method>();
+    envs.top()->addDecl({methodName, method});
+    std::string qualifiedName = getQualifiedName(methodName);
+    globalEnv->addDecl({qualifiedName, method});
+  } else if (auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(astNode)) {
+    auto field = std::make_shared<Field>();
+    envs.top()->addDecl({fieldName, field});
+    std::string qualifiedName = getQualifiedName(fieldName);
+    globalEnv->addDecl({qualifiedName, field});
+  } else if (auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(astNode)) {
+    auto variable = std::make_shared<Variable>();
+    envs.top()->addDecl({varName, variable});
+  } else {
+      // Not a declaration node, ignore
   }
 }
 
@@ -217,7 +115,7 @@ std::shared_ptr<Decl> TypeLinker::resolveSimpleName(const std::string &simpleNam
   // 3. Type in same package
   // TODO
   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-    std::string curPackageName = "";
+    std::string curPackageName;
     if (auto packageDecl = std::dynamic_pointer_cast<ast::PackageDecl>(it->getScope())) {
       curPackageName = packageDecl->getName();
     }
@@ -241,30 +139,138 @@ Remark 10.2. If there is a usage c.d and a single-type import a.b.c,
 then a.b.c.d will never be resolved to c.d.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 */
 std::shared_ptr<Decl> TypeLinker::resolveQualifiedName(
-  std::shared_ptr<ast::QualifiedIdentifier> qualifiedIddentifier) {
+  std::shared_ptr<ast::QualifiedIdentifier> qualifiedIdentifier) {
   // TODO
   for (const auto &id : qualifiedIdentifier->getIdentifiers()) {
     
   }
 }
 
+//////////////////// Declaration Visitors ////////////////////
+
+void TypeLinker::visitProgramDecl(const std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+  enterScope();
+  visitPackageDecl();
+  for (auto import : imports) {
+    visitImportDecl(import);
+  }
+  visitCodeBody();
+  leaveScope()
+}
+
+void TypeLinker::visitCodeBody(const std::shared_ptr<parsetree::ast::CodeBody> node) {
+  switch (node->type()) {
+    case ProgramDecl:
+      visitProgramDecl();
+      break;
+    case ClassDecl:
+      visitPackageDecl();
+      break;
+    case InterfaceDecl:
+      visitInterfaceDecl();
+      break;
+    default:
+      // not a codebody
+  }
+}
+
+void TypeLinker::visitPackageDecl(const std::shared_ptr<parsetree::ast::PackageDecl> node) {
+  enterScope();
+  registerDecl(node);
+  leaveScope();
+}
+
+void TypeLinker::visitImportDecl(const std::shared_ptr<parsetree::ast::ImportDecl> node) {
+  resolve(node);
+}
+
+void TypeLinker::visitClassDecl(const std::shared_ptr<parsetree::ast::ClassDecl> node) {
+  enterScope();
+  registerDecl(node);
+  for (auto decl : classBodyDecls) {
+    visitDecl();
+  }
+  leaveScope();
+}
+
+void TypeLinker::visitInterfaceDecl(const std::shared_ptr<parsetree::ast::InterfaceDecl> node) {
+  enterScope();
+  registerDecl(node);
+  for (auto decl : interfaceBodyDecls) {
+    visitDecl();
+  }
+  leaveScope();
+}
+
+void TypeLinker::visitMethodDecl(const std::shared_ptr<parsetree::ast::MethodDecl> node) {
+  enterScope();
+  registerDecl(node);
+  for (auto param : params) {
+     visitVarDecl(param);
+  }
+  visitBlock(methodBody);
+  leaveScope();
+}
+
+void TypeLinker::visitFieldDecl(const std::shared_ptr<parsetree::ast::FieldDecl> node) {
+  registerDecl(node);
+}
+
+void TypeLinker::visitVarDecl(const std::shared_ptr<parsetree::ast::VarDecl> node) {
+  registerDecl(node);
+}
+
+//////////////////// Statement Visitors ////////////////////
+
+void TypeLinker::visitBlock(const std::shared_ptr<parsetree::ast::Block> node) {
+  enterScope();
+  for (auto statement : node->getStatements()) {
+    visitStatement(statement);
+  }
+  leaveScope();
+}
+
+void TypeLinker::visitStatement(const std::shared_ptr<parsetree::ast::Stmt> node) {
+  // TODO: Different kinds of statements
+}
+
+void TypeLinker::visitDeclStmt(const std::shared_ptr<parsetree::ast::DeclStmt> node) {
+  visitVarDecl(node->getDecl());
+}
+
+//////////////////// Expression Visitors ////////////////////
+
+// TODO
+void TypeLinker::visitExpression(const std::shared_ptr<parsetree::ast::Expr> node) {
+  auto exprNodes = node->getExprNodes();
+  auto lastExprNode = node->getLastExprNode();
+  for (auto exprNode : exprNodes) {
+    if (auto typeNode = std::dynamic_pointer_cast<parsetree::ast::TypeNode>(exprNode)) {
+      // resolve
+    } else if (auto arrayType = std::dynamic_pointer_cast<ast::ArrayType>(exprNode)) {
+      // resolve
+    } else if (auto qid = std::dynamic_pointer_cast<QualifiedIdentifier>(exprNode)) {
+      // resolve
+    } else if (auto memberName = std::dynamic_pointer_cast<MemberName>(exprNode)) {
+      // resolve
+    }
+  }
+}
+
+// First pass
+void TypeLinker::buildSymbolTable() {
+  for (auto programDecl : astManager->getASTs()) {
+    visitProgramDecl(programDecl, /* envBuildingMode */ true);
+    // after building symbol table we can also check if program decl is in
+    // symbol table if it is then duplicate! add program decl into symbol table
+  }
+}
+
+// Second pass
 void TypeLinker::resolve() {
-  // How to resolve a usage
-  // We need functions to peek down the stack of envs, to access enclosing
-  // environments
-  name = astNode->getName()
-  // ... Try find name down the stack ... Remember the checks!
-  // ... If succeeded, figure out fully qualified name and update global env ...
-  // ... Maybe augment AST node with a pointer to the decl object?
-
-  // Now visit classes/interface declarations.
-  // ... Create class/interface object and update env & global env if permitted
-  // ... //
-  // ... Entering a new cope again, push new env to stack ...
-  // ... Visit method/field declarations ...
-  // ... Popping env from stack when you leave scope ...
-
-  // Then just keep going ...
+  for (auto programDecl : astManager->getASTs()) {
+    visitProgramDecl(programDecl, /* envBuildingMode */ false);
+  }
 }
 
 } // namespace static_check

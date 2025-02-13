@@ -11,7 +11,7 @@ class TypeLinker {
 public:
   TypeLinker(std::unique_ptr<parsetree::ast::ASTManager> astManager)
       : astManager(std::move(astManager)) {
-    buildSymbolTable();
+    buildEnvironment();
   }
 
   ////////////////////// Resolvers ////////////////////
@@ -31,14 +31,16 @@ private:
   // First pass?
   void buildSymbolTable();
 
-  std::stack<std::shared_ptr<Environment>> envs;
+  std::vector<std::shared_ptr<Environment>> envs;
   std::unique_ptr<parsetree::ast::ASTManager> astManager;
 
   // Global env? (package - classes/interfaces - fields/methods - variables)
   std::unique_ptr<GlobalEnvironment> globalEnv;
 
-  void enterScope() { envs.push( std::make_shared<Environment>()); };
-  void leaveScope() { envs.pop(); };
+  void enterScope() { envs.push_back( std::make_shared<Environment>()); };
+  void leaveScope() { envs.pop_back(); };
+
+  static std::string DEFAULT_PACKAGE_NAME = "?";
 
 };
 
