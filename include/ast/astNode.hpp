@@ -128,6 +128,7 @@ public:
               std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body);
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
+  std::shared_ptr<ReferenceType> getPackage() const { return package; }
 
   std::ostream &print(std::ostream &os) const;
 };

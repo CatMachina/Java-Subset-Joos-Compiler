@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
     }
 
     source::SourceManager sm = source::SourceManager();
-    parsetree::ast::ASTManager astManager;
+    auto astManager = std::make_unique<parsetree::ast::ASTManager>();
 
     // First pass: AST construction
     for (int file_number = 1; file_number < argc; ++file_number) {
@@ -129,9 +129,9 @@ int main(int argc, char **argv) {
         return 42;
       }
 
-      astManager.addAST(ast);
+      astManager->addAST(ast);
     }
-  
+
     // Second pass: environment (symbol table) building + type linking
 
     // Don't know if it should be integrated into the first pass
@@ -141,45 +141,9 @@ int main(int argc, char **argv) {
 
     // Maybe a wrapper class for this stack
     // Environment class would contain maps from simple names to decls?
-    stack<Environment> envs;
 
-    for (auto programDecl : astManager.getASTs()) {
-      // ... Entering a new scope, push new env to stack ...
-      Environment env;
-      stack.push(env);
-      auto packageNode = programDecl->getPackage();
-      /* 
-        If we find a declaration for a name, we: 
-          1. Search for name in current environment
-          2. If name already exists, ERROR
-          3. Else insert name into environment
-        To resolve a usage:
-          1. Search innermost environment
-          2. If not found, search recursively in enclosing environments
-          3. If not found in any enclosing environments, ERROR
-      */
-
-      // How to insert into env:
-      // ... Create package object ...
-      Package package;
-      env.registerDecl({package, object});
-
-      // How to resolve a usage
-      // We need functions to peek down the stack of envs, to access enclosing environments
-      name = astNode->getName()
-      // ... Try find name down the stack ... Remember the checks!
-      // ... If succeeded, figure out fully qualified name and update global env ...
-      // ... Maybe augment AST node with a pointer to the decl object?
-      
-      // Now visit classes/interface declarations.
-      // ... Create class/interface object and update env & global env if permitted ... //
-      // ... Entering a new cope again, push new env to stack ...
-      // ... Visit method/field declarations ...
-      // ... Popping env from stack when you leave scope ...
-      
-      // Then just keep going ...
-
-    }
+    static_check::TypeLinker linker{std::move(astManager)};
+    linker.resolve();
 
     // This pass depends on the input file order?
     // => We might need a third pass to resolve types across different files?

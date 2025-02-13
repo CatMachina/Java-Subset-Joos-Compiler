@@ -120,12 +120,11 @@ public:
 // Maybe this is for the stack of scopes
 class Environment {
   std::unordered_map<std::string, std::shared_ptr<Decl>> simpleNamesToDecls;
-};
 
-// Maybe this is the "global symbol table". According to some previous course notes,
-// "The global environment should record all class names along with their 
-// corresponding package names from the files passed to the compiler for linking".
-// So it will just look like this for now? 
+  // Maybe this is the "global symbol table". According to some previous course
+  // notes, "The global environment should record all class names along with
+  // their corresponding package names from the files passed to the compiler for
+  // linking". So it will just look like this for now?
 public:
   GlobalEnvironment();
 
