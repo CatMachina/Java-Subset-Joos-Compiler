@@ -117,7 +117,15 @@ public:
   const std::string &getName() const { return name; }
 };
 
-class GlobalEnvironment {
+// Maybe this is for the stack of scopes
+class Environment {
+  std::unordered_map<std::string, std::shared_ptr<Decl>> simpleNamesToDecls;
+};
+
+// Maybe this is the "global symbol table". According to some previous course notes,
+// "The global environment should record all class names along with their 
+// corresponding package names from the files passed to the compiler for linking".
+// So it will just look like this for now? 
 public:
   GlobalEnvironment();
 
@@ -131,8 +139,8 @@ public:
   [[nodiscard]] std::string getPackageName(const std::string &typeName) const;
 
 private:
-  // From class/interface names to declarations
-  std::unordered_map<std::string, std::shared_ptr<Decl>> namesToDecls;
+  // From fully qualified names to declarations
+  std::unordered_map<std::string, std::shared_ptr<Decl>> qualifiedNamesToDecls;
 
   // From class/interface names to package names
   std::unordered_map<std::string, std::string> typeNamesToPackageNames;
