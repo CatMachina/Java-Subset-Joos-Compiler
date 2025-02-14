@@ -45,6 +45,10 @@ public:
   [[nodiscard]] virtual std::string toString() const = 0;
 
   std::ostream &print(std::ostream &os) const { return os << toString(); }
+
+  // TODO:
+  bool isResolved() const;
+  void resolve();
 };
 
 class Stmt : public AstNode {};

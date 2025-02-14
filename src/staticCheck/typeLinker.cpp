@@ -10,7 +10,8 @@ void TypeLinker::buildSymbolTable() {
     auto package = std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
         programDecl->getPackage());
     if (!package) {
-      throw std::runtime_error("Package not Unresolved Type at build symbol table");
+      throw std::runtime_error(
+          "Package not Unresolved Type at build symbol table");
     }
 
     // Traverse the package name to find the leaf package.
@@ -93,9 +94,10 @@ void TypeLinker::initContext(
     std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   // clear the current context
   context.clear();
-  auto package = std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
-      node->getPackage());
-  if (!package) {
+  auto packageAstNode =
+      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+          node->getPackage());
+  if (!packageAstNode) {
     throw std::runtime_error("Package not Unresolved Type in initContext");
   }
 
@@ -113,8 +115,8 @@ void TypeLinker::initContext(
   // Step 1:
   for (auto impt : node->getImports()) {
     if (!impt.hasStar())
-      continue;                            // not on demand
-    auto imptPkg = resolveImport(package); // garuanteed to be not null
+      continue;                                   // not on demand
+    auto imptPkg = resolveImport(packageAstNode); // garuanteed to be not null
 
     // resolved on demand package should be package
     if (!std::holds_alternative<std::shared_ptr<Package>>(imptPkg.value())) {
@@ -133,15 +135,88 @@ void TypeLinker::initContext(
       if (context.find(key) != context.end()) {
         // already in context, shadowing?
         // need more thinking
+        // I think this is an ambiguous case, which will be handled in
+        // later assignments? Or it might be the case that issues will arise in
+        // the resolving stage.
         continue;
       }
       context[key] = Package::packageChild{decl};
     }
   }
 
-  // Step 2:
+  // Step 2: Add Package Declarations
+
+  // Step 3: Add Decl from the Same Package (Different ASTs)
+  for (auto astNode : astManager->getASTs()) {
+    if (astNode == node) {
+      continue; // skip the current AST
+    }
+    auto otherPackageAstNode =
+        std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+            astNode->getPackage());
+    if (otherPackageAstNode->toString() != packageAstNode->toString()) {
+      continue; // not the same package
+    }
+    auto otherPackage = resolveImport(otherPackageAstNode);
+    if (!std::holds_alternative<std::shared_ptr<Package>>(
+            otherPackage.value())) {
+      throw std::runtime_error("Failed to resolve import-on-demand to package");
+    }
+    auto pkg = std::get<std::shared_ptr<Package>>(otherPackage.value());
+    // add all decl of package to context
+    for (auto &tuple : pkg->children) {
+      auto key = tuple.first;
+      auto value = tuple.second;
+      // we only add decl
+      if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
+        continue;
+      auto decl = std::get<std::shared_ptr<Decl>>(value);
+      if (context.find(key) != context.end()) {
+        // TODO
+        continue;
+      }
+      context[key] = Package::packageChild{decl};
+    }
+  }
+
+  // Step 4: Single-Type Imports (import pkg.ClassName)
+  std::unordered_map<std::string, Package::packageChild> singleImports;
+  for (auto impt : node->getImports()) {
+    if (impt.hasStar()) {
+      continue; // skip on-demand imports
+    }
+    auto imptType = resolveImport(package);
+    if (std::holds_alternative<std::shared_ptr<Decl>>(imptType.value())) {
+      throw std::runtime_error("Failed to resolve single-type imports to type");
+    }
+    auto decl = std::get<std::shared_ptr<Decl>>(imptType);
+    // Check: No two single-type-import declarations clash with each other.
+    if (singleImports.find(decl->name) != context.end()) {
+      throw std::runtime_error(
+          "No two single-type-import declarations clash with each other.");
+    }
+    singleImports[typeName] = Package::packageChild{decl};
+    context[typeName] = Package::packageChild{decl};
+  }
+
+  // Step 5: All Decl from the Current AST
+  for (auto &tuple : pkg->children) {
+    auto key = tuple.first;
+    auto value = tuple.second;
+    // we only add decl
+    if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
+      continue;
+    auto decl = std::get<std::shared_ptr<Decl>>(value);
+    if (context.find(key) != context.end()) {
+      // TODO
+      continue;
+    }
+    context[key] = Package::packageChild{decl};
+  }
 }
 
+// Question: Doesn't have to be an import, it just finds the decl object given
+// the AST node. Am I right?
 Package::packageChild TypeLinker::resolveImport(
     std::shared_ptr<parsetree::ast::UnresolvedType> node) {
   // Base cases
