@@ -47,8 +47,7 @@ ParseTreeVisitor::visitProgramDecl(const NodePtr &node) {
 
 std::shared_ptr<ast::ReferenceType>
 ParseTreeVisitor::visitPackageDecl(const NodePtr &node) {
-  if (!node)
-    return nullptr;
+  if (!node) return envManager.BuildUnresolvedType();
   check_node_type(node, NodeType::PackageDecl);
   check_num_children(node, 1, 1);
   return visitReferenceType(node->child_at(0));

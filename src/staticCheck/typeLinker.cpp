@@ -10,7 +10,7 @@ void TypeLinker::buildSymbolTable() {
     auto package = std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
         programDecl->getPackage());
     if (!package) {
-      throw std::runtime_error("Package not Unresolved Type");
+      throw std::runtime_error("Package not Unresolved Type at build symbol table");
     }
 
     // Traverse the package name to find the leaf package.
