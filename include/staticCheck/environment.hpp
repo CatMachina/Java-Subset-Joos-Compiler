@@ -45,9 +45,9 @@ public:
     if (!hasChild(childName)) {
       children[std::string(childName)] = std::make_shared<Package>(childName);
     }
-    if (!std::holds_alternative<std::shared_ptr<Decl>>(
+    if (std::holds_alternative<std::shared_ptr<Decl>>(
             children[std::string(childName)])) {
-      throw std::runtime_error("Package already exists as Decl!");
+      throw std::runtime_error("Package already exists as Decl with name: " + std::string(childName));
     }
     return std::get<std::shared_ptr<Package>>(children[std::string(childName)]);
   }
