@@ -14,6 +14,7 @@
 #include "parseTree/sourceNode.hpp"
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/envManager.hpp"
+#include "staticCheck/typeLinker.hpp"
 
 #include <memory>
 
@@ -140,10 +141,13 @@ int main(int argc, char **argv) {
     // but I'll just writing down some ideas for now.
 
     // Maybe a wrapper class for this stack
-    // Environment class would contain maps from simple names to decls?
+    // Environment class would contain maps fromsimple names to decls?
 
     static_check::TypeLinker linker{std::move(astManager)};
-    linker.resolve();
+    std::shared_ptr<static_check::Package> rootPackage =
+        linker.getRootPackage();
+    rootPackage->printStructure();
+    // linker.resolve();
 
     // This pass depends on the input file order?
     // => We might need a third pass to resolve types across different files?

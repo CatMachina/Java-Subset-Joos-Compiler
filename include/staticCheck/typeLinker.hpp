@@ -11,8 +11,13 @@ class TypeLinker {
 public:
   TypeLinker(std::unique_ptr<parsetree::ast::ASTManager> astManager)
       : astManager(std::move(astManager)) {
-    buildEnvironment();
+    rootPackage = std::make_unique<Package>();
+    // add the default package
+    rootPackage->addPackage(DEFAULT_PACKAGE_NAME);
+    buildSymbolTable();
   }
+
+  std::shared_ptr<Package> getRootPackage() { return rootPackage; }
 
   ////////////////////// Resolvers ////////////////////
   void resolve();
@@ -31,17 +36,17 @@ private:
   // First pass?
   void buildSymbolTable();
 
-  std::vector<std::shared_ptr<Environment>> envs;
+  // std::vector<std::shared_ptr<Environment>> envs;
   std::unique_ptr<parsetree::ast::ASTManager> astManager;
+  std::shared_ptr<Package> rootPackage; // no decl
 
   // Global env? (package - classes/interfaces - fields/methods - variables)
-  std::unique_ptr<GlobalEnvironment> globalEnv;
+  // std::unique_ptr<GlobalEnvironment> globalEnv;
 
-  void enterScope() { envs.push_back( std::make_shared<Environment>()); };
-  void leaveScope() { envs.pop_back(); };
+  // void enterScope() { envs.push_back(std::make_shared<Environment>()); };
+  // void leaveScope() { envs.pop_back(); };
 
-  static std::string DEFAULT_PACKAGE_NAME = "?";
-
+  static const std::string DEFAULT_PACKAGE_NAME;
 };
 
 } // namespace static_check

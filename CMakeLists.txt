@@ -67,6 +67,7 @@ add_library(CompilerLib
 
     # static check
     "src/staticCheck/envManager.cpp"
+    "src/staticCheck/typeLinker.cpp"
 )
 target_include_directories(
     CompilerLib
