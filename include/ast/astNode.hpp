@@ -155,6 +155,7 @@ public:
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
   std::shared_ptr<ReferenceType> getPackage() const { return package; }
+  std::vector<ImportDecl> &getImports() { return imports; }
 
   bool isDefaultPackage() const {
     auto pkg = std::dynamic_pointer_cast<UnresolvedType>(package);
