@@ -25,11 +25,12 @@ public:
 
 // trie tree structure
 class Package {
-  using packageChild = std::variant<std::shared_ptr<Package>,
-                                    std::shared_ptr<Decl>, std::nullptr_t>;
+
   std::string_view name;
 
 public:
+  using packageChild = std::variant<std::shared_ptr<Package>,
+                                    std::shared_ptr<Decl>, std::nullptr_t>;
   // children could be either package or decl
   // public for now, easier to code
   std::unordered_map<std::string, packageChild> children;
@@ -47,7 +48,8 @@ public:
     }
     if (std::holds_alternative<std::shared_ptr<Decl>>(
             children[std::string(childName)])) {
-      throw std::runtime_error("Package already exists as Decl with name: " + std::string(childName));
+      throw std::runtime_error("Package already exists as Decl with name: " +
+                               std::string(childName));
     }
     return std::get<std::shared_ptr<Package>>(children[std::string(childName)]);
   }
