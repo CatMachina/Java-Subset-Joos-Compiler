@@ -52,35 +52,122 @@ void TypeLinker::buildSymbolTable() {
   }
 }
 
-// Second pass
-void TypeLinker::resolve() {
-  // for (auto programDecl : astManager->getASTs()) {
-  //   visitProgramDecl(programDecl, /* envBuildingMode */ false);
-  // }
-  // notes
-  // resolveRecursive(root);
+void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
+  if (!node)
+    throw std::runtime_error("Node is null when resolving AST");
+  for (auto child : node->getChildren()) {
+    if (!child)
+      continue;
+
+    // Case: Type
+    if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
+      // if not resolved, resolve.
+      if (!type->isResolved()) {
+        type->resolve(*this);
+      }
+    }
+    // Case: New AST root
+    else if (auto ast = std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(
+                 child)) {
+      // resolve body
+      initContext(ast);
+      resolveAST(ast->getBody());
+    }
+    // Case: regular code
+    else {
+      resolveAST(child);
+    }
+  }
 }
 
-// notes
-// void resolveRecursive(AstNode node) {
-//   for(auto child : node->children()) {
-//      if(!child) continue;
-//      if(auto child = ProgramDecl) {
-//         if(!child->body()) return;
-//         // clear imports map
-//         // resolve imports
-//         BeginContext(child);
-//         resolveRecursive(child->body());
-//      } else if(child = Type(child)) {
-//         if(!child->isResolved()) child->resolve();
-//      } else {
-//         // generic node, just resolve its children
-//         resolveRecursive(child);
-//      }
-//   }
-// }
+// Second pass
+void TypeLinker::resolve() {
+  for (auto ast : astManager->getASTs()) {
+    resolveAST(ast);
+  }
+}
 
 // //////////////////// Helpers ////////////////////
+
+void TypeLinker::initContext(
+    std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+  // clear the current context
+  context.clear();
+  auto package = std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+      node->getPackage());
+  if (!package) {
+    throw std::runtime_error("Package not Unresolved Type in initContext");
+  }
+
+  /*
+  Shadowing Declarations
+  https://web.archive.org/web/20120105104400/http://java.sun.com/docs/books/jls/second_edition/html/names.doc.html#34133
+  Hence currently I am doing in this sequence:
+  1. Import-on-Demand Declarations (import pkg.*)
+  2. Add Package Declarations
+  3. Add Decl from the Same Package (Different ASTs)
+  4. Single-Type Imports (import pkg.ClassName)
+  5. All Decl from the Current AST
+  */
+
+  // Step 1:
+  for (auto impt : node->getImports()) {
+    if (!impt.hasStar())
+      continue;                            // not on demand
+    auto imptPkg = resolveImport(package); // garuanteed to be not null
+
+    // resolved on demand package should be package
+    if (!std::holds_alternative<std::shared_ptr<Package>>(imptPkg.value())) {
+      throw std::runtime_error("Failed to resolve import-on-demand to package");
+    }
+    auto pkg = std::get<std::shared_ptr<Package>>(imptPkg.value());
+
+    // add all decl of package to context
+    for (auto &tuple : pkg->children) {
+      auto key = tuple.first;
+      auto value = tuple.second;
+      // we only add decl
+      if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
+        continue;
+      auto decl = std::get<std::shared_ptr<Decl>>(value);
+      if (context.find(key) != context.end()) {
+        // already in context, shadowing?
+        // need more thinking
+        continue;
+      }
+      context[key] = Package::packageChild{decl};
+    }
+  }
+
+  // Step 2:
+}
+
+Package::packageChild TypeLinker::resolveImport(
+    std::shared_ptr<parsetree::ast::UnresolvedType> node) {
+  // Base cases
+  if (!node)
+    throw std::runtime_error("Node is null when resolving import");
+  if (node->isResolved())
+    throw std::runtime_error("unresolved type should not be resolved yet");
+  if (node->getIdentifiers().size() == 0) {
+    return rootPackage->[DEFAULT_PACKAGE_NAME];
+  }
+
+  auto currentPkg = rootPackage;
+  for (auto &id : node->getIdentifiers()) {
+    if (std::holds_alternative<std::shared_ptr<Decl>>(currentPkg)) {
+      throw std::runtime_error("internal node should not be decl");
+    }
+    auto pkg = std::get<std::shared_ptr<Package>>(currentPkg);
+    if (pkg->children.find(id) == pkg->children.end()) {
+      throw std::runtime_error("Could not resolve " + id +
+                               " since this is not found");
+    }
+    currentPkg = pkg->children.at(id);
+  }
+  // return the leaf nodes
+  return currentPkg;
+}
 
 // // Find the fully qualified name given the current scope.
 // std::string TypeLinker::getQualifiedName(const std::string &name) {
