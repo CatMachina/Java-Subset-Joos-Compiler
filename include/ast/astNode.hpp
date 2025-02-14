@@ -22,6 +22,7 @@ class MethodDecl;
 class VarDecl;
 class StatementExpr;
 class Block;
+class UnresolvedType;
 
 class AstNode {
 public:
@@ -88,6 +89,31 @@ public:
   }
 };
 
+class ReferenceType : public Type {
+  std::shared_ptr<Decl> decl;
+
+protected:
+  // Only used by unresolved types.
+  ReferenceType() : Type(), decl{nullptr} {}
+
+public:
+  ReferenceType(std::shared_ptr<Decl> decl) : decl{decl} {}
+  std::string toString() const override { return "ReferenceType"; }
+};
+
+class UnresolvedType : public ReferenceType {
+  std::vector<std::string> identifiers;
+
+public:
+  const std::vector<std::string> &getIdentifiers() const {
+    return identifiers;
+  };
+
+  void addIdentifier(std::string_view identifier) {
+    identifiers.emplace_back(identifier);
+  }
+};
+
 // Decls /////////////////////////////////////////////////////////////
 
 class PackageDecl : public Decl {
@@ -128,6 +154,14 @@ public:
               std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body);
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
+  std::shared_ptr<ReferenceType> getPackage() const { return package; }
+
+  bool isDefaultPackage() const {
+    auto pkg = std::dynamic_pointer_cast<UnresolvedType>(package);
+    if (!pkg)
+      throw std::runtime_error("Package wrong type in program decl!");
+    return pkg->getIdentifiers().size() == 0;
+  }
 
   std::ostream &print(std::ostream &os) const;
 };
@@ -416,31 +450,6 @@ public:
     elementType->print(os);
     os << ")";
     return os;
-  }
-};
-
-class ReferenceType : public Type {
-  std::shared_ptr<Decl> decl;
-
-protected:
-  // Only used by unresolved types.
-  ReferenceType() : Type(), decl{nullptr} {}
-
-public:
-  ReferenceType(std::shared_ptr<Decl> decl) : decl{decl} {}
-  std::string toString() const override { return "ReferenceType"; }
-};
-
-class UnresolvedType : public ReferenceType {
-  std::vector<std::string> identifiers;
-
-public:
-  const std::vector<std::string> &getIdentifiers() const {
-    return identifiers;
-  };
-
-  void addIdentifier(std::string_view identifier) {
-    identifiers.emplace_back(identifier);
   }
 };
 

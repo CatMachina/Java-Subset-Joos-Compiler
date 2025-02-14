@@ -14,6 +14,7 @@
 #include "parseTree/sourceNode.hpp"
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/envManager.hpp"
+#include "staticCheck/typeLinker.hpp"
 
 #include <memory>
 
@@ -40,8 +41,9 @@ int main(int argc, char **argv) {
     }
 
     source::SourceManager sm = source::SourceManager();
-    parsetree::ast::ASTManager astManager;
+    auto astManager = std::make_unique<parsetree::ast::ASTManager>();
 
+    // First pass: AST construction
     for (int file_number = 1; file_number < argc; ++file_number) {
       // Extract file path and validate extension
       const std::string filePath = argv[file_number];
@@ -128,8 +130,27 @@ int main(int argc, char **argv) {
         return 42;
       }
 
-      astManager.addAST(ast);
+      astManager->addAST(ast);
     }
+
+    // Second pass: environment (symbol table) building + type linking
+
+    // Don't know if it should be integrated into the first pass
+    // since I don't want the existing env manager to handl too much work?
+    // I feel we should have separate passes to make each stage clear
+    // but I'll just writing down some ideas for now.
+
+    // Maybe a wrapper class for this stack
+    // Environment class would contain maps fromsimple names to decls?
+
+    static_check::TypeLinker linker{std::move(astManager)};
+    std::shared_ptr<static_check::Package> rootPackage =
+        linker.getRootPackage();
+    rootPackage->printStructure();
+    // linker.resolve();
+
+    // This pass depends on the input file order?
+    // => We might need a third pass to resolve types across different files?
 
     return EXIT_SUCCESS;
   } catch (const std::exception &ex) {
