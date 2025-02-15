@@ -177,6 +177,13 @@ public:
   std::ostream &print(std::ostream &os) const {
     return os << "(Type: " << type->toString() << ")";
   }
+  std::shared_ptr<Type> getType() const { return type; }
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(type));
+    return children;
+  }
 };
 
 // Operators /////////////////////////////////////////////////////////////

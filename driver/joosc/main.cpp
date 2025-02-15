@@ -18,6 +18,8 @@
 
 #include <memory>
 
+#define EXIT_ERROR 42
+
 // hack
 bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
   if (!node)
@@ -51,7 +53,7 @@ int main(int argc, char **argv) {
           std::filesystem::path(filePath).stem().string();
       if (!filePath.ends_with(".java")) {
         std::cerr << "Error: not a valid .java file" << std::endl;
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Track file
@@ -72,7 +74,7 @@ int main(int argc, char **argv) {
             return static_cast<unsigned char>(c) > 127;
           })) {
         std::cerr << "Parse error: non-ASCII character in input" << std::endl;
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Parse the input
@@ -82,19 +84,20 @@ int main(int argc, char **argv) {
 
       // Validate parse result
       if (!parse_tree || result) {
-        return 42;
+        std::cerr << "Parse error: parse failed" << std::endl;
+        return EXIT_ERROR;
       }
       if (parse_tree->is_corrupted()) {
         std::cerr << "Parse error: parse tree is invalid" << std::endl;
         // comment out if not debugging
         // parse_tree->print(std::cerr);
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Validate literal types
       if (!isLiteralTypeValid(parse_tree)) {
         std::cerr << "Parse error: invalid literal type" << std::endl;
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Build AST from the parse tree
@@ -107,31 +110,33 @@ int main(int argc, char **argv) {
         ast = visitor.visitProgramDecl(parse_tree);
       } catch (const std::exception &ex) {
         std::cerr << "Runtime error: " << ex.what() << std::endl;
-        return 42;
+        return EXIT_ERROR;
       } catch (...) {
         std::cerr << "Unknown failure occurred." << std::endl;
         return EXIT_FAILURE;
       }
 
       if (!ast) {
-        return 42;
+        std::cerr << "Parse error: failed to build AST" << std::endl;
+        return EXIT_ERROR;
       }
 
       // Validate class/interface name matches file name
-      const auto cuBody =
+      const auto body =
           std::dynamic_pointer_cast<parsetree::ast::Decl>(ast->getBody());
-      if (!cuBody || cuBody->getName() != fileName) {
+      if (!body || body->getName() != fileName) {
         std::cerr
             << "Parse error: class/interface name does not match file name"
             << std::endl;
         std::cerr << "Class/interface name: "
-                  << (cuBody ? cuBody->getName() : "<null>") << std::endl;
+                  << (body ? body->getName() : "<null>") << std::endl;
         std::cerr << "File name: " << fileName << std::endl;
-        return 42;
+        return EXIT_ERROR;
       }
 
       astManager->addAST(ast);
     }
+    astManager->finalize();
 
     // Second pass: environment (symbol table) building + type linking
 
@@ -147,12 +152,15 @@ int main(int argc, char **argv) {
     std::shared_ptr<static_check::Package> rootPackage =
         linker.getRootPackage();
     rootPackage->printStructure();
-    // linker.resolve();
+    linker.resolve();
 
     // This pass depends on the input file order?
     // => We might need a third pass to resolve types across different files?
 
     return EXIT_SUCCESS;
+  } catch (const std::runtime_error &err) {
+    std::cerr << "Runtime error: " << err.what() << std::endl;
+    return EXIT_ERROR;
   } catch (const std::exception &ex) {
     std::cerr << "Unhandled exception: " << ex.what() << std::endl;
     return EXIT_FAILURE;

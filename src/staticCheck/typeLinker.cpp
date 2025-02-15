@@ -10,11 +10,17 @@ void TypeLinker::buildSymbolTable() {
     auto package = std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
         programDecl->getPackage());
     if (!package) {
-      throw std::runtime_error("Package not Unresolved Type at build symbol table");
+      throw std::runtime_error(
+          "Package not Unresolved Type at build symbol table");
     }
 
     // Traverse the package name to find the leaf package.
     std::shared_ptr<Package> currentPackage = rootPackage;
+    // FIXME: hack on system import duplicate check
+    bool isSystem = false;
+    if (package->getIdentifiers().size() != 0) {
+      isSystem = (package->getIdentifiers()[0] == "java");
+    }
     for (const auto &id : package->getIdentifiers()) {
       // If the subpackage name is not in the symbol table, add it
       // and continue to the next one.
@@ -45,198 +51,290 @@ void TypeLinker::buildSymbolTable() {
     }
     if (currentPackage->children.find(body->getName()) !=
         currentPackage->children.end()) {
-      throw std::runtime_error("Duplicate declaration");
+      if (!isSystem) {
+        throw std::runtime_error("Duplicate declaration at " + body->getName());
+      } else {
+        // duplicat import of system func
+        // only add the non-dummy one
+        // FIXME: hack
+        if (!body->isDummy()) {
+          currentPackage->children[body->getName()] =
+              std::make_shared<Body>(body);
+          continue;
+        }
+      }
     }
     // add to symbol table
     currentPackage->children[body->getName()] = std::make_shared<Body>(body);
   }
 }
 
-// Second pass
-void TypeLinker::resolve() {
-  // for (auto programDecl : astManager->getASTs()) {
-  //   visitProgramDecl(programDecl, /* envBuildingMode */ false);
-  // }
-  // notes
-  // resolveRecursive(root);
+void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
+  if (!node)
+    throw std::runtime_error("Node is null when resolving AST");
+
+  for (auto child : node->getChildren()) {
+    if (!child)
+      continue;
+
+    // Case: Type
+    // Would this be ReferenceType?
+    // it should be.
+    if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
+      // if not resolved, resolve.
+      if (!type->isResolved()) {
+        resolveType(type);
+      }
+    }
+    // Case: regular code
+    else {
+      resolveAST(child);
+    }
+  }
 }
 
-// notes
-// void resolveRecursive(AstNode node) {
-//   for(auto child : node->children()) {
-//      if(!child) continue;
-//      if(auto child = ProgramDecl) {
-//         if(!child->body()) return;
-//         // clear imports map
-//         // resolve imports
-//         BeginContext(child);
-//         resolveRecursive(child->body());
-//      } else if(child = Type(child)) {
-//         if(!child->isResolved()) child->resolve();
-//      } else {
-//         // generic node, just resolve its children
-//         resolveRecursive(child);
-//      }
-//   }
-// }
+// Second pass
+void TypeLinker::resolve() {
+  for (auto ast : astManager->getASTs()) {
+    initContext(ast);
+    resolveAST(ast->getBody());
+  }
+}
 
 // //////////////////// Helpers ////////////////////
 
-// // Find the fully qualified name given the current scope.
-// std::string TypeLinker::getQualifiedName(const std::string &name) {
-//   if (envs.empty()) {
-//     return name;
-//   }
+void TypeLinker::initContext(
+    std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+  // clear the current context and single type imports
+  context.clear();
+  // singleTypeImports.clear();
+  auto packageAstNode =
+      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+          node->getPackage());
+  if (!packageAstNode) {
+    throw std::runtime_error("Package not Unresolved Type in initContext");
+  }
 
-//   std::string qualifiedName = name;
-//   bool foundPackage = false;
-//   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-//     auto node = it->getScope();
-//     std::string newPart;
-//     if (auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node))
-//     {
-//       continue;
-//     } else if (auto methodDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
-//       newPart = methodDecl->getName();
-//     } else if (auto classDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
-//       newPart = classDecl->getName();
-//     } else if (auto interfaceDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(node)) {
-//       newPart = interfaceDecl->getName();
-//     } else if (auto packageDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::PackageDecl>) {
-//       foundPackage = true;
-//       newPart = packageDecl->getName();
-//     }
-//     qualifiedName = newPart + "." + qualifiedName;
-//   }
-//   if (!foundPackage) {
-//     qualifiedName = DEFAULT_PACKAGE_NAME + "." + qualifiedName;
-//   }
-//   return qualifiedName;
-// }
+  /*
+  Shadowing Declarations
+  https://web.archive.org/web/20120105104400/http://java.sun.com/docs/books/jls/second_edition/html/names.doc.html#34133
+  Hence currently I am doing in this sequence:
+  1. Import-on-Demand Declarations (import pkg.*)
+  2. Add Package Declarations
+  3. Add Decl from the Same Package (Different ASTs)
+  4. Single-Type Imports (import pkg.ClassName)
+  5. All Decl from the Current AST
+  */
 
-// /*
-//   If we find a declaration for a name, we:
-//     1. Search for name in current environment
-//     2. If name already exists, ERROR
-//     3. Else insert name into environment
-//   To resolve a usage:
-//     1. Search innermost environment
-//     2. If not found, search recursively in enclosing environments
-//     3. If not found in any enclosing environments, ERROR
-// */
-// void TypeLinker::registerDecl(const std::shared_ptr<parsetree::ast::AstNode>
-// astNode) {
-//   if (auto packageDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::PackageDecl>(astNode)) {
-//     auto package = std::make_shared<Package>();
-//     std::string qualifiedName = getQualifiedName(packageName);
-//     envs.top()->addDecl({packageName, package});
-//     globalEnv->addDecl({qualifiedName, package});
-//   } else if (auto classDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
-//     auto cls = std::make_shared<Class>();
-//     envs.top()->addDecl({className, cls});
-//     std::string qualifiedName = getQualifiedName(className);
-//     globalEnv->addDecl({qualifiedName, cls});
-//   } else if (auto interfaceDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode)) {
-//     auto interface = std::make_shared<Interface>();
-//     envs.top()->addDecl({interfaceName, interface});
-//     std::string qualifiedName = getQualifiedName(interfaceName);
-//     globalEnv->addDecl({qualifiedName, interface});
-//   } else if (auto methodDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(astNode)) {
-//     auto method = std::make_shared<Method>();
-//     envs.top()->addDecl({methodName, method});
-//     std::string qualifiedName = getQualifiedName(methodName);
-//     globalEnv->addDecl({qualifiedName, method});
-//   } else if (auto fieldDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(astNode)) {
-//     auto field = std::make_shared<Field>();
-//     envs.top()->addDecl({fieldName, field});
-//     std::string qualifiedName = getQualifiedName(fieldName);
-//     globalEnv->addDecl({qualifiedName, field});
-//   } else if (auto varDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::VarDecl>(astNode)) {
-//     auto variable = std::make_shared<Variable>();
-//     envs.top()->addDecl({varName, variable});
-//   } else {
-//       // Not a declaration node, ignore
-//   }
-// }
+  // Step 1:
+  for (auto impt : node->getImports()) {
+    if (!impt->hasStar())
+      continue; // not on demand
+    auto imptPkg =
+        resolveImport(std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+            impt->getQualifiedIdentifier()));
 
-// /*
-// Simple names have no . in their names.
-// We traverse the namespaces in the following priority order:
-//   1. Enclosing class/interface
-//   2. Single-type imports (e.g. import a.b.c)
-//   3. Type in same package
-//   4. Import-on-demand package (e.g. import a.b.*)
-// 1 can probably be checked through the first pass, with the environment stack
-// 2 3 4 need to wait until we build global env?
-// */
-// std::shared_ptr<Decl> TypeLinker::resolveSimpleName(const std::string
-// &simpleName) {
-//   // TODO: repetitively going up the scope, need to refactor
-//   // TODO: use a vector to represent the stack since we want to go down
-//   // 1. Enclosing class/interface
-//   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-//     auto result = it->simpleNamesToDecls.find(simpleName);
-//     if (result != it->simpleNamesToDecls.end()) {
-//       return result->second;
-//     }
-//   }
-//   // 2. Single-type imports (e.g. import a.b.c)
-//   // TODO
-//   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-//     if (auto programDecl =
-//     std::dynamic_pointer_cast<ast::ProgramDecl>(it->getScope())) {
-//       auto imports = programDecl->getImport();
-//       for (auto importDecl : imports) {
-//         if (simpleName == importDecl->getIdentifiers().back()) {
-//           return resolveQualifiedName(importDecl->toString());
-//         }
-//       }
-//     }
-//   }
+    // resolved on demand package should be package
+    if (!std::holds_alternative<std::shared_ptr<Package>>(imptPkg)) {
+      throw std::runtime_error("Failed to resolve import-on-demand to package");
+    }
+    auto pkg = std::get<std::shared_ptr<Package>>(imptPkg);
 
-//   // 3. Type in same package
-//   // TODO
-//   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-//     std::string curPackageName;
-//     if (auto packageDecl =
-//     std::dynamic_pointer_cast<ast::PackageDecl>(it->getScope())) {
-//       curPackageName = packageDecl->getName();
-//     }
-//   }
-//   curPackageName = (curPackagename == "" ? DEFAULT_PACKAGE_NAME :
-//   curPackageName); auto typesInSamePackage =
-//   globalEnv->getDeclaredTypes(curPackageName); auto result =
-//   typesInSamePackage.find(packageName); if (result !=
-//   typesInSamePackage.end()) {
-//     return result->second;
-//   }
+    // add all decl of package to context
+    for (auto &tuple : pkg->children) {
+      auto key = tuple.first;
+      auto value = tuple.second;
+      // we only add decl
+      if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
+        continue;
+      auto decl = std::get<std::shared_ptr<Decl>>(value);
+      if (context.find(key) != context.end()) {
+        // already in context by another on demand import
+        // I think this is an ambiguous case
+        if (std::holds_alternative<std::shared_ptr<Decl>>(context[key]) &&
+            std::get<std::shared_ptr<Decl>>(context[key]) == decl) {
+          // same import, all good
+          continue;
+        }
+        // different import from different package
+        // ambiguous?
+        context[key] = std::shared_ptr<Decl>(nullptr);
+        continue;
+      }
+      context[key] = Package::packageChild{decl};
+    }
+  }
 
-//   // 4. Import-on-demand package (e.g. import a.b.*)
-//   // TODO
+  // Step 2: Add Package Declarations
+  for (auto &tuple : rootPackage->children) {
+    // only import package
+    if (!std::holds_alternative<std::shared_ptr<Package>>(tuple.second))
+      continue;
+    if (context.find(tuple.first) == context.end()) {
+      // only add package not shadowed by on demand import
+      context[tuple.first] = Package::packageChild{
+          std::get<std::shared_ptr<Package>>(tuple.second)};
+    }
+  }
 
-// }
+  // Step 3: Add Decl from the Same Package (Different ASTs)
+  // info already in symbol table, no need another loop of ast
+  auto currentPackage = resolveImport(packageAstNode);
+  if (!std::holds_alternative<std::shared_ptr<Package>>(currentPackage)) {
+    throw std::runtime_error("Failed to get current package");
+  }
+  for (auto &pair :
+       std::get<std::shared_ptr<Package>>(currentPackage)->children) {
+    auto key = pair.first;
+    auto value = pair.second;
+    // we only add decl
+    if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
+      continue;
+    auto decl = std::get<std::shared_ptr<Decl>>(value);
+    context[key] = Package::packageChild{decl};
+  }
 
-// /*
-// Qualified names always have . in their names (e.g. a.b.c.d).
-// We simply traverse the sequence of names listed starting from the top-level
-// name. Remark 10.2. If there is a usage c.d and a single-type import a.b.c,
-// then a.b.c.d will never be resolved to c.d.
-// */
+  // Step 4: Single-Type Imports (import pkg.ClassName)
+  for (auto impt : node->getImports()) {
+    if (impt->hasStar()) {
+      continue; // skip on-demand imports
+    }
+    auto imptType =
+        resolveImport(std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+            impt->getQualifiedIdentifier()));
+    if (!std::holds_alternative<std::shared_ptr<Decl>>(imptType)) {
+      throw std::runtime_error(
+          "Failed to resolve single-type imports to type at " +
+          impt->getQualifiedIdentifier()->toString());
+    }
+    auto decl = std::get<std::shared_ptr<Decl>>(imptType);
+    auto typeName = decl->getName();
+    // Check: decl name should not clash with class name
+    auto classDecl =
+        std::dynamic_pointer_cast<parsetree::ast::Decl>(node->getBody());
+    if (!classDecl)
+      throw std::runtime_error("Body not Decl");
+    if (classDecl->getName() == typeName && decl->getAstNode() != classDecl) {
+      throw std::runtime_error("Single-Type Import name clash with class name" +
+                               decl->getName());
+    }
+
+    // singleTypeImports[typeName] = Package::packageChild{decl};
+    context[typeName] = Package::packageChild{decl};
+  }
+
+  // Step 5: All Decl from the Current AST
+  // this will shadow everything
+  if (auto body = node->getBody()) {
+    if (auto bodyDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(body)) {
+      context[bodyDecl->getName()] =
+          Package::packageChild{std::make_shared<Body>(bodyDecl)};
+    } else {
+      throw std::runtime_error(
+          "Body is not Decl in initContext, this should not happen");
+    }
+  }
+}
+
+// Question: Doesn't have to be an import, it just finds the package object
+// given the AST node. Am I right? Well what i wanted was a function that expect
+// an unresolved import and resolve it to a package or a decl. package if on
+// demand. result returned from symbol table
+Package::packageChild TypeLinker::resolveImport(
+    std::shared_ptr<parsetree::ast::UnresolvedType> node) {
+  // Base cases
+  if (!node)
+    throw std::runtime_error("Node is null when resolving import");
+  if (node->isResolved())
+    throw std::runtime_error("unresolved type should not be resolved yet");
+  if (node->getIdentifiers().size() == 0) {
+    return rootPackage->children[DEFAULT_PACKAGE_NAME];
+  }
+
+  Package::packageChild currentPkg = rootPackage;
+  for (auto &id : node->getIdentifiers()) {
+    if (std::holds_alternative<std::shared_ptr<Decl>>(currentPkg)) {
+      throw std::runtime_error("internal node should not be decl");
+    }
+    auto pkg = std::get<std::shared_ptr<Package>>(currentPkg);
+    if (pkg->children.find(id) == pkg->children.end()) {
+      throw std::runtime_error("Could not resolve " + id +
+                               " since this is not found");
+    }
+    currentPkg = pkg->children.at(id);
+  }
+  // return the leaf nodes
+  return currentPkg;
+}
+
+void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
+  // only resolve if not resolved
+  auto unresolvedType =
+      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(type);
+  if (!unresolvedType)
+    return;
+  if (unresolvedType->isResolved())
+    return; // tbh should not happen
+
+  if (unresolvedType->getIdentifiers().size() == 0)
+    return; // ??
+
+  Package::packageChild currentType;
+  bool first = true;
+  for (auto &id : unresolvedType->getIdentifiers()) {
+    if (first) {
+      currentType = resolveSimpleName(id);
+      if (std::holds_alternative<std::nullptr_t>(currentType)) {
+        throw std::runtime_error("Could not resolve type at " + id);
+      }
+      first = false;
+    } else {
+      // interior nodes in the tree should not be decl
+      if (std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
+        throw std::runtime_error(
+            "resolving package should not be decl when resolving type");
+      }
+      auto pkg = std::get<std::shared_ptr<Package>>(currentType);
+      if (pkg->children.find(id) == pkg->children.end()) {
+        throw std::runtime_error("Could not resolve type " + id +
+                                 " since this is not found");
+      }
+      currentType = pkg->children.at(id);
+    }
+  }
+  // check the leaf node is decl
+  if (!std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
+    throw std::runtime_error("resolved type should be decl");
+  }
+  unresolvedType->setResolveDecl(std::get<std::shared_ptr<Decl>>(currentType));
+}
+
+/*
+Simple names have no . in their names.
+We traverse the namespaces in the following priority order:
+  1. Enclosing class/interface
+  2. Single-type imports (e.g. import a.b.c)
+  3. Type in same package
+  4. Import-on-demand package (e.g. import a.b.*)
+*/
+Package::packageChild
+TypeLinker::resolveSimpleName(const std::string &simpleName) {
+  return context.find(simpleName) != context.end() ? context[simpleName]
+                                                   : nullptr;
+}
+
+/*
+Qualified names always have . in their names (e.g. a.b.c.d).
+We simply traverse the sequence of names listed starting from the top-level
+name.
+Remark 10.2. If there is a usage c.d and a single-type import a.b.c,
+then a.b.c.d will never be resolved to c.d.
+*/
 // std::shared_ptr<Decl> TypeLinker::resolveQualifiedName(
-//   std::shared_ptr<ast::QualifiedIdentifier> qualifiedIdentifier) {
-//   // TODO
-//   for (const auto &id : qualifiedIdentifier->getIdentifiers()) {
-
+//     std::shared_ptr<parsetree::ast::QualifiedIdentifier> qualifiedIdentifier)
+//     {
+//   for (auto &id : qualifiedIdentifier->getIdentifiers()) {
+//     // TODO
 //   }
 // }
 

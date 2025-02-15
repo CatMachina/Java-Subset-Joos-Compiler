@@ -1,29 +1,36 @@
 #include "staticCheck/envManager.hpp"
-#include <string_view>
+#include <string>
 
 namespace static_check {
 
 std::shared_ptr<parsetree::ast::ProgramDecl> EnvManager::BuildProgramDecl(
     const std::shared_ptr<parsetree::ast::ReferenceType> &package,
-    const std::vector<parsetree::ast::ImportDecl> imports,
+    std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> imports,
     const std::shared_ptr<parsetree::ast::CodeBody> &body) {
+  // java program imports java.lang.*s
+  auto javaPkg = BuildUnresolvedType();
+  javaPkg->addIdentifier("java");
+  javaPkg->addIdentifier("lang");
+  imports.push_back(std::make_shared<parsetree::ast::ImportDecl>(
+      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(javaPkg),
+      true));
   return std::make_shared<parsetree::ast::ProgramDecl>(package, imports, body);
 }
 
 std::shared_ptr<parsetree::ast::ClassDecl> EnvManager::BuildClassDecl(
     const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
-    std::string_view name,
+    std::string name,
     const std::shared_ptr<parsetree::ast::ReferenceType> &super,
     const std::vector<std::shared_ptr<parsetree::ast::ReferenceType>>
         &interfaces,
     const std::vector<std::shared_ptr<parsetree::ast::Decl>> &classBodyDecls) {
   return std::make_shared<parsetree::ast::ClassDecl>(
-      modifiers, name, super, interfaces, classBodyDecls);
+      modifiers, name, super, objectType, interfaces, classBodyDecls);
 }
 
 std::shared_ptr<parsetree::ast::FieldDecl> EnvManager::BuildFieldDecl(
     const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
-    const std::shared_ptr<parsetree::ast::Type> &type, std::string_view name,
+    const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
     const std::shared_ptr<parsetree::ast::Expr> &init) {
   return std::make_shared<parsetree::ast::FieldDecl>(modifiers, type, name,
                                                      init);
@@ -31,8 +38,7 @@ std::shared_ptr<parsetree::ast::FieldDecl> EnvManager::BuildFieldDecl(
 
 std::shared_ptr<parsetree::ast::MethodDecl> EnvManager::BuildMethodDecl(
     const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
-    std::string_view name,
-    const std::shared_ptr<parsetree::ast::Type> &returnType,
+    std::string name, const std::shared_ptr<parsetree::ast::Type> &returnType,
     const std::vector<std::shared_ptr<parsetree::ast::VarDecl>> &params,
     bool isConstructor,
     const std::shared_ptr<parsetree::ast::Block> &methodBody) {
@@ -44,7 +50,7 @@ std::shared_ptr<parsetree::ast::MethodDecl> EnvManager::BuildMethodDecl(
 }
 
 std::shared_ptr<parsetree::ast::VarDecl> EnvManager::BuildVarDecl(
-    const std::shared_ptr<parsetree::ast::Type> &type, std::string_view name,
+    const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
     const std::shared_ptr<parsetree::ast::Expr> &initializer) {
   std::shared_ptr<parsetree::ast::VarDecl> varDecl =
       std::make_shared<parsetree::ast::VarDecl>(type, name, initializer);
@@ -67,12 +73,12 @@ EnvManager::BuildDeclStmt(const std::shared_ptr<parsetree::ast::VarDecl> decl) {
 
 std::shared_ptr<parsetree::ast::InterfaceDecl> EnvManager::BuildInterfaceDecl(
     const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
-    std::string_view name,
+    std::string name,
     const std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> &extends,
     const std::vector<std::shared_ptr<parsetree::ast::Decl>>
         &interfaceBodyDecls) {
   return std::make_shared<parsetree::ast::InterfaceDecl>(
-      modifiers, name, extends, interfaceBodyDecls);
+      modifiers, name, extends, objectType, interfaceBodyDecls);
 }
 
 std::shared_ptr<parsetree::ast::BasicType>

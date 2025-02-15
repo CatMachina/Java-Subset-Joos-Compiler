@@ -19,17 +19,24 @@ class Field;
 class Variable;
 
 class Decl {
+  std::shared_ptr<parsetree::ast::Decl> astNode;
+
 public:
+  explicit Decl(std::shared_ptr<parsetree::ast::Decl> node)
+      : astNode(std::move(node)) {}
   virtual void printDecl(int depth = 0) const = 0;
+  std::string getName() const { return astNode->getName(); }
+  std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode; }
 };
 
 // trie tree structure
 class Package {
-  using packageChild = std::variant<std::shared_ptr<Package>,
-                                    std::shared_ptr<Decl>, std::nullptr_t>;
+
   std::string_view name;
 
 public:
+  using packageChild = std::variant<std::shared_ptr<Package>,
+                                    std::shared_ptr<Decl>, std::nullptr_t>;
   // children could be either package or decl
   // public for now, easier to code
   std::unordered_map<std::string, packageChild> children;
@@ -47,7 +54,8 @@ public:
     }
     if (std::holds_alternative<std::shared_ptr<Decl>>(
             children[std::string(childName)])) {
-      throw std::runtime_error("Package already exists as Decl with name: " + std::string(childName));
+      throw std::runtime_error("Package already exists as Decl with name: " +
+                               std::string(childName));
     }
     return std::get<std::shared_ptr<Package>>(children[std::string(childName)]);
   }
@@ -72,14 +80,12 @@ public:
 };
 
 class Body : public Decl {
-  std::shared_ptr<parsetree::ast::Decl> body;
-
 public:
-  explicit Body(std::shared_ptr<parsetree::ast::Decl> body) : body{body} {}
+  explicit Body(std::shared_ptr<parsetree::ast::Decl> body) : Decl{body} {}
   void printDecl(int depth = 0) const override {
     for (int i = 0; i < depth; ++i)
       std::cout << "  ";
-    std::cout << "(Body: " << body->getName() << ")"
+    std::cout << "(Body: " << getAstNode()->getName() << ")"
               << "\n";
   }
 };

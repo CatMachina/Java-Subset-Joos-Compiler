@@ -8,14 +8,22 @@ namespace static_check {
 
 class EnvManager {
 public:
+  EnvManager() {
+    // everything inherites java.lang.Object
+    objectType = BuildUnresolvedType();
+    objectType->addIdentifier("java");
+    objectType->addIdentifier("lang");
+    objectType->addIdentifier("Object");
+  }
+
   [[nodiscard]] std::shared_ptr<parsetree::ast::ProgramDecl> BuildProgramDecl(
       const std::shared_ptr<parsetree::ast::ReferenceType> &package,
-      std::vector<parsetree::ast::ImportDecl> imports,
+      std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> imports,
       const std::shared_ptr<parsetree::ast::CodeBody> &body);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::ClassDecl> BuildClassDecl(
       const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
-      std::string_view name,
+      std::string name,
       const std::shared_ptr<parsetree::ast::ReferenceType> &super,
       const std::vector<std::shared_ptr<parsetree::ast::ReferenceType>>
           &interfaces,
@@ -24,25 +32,24 @@ public:
   [[nodiscard]] std::shared_ptr<parsetree::ast::FieldDecl>
   BuildFieldDecl(const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
                  const std::shared_ptr<parsetree::ast::Type> &type,
-                 std::string_view name,
+                 std::string name,
                  const std::shared_ptr<parsetree::ast::Expr> &init);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::MethodDecl> BuildMethodDecl(
       const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
-      std::string_view name,
-      const std::shared_ptr<parsetree::ast::Type> &returnType,
+      std::string name, const std::shared_ptr<parsetree::ast::Type> &returnType,
       const std::vector<std::shared_ptr<parsetree::ast::VarDecl>> &params,
       bool isConstructor,
       const std::shared_ptr<parsetree::ast::Block> &methodBody);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::VarDecl> BuildVarDecl(
-      const std::shared_ptr<parsetree::ast::Type> &type, std::string_view name,
+      const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
       const std::shared_ptr<parsetree::ast::Expr> &initializer = nullptr);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::InterfaceDecl>
   BuildInterfaceDecl(
       const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
-      std::string_view name,
+      std::string name,
       const std::vector<std::shared_ptr<parsetree::ast::ReferenceType>>
           &extends,
       const std::vector<std::shared_ptr<parsetree::ast::Decl>>
@@ -97,6 +104,7 @@ private:
   std::vector<std::shared_ptr<parsetree::ast::VarDecl>> localDecls_;
   std::vector<std::shared_ptr<parsetree::ast::VarDecl>> localDeclStack_;
   std::unordered_set<std::string> localScope_;
+  std::shared_ptr<parsetree::ast::UnresolvedType> objectType;
 };
 
 } // namespace static_check
