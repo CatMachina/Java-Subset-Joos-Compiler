@@ -6,22 +6,30 @@ ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
                          std::vector<std::shared_ptr<ImportDecl>> imports,
                          std::shared_ptr<CodeBody> body)
     : package{package}, imports{imports}, body{body} {
-  std::unordered_set<std::string> simpleImportNames;
+  std::unordered_map<std::string, std::string> existingImports;
 
   for (const auto &importDecl : imports) {
     if (importDecl->hasStar()) {
       continue;
     }
 
-    std::string simpleName{importDecl->getQualifiedIdentifier()->toString()};
+    auto qualifiedIdentifier = std::dynamic_pointer_cast<UnresolvedType>(
+        importDecl->getQualifiedIdentifier());
+    if (!qualifiedIdentifier) {
+      throw std::runtime_error(
+          "Import Decl is not an Unresolved Type in the AST construction");
+    }
+    std::string qualifiedName = qualifiedIdentifier->toString();
+    std::string importedType = qualifiedIdentifier->getIdentifiers().back();
 
     // Ensure no conflicting single-type-import declarations
-    if (simpleImportNames.contains(simpleName)) {
+    if (existingImports.find(importedType) != existingImports.end() &&
+        existingImports[importedType] != qualifiedName) {
       throw std::runtime_error(
           "No two single-type-import declarations clash with each other.");
     }
 
-    simpleImportNames.insert(simpleName);
+    existingImports.insert({importedType, qualifiedName});
   }
 }
 
