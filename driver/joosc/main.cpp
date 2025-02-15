@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
     std::shared_ptr<static_check::Package> rootPackage =
         linker.getRootPackage();
     rootPackage->printStructure();
-    // linker.resolve();
+    linker.resolve();
 
     // This pass depends on the input file order?
     // => We might need a third pass to resolve types across different files?

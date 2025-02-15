@@ -5,7 +5,7 @@ namespace static_check {
 
 std::shared_ptr<parsetree::ast::ProgramDecl> EnvManager::BuildProgramDecl(
     const std::shared_ptr<parsetree::ast::ReferenceType> &package,
-    const std::vector<parsetree::ast::ImportDecl> imports,
+    const std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> imports,
     const std::shared_ptr<parsetree::ast::CodeBody> &body) {
   return std::make_shared<parsetree::ast::ProgramDecl>(package, imports, body);
 }

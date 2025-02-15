@@ -10,7 +10,7 @@ class EnvManager {
 public:
   [[nodiscard]] std::shared_ptr<parsetree::ast::ProgramDecl> BuildProgramDecl(
       const std::shared_ptr<parsetree::ast::ReferenceType> &package,
-      std::vector<parsetree::ast::ImportDecl> imports,
+      std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> imports,
       const std::shared_ptr<parsetree::ast::CodeBody> &body);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::ClassDecl> BuildClassDecl(

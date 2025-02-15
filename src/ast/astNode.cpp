@@ -3,18 +3,18 @@
 namespace parsetree::ast {
 
 ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
-                         std::vector<ImportDecl> imports,
+                         std::vector<std::shared_ptr<ImportDecl>> imports,
                          std::shared_ptr<CodeBody> body)
     : package{package}, imports{imports}, body{body} {
   std::unordered_set<std::string_view> simpleImportNames;
 
   for (const auto &importDecl : imports) {
-    if (importDecl.hasStar()) {
+    if (importDecl->hasStar()) {
       continue;
     }
 
     std::string_view simpleName{
-        importDecl.getQualifiedIdentifier()->toString()};
+        importDecl->getQualifiedIdentifier()->toString()};
 
     // Ensure no conflicting single-type-import declarations
     if (simpleImportNames.contains(simpleName)) {
@@ -32,7 +32,7 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers,
                      std::vector<std::shared_ptr<ReferenceType>> interfaces,
                      std::vector<std::shared_ptr<Decl>> classBodyDecls)
     : Decl{name}, modifiers{modifiers}, superClass{superClass},
-      interfaces{interfaces} {
+      extendsInterfaces{interfaces}, classBodyDecls{classBodyDecls} {
   // Check for valid modifiers.
   if (!modifiers) {
     throw std::runtime_error("Class Decl Invalid modifiers.");
@@ -50,7 +50,6 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers,
   for (const auto &decl : classBodyDecls) {
     auto field = std::dynamic_pointer_cast<FieldDecl>(decl);
     if (field) {
-      // this->fields.push_back(field);
       const auto &fieldName = field->getName();
       if (!fieldNames.insert(fieldName).second) {
         throw std::runtime_error("Field \"" + std::string(fieldName) +
@@ -91,7 +90,7 @@ InterfaceDecl::InterfaceDecl(
     std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces,
     std::vector<std::shared_ptr<Decl>> interfaceBody)
     : Decl{name}, modifiers{modifiers}, extendsInterfaces{extendsInterfaces},
-      interfaceBody{interfaceBody} {
+      interfaceBodyDecls{interfaceBody} {
   if (!modifiers) {
     throw std::runtime_error("Interface Decl Invalid modifiers for interface " +
                              std::string(name));

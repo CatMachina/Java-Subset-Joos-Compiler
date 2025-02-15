@@ -1,13 +1,16 @@
 #pragma once
 
 #include "parseTree/parseTree.hpp"
-#include "staticCheck/typeLinker.hpp"
 #include <iostream>
 #include <list>
 #include <memory>
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+namespace static_check {
+class Decl;
+}
 
 namespace parsetree::ast {
 
@@ -47,6 +50,7 @@ class Type : public AstNode {
 public:
   ~Type() override = default;
   [[nodiscard]] virtual std::string toString() const = 0;
+  [[nodiscard]] virtual bool isResolved() const = 0;
 
   std::ostream &print(std::ostream &os) const { return os << toString(); }
 };
@@ -113,7 +117,7 @@ public:
   ReferenceType(std::shared_ptr<Decl> decl) : decl{decl} {}
   std::string toString() const override { return "ReferenceType"; }
 
-  bool isResolved() const { return resolvedDecl != nullptr; }
+  bool isResolved() const override { return resolvedDecl != nullptr; }
 
   void setResolveDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
     if (resolvedDecl != nullptr) {
@@ -151,7 +155,7 @@ public:
   }
 };
 
-class ImportDecl {
+class ImportDecl : public AstNode {
   std::shared_ptr<ReferenceType> qualifiedIdentifier;
   bool hasStar_;
 
@@ -191,6 +195,10 @@ public:
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(package));
+    for (const auto &node : imports) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
     children.push_back(std::dynamic_pointer_cast<AstNode>(body));
     return children;
   }
@@ -212,13 +220,13 @@ public:
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
-    children.push_back(std::dynamic_pointer_cast<AstNode>(superClass));
-    for (const auto &node : extendsInterfaces) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
     for (const auto &node : classBodyDecls) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
+    for (const auto &node : extendsInterfaces) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    children.push_back(std::dynamic_pointer_cast<AstNode>(superClass));
     return children;
   }
 };
@@ -385,7 +393,8 @@ public:
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(condition));
     children.push_back(std::dynamic_pointer_cast<AstNode>(ifBody));
-    children.push_back(std::dynamic_pointer_cast<AstNode>(elseBody));
+    if (elseBody != nullptr)
+      children.push_back(std::dynamic_pointer_cast<AstNode>(elseBody));
     return children;
   }
 };
@@ -556,6 +565,8 @@ public:
     return std::string(magic_enum::enum_name(type_));
   }
 
+  bool isResolved() const override { return true; }
+
   std::ostream &print(std::ostream &os) const override {
     os << "(BasicType " << magic_enum::enum_name(type_) << ")";
     return os;
@@ -573,6 +584,8 @@ public:
   std::string toString() const override {
     return elementType->toString() + "[]";
   }
+
+  bool isResolved() const override { return elementType->isResolved(); }
 
   std::ostream &print(std::ostream &os) const override {
     os << "(ArrayType ";

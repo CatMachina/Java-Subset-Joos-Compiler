@@ -32,7 +32,6 @@ public:
 
   Package::packageChild resolveSimpleName(const std::string &simpleName);
 
-
 private:
   // First pass?
   void buildSymbolTable();

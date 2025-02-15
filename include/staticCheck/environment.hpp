@@ -21,6 +21,8 @@ class Variable;
 class Decl {
 public:
   virtual void printDecl(int depth = 0) const = 0;
+  virtual std::string getName() const = 0;
+  virtual std::shared_ptr<parsetree::ast::AstNode> getAstNode() const = 0;
 };
 
 // trie tree structure
@@ -78,6 +80,10 @@ class Body : public Decl {
 
 public:
   explicit Body(std::shared_ptr<parsetree::ast::Decl> body) : body{body} {}
+  std::string getName() const override { return body->getName(); }
+  std::shared_ptr<parsetree::ast::AstNode> getAstNode() const override {
+    return body;
+  }
   void printDecl(int depth = 0) const override {
     for (int i = 0; i < depth; ++i)
       std::cout << "  ";

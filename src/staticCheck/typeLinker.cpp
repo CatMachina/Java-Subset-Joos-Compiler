@@ -63,6 +63,7 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
 
     // Case: Type
     // Would this be ReferenceType?
+    // it could also be other types
     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
       // if not resolved, resolve.
       if (!type->isResolved()) {
@@ -96,7 +97,7 @@ void TypeLinker::initContext(
     std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   // clear the current context and single type imports
   context.clear();
-  singleTypeImports.clear();
+  // singleTypeImports.clear();
   auto packageAstNode =
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
           node->getPackage());
@@ -122,10 +123,10 @@ void TypeLinker::initContext(
     auto imptPkg = resolveImport(packageAstNode); // guaranteed to be not null
 
     // resolved on demand package should be package
-    if (!std::holds_alternative<std::shared_ptr<Package>>(imptPkg.value())) {
+    if (!std::holds_alternative<std::shared_ptr<Package>>(imptPkg)) {
       throw std::runtime_error("Failed to resolve import-on-demand to package");
     }
-    auto pkg = std::get<std::shared_ptr<Package>>(imptPkg.value());
+    auto pkg = std::get<std::shared_ptr<Package>>(imptPkg);
 
     // add all decl of package to context
     for (auto &tuple : pkg->children) {
@@ -162,12 +163,11 @@ void TypeLinker::initContext(
   // Step 3: Add Decl from the Same Package (Different ASTs)
   // info already in symbol table, no need another loop of ast
   auto currentPackage = resolveImport(packageAstNode);
-  if (!currentPackage || !std::holds_alternative<std::shared_ptr<Package>>(
-                             currentPackage.value())) {
+  if (!std::holds_alternative<std::shared_ptr<Package>>(currentPackage)) {
     throw std::runtime_error("Failed to get current package");
   }
   for (auto &pair :
-       std::get<std::shared_ptr<Package>>(currentPackage.value())->children) {
+       std::get<std::shared_ptr<Package>>(currentPackage)->children) {
     auto key = pair.first;
     auto value = pair.second;
     // we only add decl
@@ -182,24 +182,38 @@ void TypeLinker::initContext(
     if (impt->hasStar()) {
       continue; // skip on-demand imports
     }
-    auto imptType = resolveImport(impt);
-    if (std::holds_alternative<std::shared_ptr<Decl>>(imptType.value())) {
+    auto imptType =
+        resolveImport(std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+            impt->getQualifiedIdentifier()));
+    if (std::holds_alternative<std::shared_ptr<Decl>>(imptType)) {
       throw std::runtime_error("Failed to resolve single-type imports to type");
     }
-    auto decl = std::get<std::shared_ptr<Decl>>(imptType.value());
-    // Check: No two single-type-import declarations clash with each other.
-    if (singleTypeImports.find(decl->name) != context.end()) {
-      throw std::runtime_error(
-          "No two single-type-import declarations clash with each other.");
+    auto decl = std::get<std::shared_ptr<Decl>>(imptType);
+    auto typeName = decl->getName();
+    // Check: decl name should not clash with class name
+    auto classDecl =
+        std::dynamic_pointer_cast<parsetree::ast::Decl>(node->getBody());
+    if (!classDecl)
+      throw std::runtime_error("Body not Decl");
+    if (classDecl->getName() == typeName && decl->getAstNode() != classDecl) {
+      throw std::runtime_error("Single-Type Import name clash with class name" +
+                               decl->getName());
     }
-    singleTypeImports[typeName] = Package::packageChild{decl};
+
+    // singleTypeImports[typeName] = Package::packageChild{decl};
     context[typeName] = Package::packageChild{decl};
   }
 
   // Step 5: All Decl from the Current AST
   // this will shadow everything
   if (auto body = node->getBody()) {
-    context[body->getName()] = Package::packageChild{body};
+    if (auto bodyDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(body)) {
+      context[bodyDecl->getName()] =
+          Package::packageChild{std::make_shared<Body>(bodyDecl)};
+    } else {
+      throw std::runtime_error(
+          "Body is not Decl in initContext, this should not happen");
+    }
   }
 }
 
@@ -218,7 +232,7 @@ Package::packageChild TypeLinker::resolveImport(
     return rootPackage->children[DEFAULT_PACKAGE_NAME];
   }
 
-  auto currentPkg = rootPackage;
+  Package::packageChild currentPkg = rootPackage;
   for (auto &id : node->getIdentifiers()) {
     if (std::holds_alternative<std::shared_ptr<Decl>>(currentPkg)) {
       throw std::runtime_error("internal node should not be decl");
@@ -237,8 +251,9 @@ Package::packageChild TypeLinker::resolveImport(
 void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
   // only resolve if not resolved
   auto unresolvedType =
-      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
-          type) if (!unresolvedType) return;
+      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(type);
+  if (!unresolvedType)
+    return;
   if (unresolvedType->isResolved())
     return; // tbh should not happen
 
@@ -249,7 +264,7 @@ void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
   for (auto &id : unresolvedType->getIdentifiers()) {
     if (id == unresolvedType->getIdentifiers().front()) {
       currentType = resolveSimpleName(id);
-      if (!currentType) {
+      if (std::holds_alternative<std::nullptr_t>(currentType)) {
         throw std::runtime_error("Could not resolve type at " + id);
       }
     } else {
@@ -294,12 +309,13 @@ name.
 Remark 10.2. If there is a usage c.d and a single-type import a.b.c,
 then a.b.c.d will never be resolved to c.d.
 */
-std::shared_ptr<Decl> TypeLinker::resolveQualifiedName(
-    std::shared_ptr<parsetree::ast::QualifiedIdentifier> qualifiedIdentifier) {
-  for (auto &id : qualifiedIdentifier->getIdentifiers()) {
-    // TODO
-  }
-}
+// std::shared_ptr<Decl> TypeLinker::resolveQualifiedName(
+//     std::shared_ptr<parsetree::ast::QualifiedIdentifier> qualifiedIdentifier)
+//     {
+//   for (auto &id : qualifiedIdentifier->getIdentifiers()) {
+//     // TODO
+//   }
+// }
 
 // //////////////////// Declaration Visitors ////////////////////
 
