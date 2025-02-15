@@ -41,7 +41,7 @@ for testcase in "$TEST_DIR"/*; do
         files_to_test=("$testcase")
     elif [ -d "$testcase" ]; then
         # Directory test case - include all .java files
-        files_to_test=("$testcase"/*.java)
+        mapfile -t files_to_test < <(find "$testcase" -type f -name "*.java")
     else
         continue
     fi
