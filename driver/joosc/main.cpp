@@ -132,6 +132,7 @@ int main(int argc, char **argv) {
 
       astManager->addAST(ast);
     }
+    astManager->finalize();
 
     // Second pass: environment (symbol table) building + type linking
 

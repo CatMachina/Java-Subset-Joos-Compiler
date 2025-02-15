@@ -14,6 +14,18 @@ public:
   getASTs() const {
     return asts;
   }
+  void finalize() {
+    // java program imports java.lang.*
+    auto javaPkg = std::make_shared<parsetree::ast::UnresolvedType>();
+    javaPkg->addIdentifier("java");
+    javaPkg->addIdentifier("lang");
+    // current workaround: add a dummy AST
+    auto dummyBody = std::make_shared<parsetree::ast::ClassDecl>("Object");
+    auto dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
+        javaPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
+        dummyBody);
+    asts.push_back(dummyAST);
+  }
 };
 
 } // namespace parsetree::ast

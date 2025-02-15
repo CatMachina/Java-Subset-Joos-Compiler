@@ -5,8 +5,15 @@ namespace static_check {
 
 std::shared_ptr<parsetree::ast::ProgramDecl> EnvManager::BuildProgramDecl(
     const std::shared_ptr<parsetree::ast::ReferenceType> &package,
-    const std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> imports,
+    std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> imports,
     const std::shared_ptr<parsetree::ast::CodeBody> &body) {
+  // java program imports java.lang.*s
+  auto javaPkg = BuildUnresolvedType();
+  javaPkg->addIdentifier("java");
+  javaPkg->addIdentifier("lang");
+  imports.push_back(std::make_shared<parsetree::ast::ImportDecl>(
+      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(javaPkg),
+      true));
   return std::make_shared<parsetree::ast::ProgramDecl>(package, imports, body);
 }
 
@@ -18,7 +25,7 @@ std::shared_ptr<parsetree::ast::ClassDecl> EnvManager::BuildClassDecl(
         &interfaces,
     const std::vector<std::shared_ptr<parsetree::ast::Decl>> &classBodyDecls) {
   return std::make_shared<parsetree::ast::ClassDecl>(
-      modifiers, name, super, interfaces, classBodyDecls);
+      modifiers, name, super, objectType, interfaces, classBodyDecls);
 }
 
 std::shared_ptr<parsetree::ast::FieldDecl> EnvManager::BuildFieldDecl(
@@ -72,7 +79,7 @@ std::shared_ptr<parsetree::ast::InterfaceDecl> EnvManager::BuildInterfaceDecl(
     const std::vector<std::shared_ptr<parsetree::ast::Decl>>
         &interfaceBodyDecls) {
   return std::make_shared<parsetree::ast::InterfaceDecl>(
-      modifiers, name, extends, interfaceBodyDecls);
+      modifiers, name, extends, objectType, interfaceBodyDecls);
 }
 
 std::shared_ptr<parsetree::ast::BasicType>

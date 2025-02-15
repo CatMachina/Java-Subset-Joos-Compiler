@@ -29,9 +29,10 @@ ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
 ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers,
                      std::string_view name,
                      std::shared_ptr<ReferenceType> superClass,
+                     std::shared_ptr<ReferenceType> objectType,
                      std::vector<std::shared_ptr<ReferenceType>> interfaces,
                      std::vector<std::shared_ptr<Decl>> classBodyDecls)
-    : Decl{name}, modifiers{modifiers}, superClass{superClass},
+    : Decl{name}, modifiers{modifiers}, superClasses{superClass, objectType},
       extendsInterfaces{interfaces}, classBodyDecls{classBodyDecls} {
   // Check for valid modifiers.
   if (!modifiers) {
@@ -88,9 +89,10 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers,
 InterfaceDecl::InterfaceDecl(
     std::shared_ptr<Modifiers> modifiers, std::string_view name,
     std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces,
+    std::shared_ptr<ReferenceType> objectType,
     std::vector<std::shared_ptr<Decl>> interfaceBody)
     : Decl{name}, modifiers{modifiers}, extendsInterfaces{extendsInterfaces},
-      interfaceBodyDecls{interfaceBody} {
+      objectType{objectType}, interfaceBodyDecls{interfaceBody} {
   if (!modifiers) {
     throw std::runtime_error("Interface Decl Invalid modifiers for interface " +
                              std::string(name));

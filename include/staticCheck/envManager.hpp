@@ -8,6 +8,14 @@ namespace static_check {
 
 class EnvManager {
 public:
+  EnvManager() {
+    // everything inherites java.lang.Object
+    objectType = BuildUnresolvedType();
+    objectType->addIdentifier("java");
+    objectType->addIdentifier("lang");
+    objectType->addIdentifier("Object");
+  }
+
   [[nodiscard]] std::shared_ptr<parsetree::ast::ProgramDecl> BuildProgramDecl(
       const std::shared_ptr<parsetree::ast::ReferenceType> &package,
       std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> imports,
@@ -97,6 +105,7 @@ private:
   std::vector<std::shared_ptr<parsetree::ast::VarDecl>> localDecls_;
   std::vector<std::shared_ptr<parsetree::ast::VarDecl>> localDeclStack_;
   std::unordered_set<std::string> localScope_;
+  std::shared_ptr<parsetree::ast::UnresolvedType> objectType;
 };
 
 } // namespace static_check

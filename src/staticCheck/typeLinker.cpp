@@ -63,19 +63,12 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
 
     // Case: Type
     // Would this be ReferenceType?
-    // it could also be other types
+    // it should be.
     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
       // if not resolved, resolve.
       if (!type->isResolved()) {
         resolveType(type);
       }
-    }
-    // Case: New AST root
-    else if (auto ast = std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(
-                 child)) {
-      // resolve body
-      initContext(ast);
-      resolveAST(ast->getBody());
     }
     // Case: regular code
     else {
@@ -87,7 +80,8 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
 // Second pass
 void TypeLinker::resolve() {
   for (auto ast : astManager->getASTs()) {
-    resolveAST(ast);
+    initContext(ast);
+    resolveAST(ast->getBody());
   }
 }
 
@@ -119,8 +113,10 @@ void TypeLinker::initContext(
   // Step 1:
   for (auto impt : node->getImports()) {
     if (!impt->hasStar())
-      continue;                                   // not on demand
-    auto imptPkg = resolveImport(packageAstNode); // guaranteed to be not null
+      continue; // not on demand
+    auto imptPkg =
+        resolveImport(std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+            impt->getQualifiedIdentifier()));
 
     // resolved on demand package should be package
     if (!std::holds_alternative<std::shared_ptr<Package>>(imptPkg)) {
@@ -261,12 +257,14 @@ void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
     return; // ??
 
   Package::packageChild currentType;
+  bool first = true;
   for (auto &id : unresolvedType->getIdentifiers()) {
-    if (id == unresolvedType->getIdentifiers().front()) {
+    if (first) {
       currentType = resolveSimpleName(id);
       if (std::holds_alternative<std::nullptr_t>(currentType)) {
         throw std::runtime_error("Could not resolve type at " + id);
       }
+      first = false;
     } else {
       // interior nodes in the tree should not be decl
       if (std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {

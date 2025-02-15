@@ -120,7 +120,7 @@ public:
   bool isResolved() const override { return resolvedDecl != nullptr; }
 
   void setResolveDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
-    if (resolvedDecl != nullptr) {
+    if (isResolved() && resolvedDecl != this->resolvedDecl) {
       throw std::runtime_error("Decl already resolved");
     }
     this->resolvedDecl = resolvedDecl;
@@ -206,15 +206,19 @@ public:
 
 class ClassDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
-  std::shared_ptr<ReferenceType> superClass;
+  std::vector<std::shared_ptr<ReferenceType>> superClasses;
   std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces;
   std::vector<std::shared_ptr<Decl>> classBodyDecls;
+  std::shared_ptr<ReferenceType> objectType;
 
 public:
   ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
             std::shared_ptr<ReferenceType> superClass,
+            std::shared_ptr<ReferenceType> objectType,
             std::vector<std::shared_ptr<ReferenceType>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
+
+  ClassDecl(std::string_view name) : Decl{name} {}
 
   std::ostream &print(std::ostream &os) const;
 
@@ -226,7 +230,9 @@ public:
     for (const auto &node : extendsInterfaces) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
-    children.push_back(std::dynamic_pointer_cast<AstNode>(superClass));
+    for (const auto &node : superClasses) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
     return children;
   }
 };
@@ -235,10 +241,12 @@ class InterfaceDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces;
   std::vector<std::shared_ptr<Decl>> interfaceBodyDecls;
+  std::shared_ptr<ReferenceType> objectType;
 
 public:
   InterfaceDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
                 std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces,
+                std::shared_ptr<ReferenceType> objectType,
                 std::vector<std::shared_ptr<Decl>> interfaceBody);
 
   std::ostream &print(std::ostream &os) const;
