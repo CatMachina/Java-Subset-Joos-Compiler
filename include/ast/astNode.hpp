@@ -115,7 +115,7 @@ protected:
 
 public:
   ReferenceType(std::shared_ptr<Decl> decl) : decl{decl} {}
-  std::string toString() const override { return "ReferenceType"; }
+  virtual std::string toString() const override { return "ReferenceType"; }
 
   bool isResolved() const override { return resolvedDecl != nullptr; }
 
@@ -129,11 +129,25 @@ public:
 
 class UnresolvedType : public ReferenceType {
   std::vector<std::string> identifiers;
+  mutable std::string originalName = "";
 
 public:
   const std::vector<std::string> &getIdentifiers() const {
     return identifiers;
   };
+
+  std::string toString() const override {
+    if(identifiers.empty()) return "";
+    if(!originalName.empty()) {
+       return originalName;
+    }
+    for(auto& id : identifiers) {
+       originalName += id;
+       originalName += ".";
+    }
+    originalName.pop_back();
+    return originalName;
+  }
 
   void addIdentifier(std::string identifier) {
     identifiers.emplace_back(identifier);
