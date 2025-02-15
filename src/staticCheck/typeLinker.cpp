@@ -188,39 +188,21 @@ void TypeLinker::initContext(
 
   // Step 3: Add Decl from the Same Package (Different ASTs)
   // info already in symbol table, no need another loop of ast
-  /*
-  for (auto astNode : astManager->getASTs()) {
-    if (astNode == node) {
-      continue; // skip the current AST
-    }
-    auto otherPackageAstNode =
-        std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
-            astNode->getPackage());
-    if (otherPackageAstNode->toString() != packageAstNode->toString()) {
-      continue; // not the same package
-    }
-    auto otherPackage = resolveImport(otherPackageAstNode);
-    if (!std::holds_alternative<std::shared_ptr<Package>>(
-            otherPackage.value())) {
-      throw std::runtime_error("Failed to resolve import-on-demand to package");
-    }
-    auto pkg = std::get<std::shared_ptr<Package>>(otherPackage.value());
-    // add all decl of package to context
-    for (auto &tuple : pkg->children) {
-      auto key = tuple.first;
-      auto value = tuple.second;
-      // we only add decl
-      if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
-        continue;
-      auto decl = std::get<std::shared_ptr<Decl>>(value);
-      if (context.find(key) != context.end()) {
-        // TODO
-        continue;
-      }
-      context[key] = Package::packageChild{decl};
-    }
+  auto currentPackage = resolveImport(packageAstNode);
+  if (!currentPackage || !std::holds_alternative<std::shared_ptr<Package>>(
+                             currentPackage.value())) {
+    throw std::runtime_error("Failed to get current package");
   }
-  */
+  for (auto &pair :
+       std::get<std::shared_ptr<Package>>(currentPackage.value())->children) {
+    auto key = pair.first;
+    auto value = pair.second;
+    // we only add decl
+    if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
+      continue;
+    auto decl = std::get<std::shared_ptr<Decl>>(value);
+    context[key] = Package::packageChild{decl};
+  }
 
   // Step 4: Single-Type Imports (import pkg.ClassName)
   for (auto impt : node->getImports()) {
