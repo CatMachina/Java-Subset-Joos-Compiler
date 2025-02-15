@@ -38,10 +38,13 @@ public:
 
 class Decl : public AstNode {
   std::string name;
+  bool isDummy_ = false;
 
 public:
-  explicit Decl(std::string name) : name{name} {}
+  explicit Decl(std::string name, bool isDummy = false)
+      : name{name}, isDummy_{isDummy} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
+  [[nodiscard]] bool isDummy() const noexcept { return isDummy_; }
 };
 
 class CodeBody : public AstNode {};
@@ -137,13 +140,14 @@ public:
   };
 
   std::string toString() const override {
-    if(identifiers.empty()) return "";
-    if(!originalName.empty()) {
-       return originalName;
+    if (identifiers.empty())
+      return "";
+    if (!originalName.empty()) {
+      return originalName;
     }
-    for(auto& id : identifiers) {
-       originalName += id;
-       originalName += ".";
+    for (auto &id : identifiers) {
+      originalName += id;
+      originalName += ".";
     }
     originalName.pop_back();
     return originalName;
@@ -232,7 +236,8 @@ public:
             std::vector<std::shared_ptr<ReferenceType>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 
-  ClassDecl(std::string name) : Decl{name} {}
+  // Hack
+  ClassDecl(std::string name) : Decl{name, true} {}
 
   std::ostream &print(std::ostream &os) const;
 

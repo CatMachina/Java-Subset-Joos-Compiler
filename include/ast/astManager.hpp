@@ -6,6 +6,17 @@ namespace parsetree::ast {
 
 class ASTManager {
 private:
+  struct PackageClasses {
+    std::string packageName;
+    std::vector<std::string> classes;
+  };
+
+  std::vector<PackageClasses> predefinedPackages = {
+      {"lang",
+       {"Object", "Number", "String", "Integer", "Thread", "Cloneable"}},
+      {"util", {"Vector", "List"}},
+      {"io", {"PrintStream", "Serializable"}}};
+
   std::vector<std::shared_ptr<parsetree::ast::ProgramDecl>> asts;
 
 public:
@@ -15,64 +26,20 @@ public:
     return asts;
   }
   void finalize() {
-    // java program imports java.lang.*
-    auto javaPkg = std::make_shared<parsetree::ast::UnresolvedType>();
-    javaPkg->addIdentifier("java");
-    javaPkg->addIdentifier("lang");
-    // current workaround: add a dummy AST
-    auto dummyBody = std::make_shared<parsetree::ast::ClassDecl>("Object");
-    auto dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-        javaPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-        dummyBody);
-    asts.push_back(dummyAST);
+    for (const auto &pkg : predefinedPackages) {
+      auto packageType = std::make_shared<parsetree::ast::UnresolvedType>();
+      packageType->addIdentifier("java");
+      packageType->addIdentifier(pkg.packageName);
 
-    dummyBody = std::make_shared<parsetree::ast::ClassDecl>("Number");
-    dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-        javaPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-        dummyBody);
-    asts.push_back(dummyAST);
-
-    dummyBody = std::make_shared<parsetree::ast::ClassDecl>("String");
-    dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-        javaPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-        dummyBody);
-    asts.push_back(dummyAST);
-
-    dummyBody = std::make_shared<parsetree::ast::ClassDecl>("Integer");
-    dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-        javaPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-        dummyBody);
-    asts.push_back(dummyAST);
-
-    dummyBody = std::make_shared<parsetree::ast::ClassDecl>("Thread");
-    dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-        javaPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-        dummyBody);
-    asts.push_back(dummyAST);
-
-    auto utilPkg = std::make_shared<parsetree::ast::UnresolvedType>();
-    utilPkg->addIdentifier("java");
-    utilPkg->addIdentifier("util");
-    dummyBody = std::make_shared<parsetree::ast::ClassDecl>("Vector");
-    dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-        utilPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-        dummyBody);
-    asts.push_back(dummyAST);
-
-    auto ioPkg = std::make_shared<parsetree::ast::UnresolvedType>();
-    ioPkg->addIdentifier("java");
-    ioPkg->addIdentifier("io");
-    dummyBody = std::make_shared<parsetree::ast::ClassDecl>("PrintStream");
-    dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-        ioPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-        dummyBody);
-    asts.push_back(dummyAST);
-
-    dummyBody = std::make_shared<parsetree::ast::ClassDecl>("Serializable");
-    dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-        ioPkg, std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-        dummyBody);
-    asts.push_back(dummyAST);
+      for (const auto &className : pkg.classes) {
+        auto dummyBody = std::make_shared<parsetree::ast::ClassDecl>(className);
+        auto dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
+            packageType,
+            std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
+            dummyBody);
+        asts.push_back(dummyAST);
+      }
+    }
   }
 };
 

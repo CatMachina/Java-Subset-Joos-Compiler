@@ -16,6 +16,11 @@ void TypeLinker::buildSymbolTable() {
 
     // Traverse the package name to find the leaf package.
     std::shared_ptr<Package> currentPackage = rootPackage;
+    // FIXME: hack on system import duplicate check
+    bool isSystem = false;
+    if (package->getIdentifiers().size() != 0) {
+      isSystem = (package->getIdentifiers()[0] == "java");
+    }
     for (const auto &id : package->getIdentifiers()) {
       // If the subpackage name is not in the symbol table, add it
       // and continue to the next one.
@@ -46,7 +51,18 @@ void TypeLinker::buildSymbolTable() {
     }
     if (currentPackage->children.find(body->getName()) !=
         currentPackage->children.end()) {
-      throw std::runtime_error("Duplicate declaration");
+      if (!isSystem) {
+        throw std::runtime_error("Duplicate declaration at " + body->getName());
+      } else {
+        // duplicat import of system func
+        // only add the non-dummy one
+        // FIXME: hack
+        if (!body->isDummy()) {
+          currentPackage->children[body->getName()] =
+              std::make_shared<Body>(body);
+          continue;
+        }
+      }
     }
     // add to symbol table
     currentPackage->children[body->getName()] = std::make_shared<Body>(body);
