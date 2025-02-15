@@ -58,7 +58,7 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     throw std::runtime_error("Node is null when resolving AST");
   // TODO: need to differentiate between types of AST nodes, since getChildren doesn't work?
   // Something like:
-
+  /*
   if (auto programDecl = std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(node)) {
     resolveAST(programDecl->getBody());
   } else if (auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
@@ -79,6 +79,8 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   } else {
     // TODO: ...
   }
+  */
+  // Edward: why not just add a virtual function to ASTNode that returns children?
   
   for (auto child : node->getChildren()) {
     if (!child)
@@ -90,6 +92,7 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
       if (!type->isResolved()) {
         type->resolve(*this);
         // this->resolveType(type) makes more sense to me, just a comment for now
+        // this does make more sense
       }
     }
     // Case: New AST root
@@ -252,6 +255,8 @@ void TypeLinker::initContext(
 
 // Question: Doesn't have to be an import, it just finds the package object given
 // the AST node. Am I right?
+// Well what i wanted was a function that expect an unresolved import and
+// resolve it to a package or a decl. package if on demand.
 Package::packageChild TypeLinker::resolveImport(
     std::shared_ptr<parsetree::ast::UnresolvedType> node) {
   // Base cases
