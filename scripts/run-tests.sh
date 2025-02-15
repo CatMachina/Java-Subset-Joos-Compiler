@@ -21,12 +21,7 @@ pushd $BUILD_DIR
 }
 popd
 
-if [[ "$DRIVER_NAME" != "joosc" ]]; then
-    DRIVER="$BUILD_DIR/$DRIVER_NAME"
-else
-    DRIVER="$BUILD_DIR/../$DRIVER_NAME"
-fi
-
+DRIVER="$BUILD_DIR/$DRIVER_NAME"
 echo "TEST_DIR: $TEST_DIR"
 # Loop through all files (excluding directories)
 NUM_PASSED=0
