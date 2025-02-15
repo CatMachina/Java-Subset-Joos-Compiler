@@ -171,6 +171,16 @@ void TypeLinker::initContext(
   }
 
   // Step 2: Add Package Declarations
+  for (auto &tuple : rootPackage->children) {
+    // only import package
+    if (!std::holds_alternative<std::shared_ptr<Package>>(tuple.second))
+      continue;
+    if (context.find(tuple.first) == context.end()) {
+      // only add package not shadowed by on demand import
+      context[tuple.first] = Package::packageChild{
+          std::get<std::shared_ptr<Package>>(tuple.second)};
+    }
+  }
 
   // Step 3: Add Decl from the Same Package (Different ASTs)
   for (auto astNode : astManager->getASTs()) {
