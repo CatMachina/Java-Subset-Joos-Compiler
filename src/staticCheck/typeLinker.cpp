@@ -56,6 +56,30 @@ void TypeLinker::buildSymbolTable() {
 void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   if (!node)
     throw std::runtime_error("Node is null when resolving AST");
+  // TODO: need to differentiate between types of AST nodes, since getChildren doesn't work?
+  // Something like:
+
+  if (auto programDecl = std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(node)) {
+    resolveAST(programDecl->getBody());
+  } else if (auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
+    resolveAST(classDecl->getSuperClass());
+    for (auto &child : classDecl->getInterfaces()) {
+      resolveAST(child);
+    }
+    for (auto &child : classDecl->getClassBodyDecls()) {
+      resolveAST(child);
+    }
+  } else if (auto interfaceDecl = std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(node)) {
+    for (auto &child : interfaceDecl->getExtendsInterfaces()) {
+      resolveAST(child);
+    }
+    for (auto &child : interfaceDecl->getInterfaceBodyDecls()) {
+      resolveAST(child);
+    }
+  } else {
+    // TODO: ...
+  }
+  
   for (auto child : node->getChildren()) {
     if (!child)
       continue;
@@ -65,6 +89,7 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
       // if not resolved, resolve.
       if (!type->isResolved()) {
         type->resolve(*this);
+        // this->resolveType(type) makes more sense to me, just a comment for now
       }
     }
     // Case: New AST root
@@ -92,8 +117,9 @@ void TypeLinker::resolve() {
 
 void TypeLinker::initContext(
     std::shared_ptr<parsetree::ast::ProgramDecl> node) {
-  // clear the current context
+  // clear the current context and single type imports
   context.clear();
+  singleTypeImports.clear();
   auto packageAstNode =
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
           node->getPackage());
@@ -114,9 +140,9 @@ void TypeLinker::initContext(
 
   // Step 1:
   for (auto impt : node->getImports()) {
-    if (!impt.hasStar())
+    if (!impt->hasStar())
       continue;                                   // not on demand
-    auto imptPkg = resolveImport(packageAstNode); // garuanteed to be not null
+    auto imptPkg = resolveImport(packageAstNode); // guaranteed to be not null
 
     // resolved on demand package should be package
     if (!std::holds_alternative<std::shared_ptr<Package>>(imptPkg.value())) {
@@ -180,22 +206,21 @@ void TypeLinker::initContext(
   }
 
   // Step 4: Single-Type Imports (import pkg.ClassName)
-  std::unordered_map<std::string, Package::packageChild> singleImports;
   for (auto impt : node->getImports()) {
     if (impt.hasStar()) {
       continue; // skip on-demand imports
     }
-    auto imptType = resolveImport(package);
+    auto imptType = resolveImport(impt);
     if (std::holds_alternative<std::shared_ptr<Decl>>(imptType.value())) {
       throw std::runtime_error("Failed to resolve single-type imports to type");
     }
     auto decl = std::get<std::shared_ptr<Decl>>(imptType);
     // Check: No two single-type-import declarations clash with each other.
-    if (singleImports.find(decl->name) != context.end()) {
+    if (singleTypeImports.find(decl->name) != context.end()) {
       throw std::runtime_error(
           "No two single-type-import declarations clash with each other.");
     }
-    singleImports[typeName] = Package::packageChild{decl};
+    singleTypeImports[typeName] = Package::packageChild{decl};
     context[typeName] = Package::packageChild{decl};
   }
 
@@ -215,7 +240,7 @@ void TypeLinker::initContext(
   }
 }
 
-// Question: Doesn't have to be an import, it just finds the decl object given
+// Question: Doesn't have to be an import, it just finds the package object given
 // the AST node. Am I right?
 Package::packageChild TypeLinker::resolveImport(
     std::shared_ptr<parsetree::ast::UnresolvedType> node) {
@@ -244,163 +269,32 @@ Package::packageChild TypeLinker::resolveImport(
   return currentPkg;
 }
 
-// // Find the fully qualified name given the current scope.
-// std::string TypeLinker::getQualifiedName(const std::string &name) {
-//   if (envs.empty()) {
-//     return name;
-//   }
+/*
+Simple names have no . in their names.
+We traverse the namespaces in the following priority order:
+  1. Enclosing class/interface
+  2. Single-type imports (e.g. import a.b.c)
+  3. Type in same package
+  4. Import-on-demand package (e.g. import a.b.*)
+*/
+std::shared_ptr<Decl> TypeLinker::resolveSimpleName(const std::string
+&simpleName) {
+  return context.find(simpleName) != context.end() ? context[simpleName] : nullptr;
+}
 
-//   std::string qualifiedName = name;
-//   bool foundPackage = false;
-//   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-//     auto node = it->getScope();
-//     std::string newPart;
-//     if (auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node))
-//     {
-//       continue;
-//     } else if (auto methodDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
-//       newPart = methodDecl->getName();
-//     } else if (auto classDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
-//       newPart = classDecl->getName();
-//     } else if (auto interfaceDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(node)) {
-//       newPart = interfaceDecl->getName();
-//     } else if (auto packageDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::PackageDecl>) {
-//       foundPackage = true;
-//       newPart = packageDecl->getName();
-//     }
-//     qualifiedName = newPart + "." + qualifiedName;
-//   }
-//   if (!foundPackage) {
-//     qualifiedName = DEFAULT_PACKAGE_NAME + "." + qualifiedName;
-//   }
-//   return qualifiedName;
-// }
-
-// /*
-//   If we find a declaration for a name, we:
-//     1. Search for name in current environment
-//     2. If name already exists, ERROR
-//     3. Else insert name into environment
-//   To resolve a usage:
-//     1. Search innermost environment
-//     2. If not found, search recursively in enclosing environments
-//     3. If not found in any enclosing environments, ERROR
-// */
-// void TypeLinker::registerDecl(const std::shared_ptr<parsetree::ast::AstNode>
-// astNode) {
-//   if (auto packageDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::PackageDecl>(astNode)) {
-//     auto package = std::make_shared<Package>();
-//     std::string qualifiedName = getQualifiedName(packageName);
-//     envs.top()->addDecl({packageName, package});
-//     globalEnv->addDecl({qualifiedName, package});
-//   } else if (auto classDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
-//     auto cls = std::make_shared<Class>();
-//     envs.top()->addDecl({className, cls});
-//     std::string qualifiedName = getQualifiedName(className);
-//     globalEnv->addDecl({qualifiedName, cls});
-//   } else if (auto interfaceDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode)) {
-//     auto interface = std::make_shared<Interface>();
-//     envs.top()->addDecl({interfaceName, interface});
-//     std::string qualifiedName = getQualifiedName(interfaceName);
-//     globalEnv->addDecl({qualifiedName, interface});
-//   } else if (auto methodDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(astNode)) {
-//     auto method = std::make_shared<Method>();
-//     envs.top()->addDecl({methodName, method});
-//     std::string qualifiedName = getQualifiedName(methodName);
-//     globalEnv->addDecl({qualifiedName, method});
-//   } else if (auto fieldDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(astNode)) {
-//     auto field = std::make_shared<Field>();
-//     envs.top()->addDecl({fieldName, field});
-//     std::string qualifiedName = getQualifiedName(fieldName);
-//     globalEnv->addDecl({qualifiedName, field});
-//   } else if (auto varDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::VarDecl>(astNode)) {
-//     auto variable = std::make_shared<Variable>();
-//     envs.top()->addDecl({varName, variable});
-//   } else {
-//       // Not a declaration node, ignore
-//   }
-// }
-
-// /*
-// Simple names have no . in their names.
-// We traverse the namespaces in the following priority order:
-//   1. Enclosing class/interface
-//   2. Single-type imports (e.g. import a.b.c)
-//   3. Type in same package
-//   4. Import-on-demand package (e.g. import a.b.*)
-// 1 can probably be checked through the first pass, with the environment stack
-// 2 3 4 need to wait until we build global env?
-// */
-// std::shared_ptr<Decl> TypeLinker::resolveSimpleName(const std::string
-// &simpleName) {
-//   // TODO: repetitively going up the scope, need to refactor
-//   // TODO: use a vector to represent the stack since we want to go down
-//   // 1. Enclosing class/interface
-//   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-//     auto result = it->simpleNamesToDecls.find(simpleName);
-//     if (result != it->simpleNamesToDecls.end()) {
-//       return result->second;
-//     }
-//   }
-//   // 2. Single-type imports (e.g. import a.b.c)
-//   // TODO
-//   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-//     if (auto programDecl =
-//     std::dynamic_pointer_cast<ast::ProgramDecl>(it->getScope())) {
-//       auto imports = programDecl->getImport();
-//       for (auto importDecl : imports) {
-//         if (simpleName == importDecl->getIdentifiers().back()) {
-//           return resolveQualifiedName(importDecl->toString());
-//         }
-//       }
-//     }
-//   }
-
-//   // 3. Type in same package
-//   // TODO
-//   for (auto it = envs.rbegin(); it != envs.rend(); ++it) {
-//     std::string curPackageName;
-//     if (auto packageDecl =
-//     std::dynamic_pointer_cast<ast::PackageDecl>(it->getScope())) {
-//       curPackageName = packageDecl->getName();
-//     }
-//   }
-//   curPackageName = (curPackagename == "" ? DEFAULT_PACKAGE_NAME :
-//   curPackageName); auto typesInSamePackage =
-//   globalEnv->getDeclaredTypes(curPackageName); auto result =
-//   typesInSamePackage.find(packageName); if (result !=
-//   typesInSamePackage.end()) {
-//     return result->second;
-//   }
-
-//   // 4. Import-on-demand package (e.g. import a.b.*)
-//   // TODO
-
-// }
-
-// /*
-// Qualified names always have . in their names (e.g. a.b.c.d).
-// We simply traverse the sequence of names listed starting from the top-level
-// name. Remark 10.2. If there is a usage c.d and a single-type import a.b.c,
-// then a.b.c.d will never be resolved to c.d.
-// */
-// std::shared_ptr<Decl> TypeLinker::resolveQualifiedName(
-//   std::shared_ptr<ast::QualifiedIdentifier> qualifiedIdentifier) {
-//   // TODO
-//   for (const auto &id : qualifiedIdentifier->getIdentifiers()) {
-
-//   }
-// }
+/*
+Qualified names always have . in their names (e.g. a.b.c.d).
+We simply traverse the sequence of names listed starting from the top-level
+name.
+Remark 10.2. If there is a usage c.d and a single-type import a.b.c,
+then a.b.c.d will never be resolved to c.d.
+*/
+std::shared_ptr<Decl> TypeLinker::resolveQualifiedName(
+  std::shared_ptr<parsetree::ast::QualifiedIdentifier> qualifiedIdentifier) {
+  for (auto &id : qualifiedIdentifier->getIdentifiers()) {
+    // TODO
+  }
+}
 
 // //////////////////// Declaration Visitors ////////////////////
 

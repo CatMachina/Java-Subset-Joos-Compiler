@@ -20,9 +20,9 @@ ParseTreeVisitor::visitProgramDecl(const NodePtr &node) {
   auto package = visitPackageDecl(node->child_at(0));
 
   // Visit the import declarations
-  std::vector<ast::ImportDecl> imports;
-  visitListPattern<NodeType::ImportDeclList, ast::ImportDecl, true>(
-      node->child_at(1), imports);
+  std::vector<std::shared_ptr<ast::ImportDecl>> imports;
+  visitListPattern<NodeType::ImportDeclList, std::shared_ptr<ast::ImportDecl>,
+                   true>(node->child_at(1), imports);
 
   // Visit the body, if it exists
   std::shared_ptr<ast::CodeBody> body_ast_node = nullptr;
