@@ -28,7 +28,8 @@ public:
   // bison-specific lexer function, implemented in the .l file
   int bison_lex(YYSTYPE *lvalp, YYLTYPE *yylloc);
 
-  template <typename... Args> std::shared_ptr<Node> make_node(source::SourceRange loc, Args &&...args) {
+  template <typename... Args>
+  std::shared_ptr<Node> make_node(source::SourceRange loc, Args &&...args) {
     auto nodePtr = std::make_shared<Node>(loc, std::forward<Args>(args)...);
     nodes.push_back(nodePtr);
     return nodePtr;

@@ -177,6 +177,7 @@ public:
   std::ostream &print(std::ostream &os) const {
     return os << "(Type: " << type->toString() << ")";
   }
+  std::shared_ptr<Type> getType() const { return type; }
 };
 
 // Operators /////////////////////////////////////////////////////////////

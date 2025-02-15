@@ -1,6 +1,7 @@
 #pragma once
 
 #include "parseTree/parseTree.hpp"
+#include "staticCheck/typeLinker.hpp"
 #include <iostream>
 #include <list>
 #include <memory>
@@ -45,10 +46,6 @@ public:
   [[nodiscard]] virtual std::string toString() const = 0;
 
   std::ostream &print(std::ostream &os) const { return os << toString(); }
-
-  // TODO:
-  bool isResolved() const;
-  void resolve();
 };
 
 class Stmt : public AstNode {};
@@ -95,6 +92,7 @@ public:
 
 class ReferenceType : public Type {
   std::shared_ptr<Decl> decl;
+  std::shared_ptr<static_check::Decl> resolvedDecl;
 
 protected:
   // Only used by unresolved types.
@@ -103,6 +101,12 @@ protected:
 public:
   ReferenceType(std::shared_ptr<Decl> decl) : decl{decl} {}
   std::string toString() const override { return "ReferenceType"; }
+
+  bool isResolved() const { return resolvedDecl != nullptr; }
+
+  void setResolveDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
+    this->resolvedDecl = resolvedDecl;
+  }
 };
 
 class UnresolvedType : public ReferenceType {
@@ -150,16 +154,17 @@ public:
 
 class ProgramDecl : public CodeBody {
   std::shared_ptr<ReferenceType> package;
-  std::vector<ImportDecl> imports;
+  std::vector<std::shared_ptr<ImportDecl>> imports;
   std::shared_ptr<CodeBody> body;
 
 public:
   ProgramDecl(std::shared_ptr<ReferenceType> package,
-              std::vector<ImportDecl> imports, std::shared_ptr<CodeBody> body);
+              std::vector<std::shared_ptr<ImportDecl>> imports,
+              std::shared_ptr<CodeBody> body);
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
   std::shared_ptr<ReferenceType> getPackage() const { return package; }
-  std::vector<ImportDecl> &getImports() { return imports; }
+  std::vector<std::shared_ptr<ImportDecl>> &getImports() { return imports; }
 
   bool isDefaultPackage() const {
     auto pkg = std::dynamic_pointer_cast<UnresolvedType>(package);
@@ -189,7 +194,7 @@ public:
 class InterfaceDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces;
-  std::vector<std::shared_ptr<Decl>> interfaceBody;
+  std::vector<std::shared_ptr<Decl>> interfaceBodyDecls;
 
 public:
   InterfaceDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
