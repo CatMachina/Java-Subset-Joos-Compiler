@@ -18,6 +18,8 @@
 
 #include <memory>
 
+#define EXIT_ERROR 42
+
 // hack
 bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
   if (!node)
@@ -51,7 +53,7 @@ int main(int argc, char **argv) {
           std::filesystem::path(filePath).stem().string();
       if (!filePath.ends_with(".java")) {
         std::cerr << "Error: not a valid .java file" << std::endl;
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Track file
@@ -72,7 +74,7 @@ int main(int argc, char **argv) {
             return static_cast<unsigned char>(c) > 127;
           })) {
         std::cerr << "Parse error: non-ASCII character in input" << std::endl;
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Parse the input
@@ -82,19 +84,19 @@ int main(int argc, char **argv) {
 
       // Validate parse result
       if (!parse_tree || result) {
-        return 42;
+        return EXIT_ERROR;
       }
       if (parse_tree->is_corrupted()) {
         std::cerr << "Parse error: parse tree is invalid" << std::endl;
         // comment out if not debugging
         // parse_tree->print(std::cerr);
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Validate literal types
       if (!isLiteralTypeValid(parse_tree)) {
         std::cerr << "Parse error: invalid literal type" << std::endl;
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Build AST from the parse tree
@@ -107,14 +109,14 @@ int main(int argc, char **argv) {
         ast = visitor.visitProgramDecl(parse_tree);
       } catch (const std::exception &ex) {
         std::cerr << "Runtime error: " << ex.what() << std::endl;
-        return 42;
+        return EXIT_ERROR;
       } catch (...) {
         std::cerr << "Unknown failure occurred." << std::endl;
         return EXIT_FAILURE;
       }
 
       if (!ast) {
-        return 42;
+        return EXIT_ERROR;
       }
 
       // Validate class/interface name matches file name
@@ -127,7 +129,7 @@ int main(int argc, char **argv) {
         std::cerr << "Class/interface name: "
                   << (cuBody ? cuBody->getName() : "<null>") << std::endl;
         std::cerr << "File name: " << fileName << std::endl;
-        return 42;
+        return EXIT_ERROR;
       }
 
       astManager->addAST(ast);
@@ -154,6 +156,8 @@ int main(int argc, char **argv) {
     // => We might need a third pass to resolve types across different files?
 
     return EXIT_SUCCESS;
+  } catch (const std::runtime_error &err) {
+    return EXIT_ERROR;
   } catch (const std::exception &ex) {
     std::cerr << "Unhandled exception: " << ex.what() << std::endl;
     return EXIT_FAILURE;
