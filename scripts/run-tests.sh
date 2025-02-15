@@ -21,7 +21,7 @@ pushd $BUILD_DIR
 }
 popd
 
-DRIVER="$BUILD_DIR/$DRIVER_NAME"
+DRIVER="$ROOT_DIR/$DRIVER_NAME"
 echo "TEST_DIR: $TEST_DIR"
 
 NUM_PASSED=0
@@ -54,9 +54,11 @@ for testcase in "$TEST_DIR"/*; do
             echo $?
         )
         if [[ "$prefix" == "Je" && exit_code -eq 0 ]]; then
+            echo "FAILED command: $DRIVER ${files_to_test[@]}"
             echo "FAIL - $testcase_name passed but should have failed."
             NUM_FAILED=$((NUM_FAILED+1))
         elif [[ "$prefix" != "Je" && "$exit_code" -ne 0 ]]; then
+            echo "FAILED command: $DRIVER ${files_to_test[@]}"
             echo "FAIL - $testcase_name should have passed but failed with exit code $exit_code."
             NUM_FAILED=$((NUM_FAILED+1))
         else
