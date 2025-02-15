@@ -40,7 +40,7 @@ class Decl : public AstNode {
   std::string name;
 
 public:
-  explicit Decl(std::string_view name) : name{name} {}
+  explicit Decl(std::string name) : name{name} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
 };
 
@@ -135,7 +135,7 @@ public:
     return identifiers;
   };
 
-  void addIdentifier(std::string_view identifier) {
+  void addIdentifier(std::string identifier) {
     identifiers.emplace_back(identifier);
   }
 };
@@ -146,7 +146,7 @@ class PackageDecl : public Decl {
   std::shared_ptr<ReferenceType> qualifiedIdentifier;
 
 public:
-  PackageDecl(std::string_view name,
+  PackageDecl(std::string name,
               std::shared_ptr<ReferenceType> qualifiedIdentifier)
       : Decl{name}, qualifiedIdentifier{qualifiedIdentifier} {}
 
@@ -207,18 +207,18 @@ public:
 class ClassDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> superClasses;
-  std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces;
+  std::vector<std::shared_ptr<ReferenceType>> interfaces;
   std::vector<std::shared_ptr<Decl>> classBodyDecls;
   std::shared_ptr<ReferenceType> objectType;
 
 public:
-  ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
+  ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
             std::shared_ptr<ReferenceType> superClass,
             std::shared_ptr<ReferenceType> objectType,
             std::vector<std::shared_ptr<ReferenceType>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 
-  ClassDecl(std::string_view name) : Decl{name} {}
+  ClassDecl(std::string name) : Decl{name} {}
 
   std::ostream &print(std::ostream &os) const;
 
@@ -227,7 +227,7 @@ public:
     for (const auto &node : classBodyDecls) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
-    for (const auto &node : extendsInterfaces) {
+    for (const auto &node : interfaces) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
     for (const auto &node : superClasses) {
@@ -239,13 +239,13 @@ public:
 
 class InterfaceDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
-  std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces;
+  std::vector<std::shared_ptr<ReferenceType>> interfaces;
   std::vector<std::shared_ptr<Decl>> interfaceBodyDecls;
   std::shared_ptr<ReferenceType> objectType;
 
 public:
-  InterfaceDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
-                std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces,
+  InterfaceDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
+                std::vector<std::shared_ptr<ReferenceType>> interfaces,
                 std::shared_ptr<ReferenceType> objectType,
                 std::vector<std::shared_ptr<Decl>> interfaceBody);
 
@@ -253,7 +253,7 @@ public:
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
-    for (const auto &node : extendsInterfaces) {
+    for (const auto &node : interfaces) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
     for (const auto &node : interfaceBodyDecls) {
@@ -275,7 +275,7 @@ class MethodDecl : public Decl {
   void checkSuperThisCalls(std::shared_ptr<Block> block) const;
 
 public:
-  MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string_view name,
+  MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
              std::shared_ptr<Type> returnType,
              std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
              std::shared_ptr<Block> methodBody);
@@ -310,7 +310,7 @@ class VarDecl : public Decl {
   std::shared_ptr<Expr> initializer;
 
 public:
-  VarDecl(std::shared_ptr<Type> type, std::string_view name,
+  VarDecl(std::shared_ptr<Type> type, std::string name,
           std::shared_ptr<Expr> initializer)
       : Decl{name}, type{type}, initializer{initializer} {}
 
@@ -333,7 +333,7 @@ class FieldDecl : public VarDecl {
 
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
-            std::string_view name, std::shared_ptr<Expr> initializer);
+            std::string name, std::shared_ptr<Expr> initializer);
 
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
@@ -344,7 +344,7 @@ class Param : public AstNode {
   std::string name;
 
 public:
-  Param(std::shared_ptr<Type> type, std::string_view name)
+  Param(std::shared_ptr<Type> type, std::string name)
       : type{type}, name{name} {}
 
   // Getters
@@ -517,7 +517,7 @@ public:
     return identifiers;
   };
 
-  void addIdentifier(std::string_view identifier) {
+  void addIdentifier(std::string identifier) {
     identifiers.emplace_back(identifier);
   }
 

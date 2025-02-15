@@ -6,15 +6,14 @@ ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
                          std::vector<std::shared_ptr<ImportDecl>> imports,
                          std::shared_ptr<CodeBody> body)
     : package{package}, imports{imports}, body{body} {
-  std::unordered_set<std::string_view> simpleImportNames;
+  std::unordered_set<std::string> simpleImportNames;
 
   for (const auto &importDecl : imports) {
     if (importDecl->hasStar()) {
       continue;
     }
 
-    std::string_view simpleName{
-        importDecl->getQualifiedIdentifier()->toString()};
+    std::string simpleName{importDecl->getQualifiedIdentifier()->toString()};
 
     // Ensure no conflicting single-type-import declarations
     if (simpleImportNames.contains(simpleName)) {
@@ -26,14 +25,13 @@ ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
   }
 }
 
-ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers,
-                     std::string_view name,
+ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
                      std::shared_ptr<ReferenceType> superClass,
                      std::shared_ptr<ReferenceType> objectType,
                      std::vector<std::shared_ptr<ReferenceType>> interfaces,
                      std::vector<std::shared_ptr<Decl>> classBodyDecls)
     : Decl{name}, modifiers{modifiers}, superClasses{superClass, objectType},
-      extendsInterfaces{interfaces}, classBodyDecls{classBodyDecls} {
+      interfaces{interfaces}, classBodyDecls{classBodyDecls} {
   // Check for valid modifiers.
   if (!modifiers) {
     throw std::runtime_error("Class Decl Invalid modifiers.");
@@ -53,22 +51,18 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers,
     if (field) {
       const auto &fieldName = field->getName();
       if (!fieldNames.insert(fieldName).second) {
-        throw std::runtime_error("Field \"" + std::string(fieldName) +
+        throw std::runtime_error("Field \"" + fieldName +
                                  "\" is already declared.");
       }
       continue;
     }
-    auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl);
-    if (methodDecl && methodDecl->isConstructor()) {
+    auto method = std::dynamic_pointer_cast<MethodDecl>(decl);
+    if (method && method->isConstructor()) {
       foundConstructor = true;
-      //   this->constructors.push_back(methodDecl);
-      // } else if (methodDecl) {
-      //   // Non-constructor
-      //   this->methods.push_back(methodDecl);
     }
-    if (field == nullptr && methodDecl == nullptr) {
+    if (field == nullptr && method == nullptr) {
       throw std::runtime_error("Class Decl Invalid declarations for class " +
-                               std::string(name));
+                               name);
     }
   }
   if (!foundConstructor) {
@@ -80,31 +74,30 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers,
   for (const auto &interface : interfaces) {
     const auto &interfaceName = interface->toString();
     if (!interfaceNames.insert(interfaceName).second) {
-      throw std::runtime_error("Interface \"" + std::string(interfaceName) +
+      throw std::runtime_error("Interface \"" + interfaceName +
                                "\" is already implemented.");
     }
   }
 }
 
 InterfaceDecl::InterfaceDecl(
-    std::shared_ptr<Modifiers> modifiers, std::string_view name,
-    std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces,
+    std::shared_ptr<Modifiers> modifiers, std::string name,
+    std::vector<std::shared_ptr<ReferenceType>> interfaces,
     std::shared_ptr<ReferenceType> objectType,
     std::vector<std::shared_ptr<Decl>> interfaceBody)
-    : Decl{name}, modifiers{modifiers}, extendsInterfaces{extendsInterfaces},
+    : Decl{name}, modifiers{modifiers}, interfaces{interfaces},
       objectType{objectType}, interfaceBodyDecls{interfaceBody} {
   if (!modifiers) {
     throw std::runtime_error("Interface Decl Invalid modifiers for interface " +
-                             std::string(name));
+                             name);
   }
   if (modifiers->isFinal()) {
     throw std::runtime_error("An interface cannot be final for interface " +
-                             std::string(name));
+                             name);
   }
   if (!modifiers->isPublic()) {
     throw std::runtime_error(
-        "Interface must have a visibility modifier for interface " +
-        std::string(name));
+        "Interface must have a visibility modifier for interface " + name);
   }
   // Check declarations
   for (const auto &decl : interfaceBody) {
@@ -133,16 +126,15 @@ InterfaceDecl::InterfaceDecl(
         }
         if (!methodModifiers->isAbstract()) {
           throw std::runtime_error(
-              "An interface method must be abstract for interface " +
-              std::string(name));
+              "An interface method must be abstract for interface " + name);
         }
       }
     }
   }
 }
 
-MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
-                       std::string_view name, std::shared_ptr<Type> returnType,
+MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
+                       std::shared_ptr<Type> returnType,
                        std::vector<std::shared_ptr<VarDecl>> params,
                        bool isConstructor, std::shared_ptr<Block> methodBody)
     : Decl{name}, modifiers{modifiers}, returnType{returnType}, params{params},
@@ -150,7 +142,7 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
   // Check for valid modifiers
   if (!modifiers || modifiers->isInvalid()) {
     throw std::runtime_error("Method Decl Invalid modifiers for method " +
-                             std::string(name));
+                             name);
   }
   // Restrictions for constructors
   if (isConstructor) {
@@ -171,52 +163,50 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
     // A method has a body iff it is neither abstract nor native
     if ((modifiers->isAbstract() || modifiers->isNative()) && methodBody) {
       throw std::runtime_error(
-          "An abstract or native method cannot have a body for method " +
-          std::string(name));
+          "An abstract or native method cannot have a body for method " + name);
     }
     if (!modifiers->isAbstract() && !modifiers->isNative() && !methodBody) {
       throw std::runtime_error(
           "A non-abstract and non-native method must have a body for method " +
-          std::string(name));
+          name);
     }
   }
   // Other restrictions for modifiers. These apply to constructors and methods.
   if (modifiers->isPublic() && modifiers->isProtected()) {
     throw std::runtime_error("A method or constructor cannot be both public "
                              "and protected for method " +
-                             std::string(name));
+                             name);
   }
   if (!modifiers->isPublic() && !modifiers->isProtected()) {
     throw std::runtime_error(
-        "A method must have a visibility modifier for method " +
-        std::string(name));
+        "A method must have a visibility modifier for method " + name);
   }
   if (modifiers->isAbstract() &&
       (modifiers->isStatic() || modifiers->isFinal())) {
     throw std::runtime_error("An abstract method cannot be static or final for "
                              "method " +
-                             std::string(name));
+                             name);
   }
   if (modifiers->isStatic() && modifiers->isFinal()) {
     throw std::runtime_error("A static method cannot be final for method " +
-                             std::string(name));
+                             name);
   }
 
   // check native methods
   if (modifiers->isNative()) {
     if (!modifiers->isStatic()) {
       throw std::runtime_error("A native method must be static for method " +
-                               std::string(name));
+                               name);
     }
     if (params.size() != 1) {
       throw std::runtime_error("A native method must have exactly one "
                                "parameter for method " +
-                               std::string(name));
+                               name);
     }
     if (auto type = std::dynamic_pointer_cast<BasicType>(returnType)) {
       if (type->getType() != BasicType::Type::Int) {
         throw std::runtime_error("A native method must return int for method " +
-                                 std::string(name));
+                                 name);
       }
     }
     if (auto type =
@@ -224,7 +214,7 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers,
       if (type->getType() != BasicType::Type::Int) {
         throw std::runtime_error("A native method must have parameter of type "
                                  "int for method " +
-                                 std::string(name));
+                                 name);
       }
     }
   }
@@ -285,7 +275,7 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
 }
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
-                     std::shared_ptr<Type> type, std::string_view name,
+                     std::shared_ptr<Type> type, std::string name,
                      std::shared_ptr<Expr> initializer)
     : modifiers{modifiers}, VarDecl{type, name, initializer} {
   if (!modifiers) {
