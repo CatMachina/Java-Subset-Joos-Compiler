@@ -181,8 +181,10 @@ void TypeLinker::initContext(
     auto imptType =
         resolveImport(std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
             impt->getQualifiedIdentifier()));
-    if (std::holds_alternative<std::shared_ptr<Decl>>(imptType)) {
-      throw std::runtime_error("Failed to resolve single-type imports to type");
+    if (!std::holds_alternative<std::shared_ptr<Decl>>(imptType)) {
+      throw std::runtime_error(
+          "Failed to resolve single-type imports to type at " +
+          impt->getQualifiedIdentifier()->toString());
     }
     auto decl = std::get<std::shared_ptr<Decl>>(imptType);
     auto typeName = decl->getName();
