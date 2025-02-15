@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 ASSIGNMENT_ARG=$1
-ASSIGNMENT=${ASSIGNMENT_ARG:="a1"}
+ASSIGNMENT=${ASSIGNMENT_ARG:="a2"}
 TEST_DIR="/u/cs444/pub/assignment_testcases/$ASSIGNMENT"
 
 ROOT_DIR="$HOME/cs444/joosc"
