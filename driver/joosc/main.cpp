@@ -84,6 +84,7 @@ int main(int argc, char **argv) {
 
       // Validate parse result
       if (!parse_tree || result) {
+        std::cerr << "Parse error: parse failed" << std::endl;
         return EXIT_ERROR;
       }
       if (parse_tree->is_corrupted()) {
@@ -116,18 +117,19 @@ int main(int argc, char **argv) {
       }
 
       if (!ast) {
+        std::cerr << "Parse error: failed to build AST" << std::endl;
         return EXIT_ERROR;
       }
 
       // Validate class/interface name matches file name
-      const auto cuBody =
+      const auto body =
           std::dynamic_pointer_cast<parsetree::ast::Decl>(ast->getBody());
-      if (!cuBody || cuBody->getName() != fileName) {
+      if (!body || body->getName() != fileName) {
         std::cerr
             << "Parse error: class/interface name does not match file name"
             << std::endl;
         std::cerr << "Class/interface name: "
-                  << (cuBody ? cuBody->getName() : "<null>") << std::endl;
+                  << (body ? body->getName() : "<null>") << std::endl;
         std::cerr << "File name: " << fileName << std::endl;
         return EXIT_ERROR;
       }
@@ -157,6 +159,7 @@ int main(int argc, char **argv) {
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {
+    std::cerr << "Runtime error: " << err.what() << std::endl;
     return EXIT_ERROR;
   } catch (const std::exception &ex) {
     std::cerr << "Unhandled exception: " << ex.what() << std::endl;
