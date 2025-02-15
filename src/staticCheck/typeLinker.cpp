@@ -56,15 +56,13 @@ void TypeLinker::buildSymbolTable() {
 void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   if (!node)
     throw std::runtime_error("Node is null when resolving AST");
-  // Edward: why not just add a virtual function to ASTNode that returns
-  // children?
-  // make sense
 
   for (auto child : node->getChildren()) {
     if (!child)
       continue;
 
     // Case: Type
+    // Would this be ReferenceType?
     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
       // if not resolved, resolve.
       if (!type->isResolved()) {
@@ -181,7 +179,7 @@ void TypeLinker::initContext(
 
   // Step 4: Single-Type Imports (import pkg.ClassName)
   for (auto impt : node->getImports()) {
-    if (impt.hasStar()) {
+    if (impt->hasStar()) {
       continue; // skip on-demand imports
     }
     auto imptType = resolveImport(impt);
@@ -217,7 +215,7 @@ Package::packageChild TypeLinker::resolveImport(
   if (node->isResolved())
     throw std::runtime_error("unresolved type should not be resolved yet");
   if (node->getIdentifiers().size() == 0) {
-    return rootPackage->[DEFAULT_PACKAGE_NAME];
+    return rootPackage->children[DEFAULT_PACKAGE_NAME];
   }
 
   auto currentPkg = rootPackage;

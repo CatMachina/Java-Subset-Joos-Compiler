@@ -28,7 +28,10 @@ public:
   Package::packageChild
   resolveImport(std::shared_ptr<parsetree::ast::UnresolvedType> node);
 
-  ////////////////////// Checkers ////////////////////
+  void resolveType(std::shared_ptr<parsetree::ast::Type> type);
+
+  Package::packageChild resolveSimpleName(const std::string &simpleName);
+
 
 private:
   // First pass?
