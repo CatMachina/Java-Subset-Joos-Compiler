@@ -28,6 +28,9 @@ class UnresolvedType;
 class AstNode {
 public:
   virtual ~AstNode() = default;
+  virtual std::vector<std::shared_ptr<AstNode>> getChildren() const {
+    return std::vector<std::shared_ptr<AstNode>>();
+  }
 };
 
 class Decl : public AstNode {
@@ -52,7 +55,7 @@ class Stmt : public AstNode {};
 
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 
-class ExprNode {
+class ExprNode : public AstNode {
 public:
   virtual ~ExprNode() = default;
   virtual std::ostream &print(std::ostream &os) const = 0;
@@ -87,6 +90,14 @@ public:
       os << " ";
     }
     return os << ")";
+  }
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &node : exprNodes) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    return children;
   }
 };
 
@@ -177,12 +188,18 @@ public:
   }
 
   std::ostream &print(std::ostream &os) const;
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(body));
+    return children;
+  }
 };
 
 class ClassDecl : public CodeBody, public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::shared_ptr<ReferenceType> superClass;
-  std::vector<std::shared_ptr<ReferenceType>> interfaces;
+  std::vector<std::shared_ptr<ReferenceType>> extendsInterfaces;
   std::vector<std::shared_ptr<Decl>> classBodyDecls;
 
 public:
@@ -192,6 +209,18 @@ public:
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 
   std::ostream &print(std::ostream &os) const;
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(superClass));
+    for (const auto &node : extendsInterfaces) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : classBodyDecls) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    return children;
+  }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {
@@ -205,6 +234,17 @@ public:
                 std::vector<std::shared_ptr<Decl>> interfaceBody);
 
   std::ostream &print(std::ostream &os) const;
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &node : extendsInterfaces) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : interfaceBodyDecls) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    return children;
+  }
 };
 
 class MethodDecl : public Decl {
@@ -234,6 +274,19 @@ public:
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
   bool isConstructor() const { return isConstructor_; }
   bool hasBody() const { return methodBody != nullptr; };
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(returnType));
+    for (const auto &node : params) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : localDecls) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    children.push_back(std::dynamic_pointer_cast<AstNode>(methodBody));
+    return children;
+  }
 };
 
 class VarDecl : public Decl {
@@ -250,6 +303,13 @@ public:
   // Getters
   std::shared_ptr<Type> getType() const { return type; }
   std::shared_ptr<Expr> getInitializer() const { return initializer; }
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(type));
+    children.push_back(std::dynamic_pointer_cast<AstNode>(initializer));
+    return children;
+  }
 };
 
 class FieldDecl : public VarDecl {
@@ -274,6 +334,12 @@ public:
   // Getters
   std::shared_ptr<Type> getType() const { return type; }
   const std::string &getName() const { return name; }
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(type));
+    return children;
+  }
 };
 
 // Statements /////////////////////////////////////////////////////////////
@@ -290,6 +356,14 @@ public:
   const std::vector<std::shared_ptr<Stmt>> &getStatements() const {
     return statements;
   };
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &node : statements) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    return children;
+  }
 };
 
 class IfStmt : public Stmt {
@@ -306,6 +380,14 @@ public:
   std::shared_ptr<Expr> getCondition() const { return condition; };
   std::shared_ptr<Stmt> getIfBody() const { return ifBody; };
   std::shared_ptr<Stmt> getElseBody() const { return elseBody; };
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(condition));
+    children.push_back(std::dynamic_pointer_cast<AstNode>(ifBody));
+    children.push_back(std::dynamic_pointer_cast<AstNode>(elseBody));
+    return children;
+  }
 };
 
 class WhileStmt : public Stmt {
@@ -319,6 +401,13 @@ public:
   // Getters
   std::shared_ptr<Expr> getCondition() const { return condition; };
   std::shared_ptr<Stmt> getWhileBody() const { return whileBody; };
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(condition));
+    children.push_back(std::dynamic_pointer_cast<AstNode>(whileBody));
+    return children;
+  }
 };
 
 class ForStmt : public Stmt {
@@ -338,6 +427,15 @@ public:
   std::shared_ptr<Expr> getCondition() const { return condition; };
   std::shared_ptr<Expr> getForUpdate() const { return forUpdate; };
   std::shared_ptr<Stmt> getForBody() const { return forBody; };
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(forInit));
+    children.push_back(std::dynamic_pointer_cast<AstNode>(condition));
+    children.push_back(std::dynamic_pointer_cast<AstNode>(forUpdate));
+    children.push_back(std::dynamic_pointer_cast<AstNode>(forBody));
+    return children;
+  }
 };
 
 class ReturnStmt : public Stmt {
@@ -349,6 +447,12 @@ public:
 
   // Getters
   std::shared_ptr<Expr> getReturnExpr() const { return returnExpr; };
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(returnExpr));
+    return children;
+  }
 };
 
 class ExpressionStmt : public Stmt {
@@ -359,7 +463,13 @@ public:
       : statementExpr{statementExpr} {};
 
   // Getters
-  std::shared_ptr<Expr> getStatementExpr() const { return statementExpr; };
+  std::shared_ptr<Expr> getStatementExpr() const { return statementExpr; }
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(statementExpr));
+    return children;
+  }
 };
 
 class DeclStmt : public Stmt {
@@ -370,6 +480,12 @@ public:
 
   // Getters
   std::shared_ptr<VarDecl> getDecl() const { return decl; };
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(decl));
+    return children;
+  }
 };
 
 class NullStmt : public Stmt {};
@@ -463,6 +579,12 @@ public:
     elementType->print(os);
     os << ")";
     return os;
+  }
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(elementType));
+    return children;
   }
 };
 

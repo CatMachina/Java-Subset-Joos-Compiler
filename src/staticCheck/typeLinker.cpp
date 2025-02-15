@@ -56,34 +56,9 @@ void TypeLinker::buildSymbolTable() {
 void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   if (!node)
     throw std::runtime_error("Node is null when resolving AST");
-  // TODO: need to differentiate between types of AST nodes, since getChildren
-  // doesn't work? Something like:
-  /*
-  if (auto programDecl =
-  std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(node)) {
-    resolveAST(programDecl->getBody());
-  } else if (auto classDecl =
-  std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
-    resolveAST(classDecl->getSuperClass());
-    for (auto &child : classDecl->getInterfaces()) {
-      resolveAST(child);
-    }
-    for (auto &child : classDecl->getClassBodyDecls()) {
-      resolveAST(child);
-    }
-  } else if (auto interfaceDecl =
-  std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(node)) { for (auto
-  &child : interfaceDecl->getExtendsInterfaces()) { resolveAST(child);
-    }
-    for (auto &child : interfaceDecl->getInterfaceBodyDecls()) {
-      resolveAST(child);
-    }
-  } else {
-    // TODO: ...
-  }
-  */
   // Edward: why not just add a virtual function to ASTNode that returns
   // children?
+  // make sense
 
   for (auto child : node->getChildren()) {
     if (!child)
