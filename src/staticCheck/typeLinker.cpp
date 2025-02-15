@@ -149,11 +149,16 @@ void TypeLinker::initContext(
         continue;
       auto decl = std::get<std::shared_ptr<Decl>>(value);
       if (context.find(key) != context.end()) {
-        // already in context, shadowing?
-        // need more thinking
-        // I think this is an ambiguous case, which will be handled in
-        // later assignments? Or it might be the case that issues will arise in
-        // the resolving stage.
+        // already in context by another on demand import
+        // I think this is an ambiguous case
+        if (std::holds_alternative<std::shared_ptr<Decl>>(context[key]) &&
+            std::get<std::shared_ptr<Decl>>(context[key]) == decl) {
+          // same import, all good
+          continue;
+        }
+        // different import from different package
+        // ambiguous?
+        context[key] = std::shared_ptr<Decl>(nullptr);
         continue;
       }
       context[key] = Package::packageChild{decl};

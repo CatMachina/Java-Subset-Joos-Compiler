@@ -19,10 +19,14 @@ class Field;
 class Variable;
 
 class Decl {
+  std::shared_ptr<parsetree::ast::Decl> astNode;
+
 public:
+  explicit Decl(std::shared_ptr<parsetree::ast::Decl> node)
+      : astNode(std::move(node)) {}
   virtual void printDecl(int depth = 0) const = 0;
-  virtual std::string getName() const = 0;
-  virtual std::shared_ptr<parsetree::ast::AstNode> getAstNode() const = 0;
+  std::string getName() const { return astNode->getName(); }
+  std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode; }
 };
 
 // trie tree structure
@@ -76,18 +80,12 @@ public:
 };
 
 class Body : public Decl {
-  std::shared_ptr<parsetree::ast::Decl> body;
-
 public:
-  explicit Body(std::shared_ptr<parsetree::ast::Decl> body) : body{body} {}
-  std::string getName() const override { return body->getName(); }
-  std::shared_ptr<parsetree::ast::AstNode> getAstNode() const override {
-    return body;
-  }
+  explicit Body(std::shared_ptr<parsetree::ast::Decl> body) : Decl{body} {}
   void printDecl(int depth = 0) const override {
     for (int i = 0; i < depth; ++i)
       std::cout << "  ";
-    std::cout << "(Body: " << body->getName() << ")"
+    std::cout << "(Body: " << getAstNode()->getName() << ")"
               << "\n";
   }
 };
