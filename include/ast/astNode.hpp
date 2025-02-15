@@ -105,6 +105,9 @@ public:
   bool isResolved() const { return resolvedDecl != nullptr; }
 
   void setResolveDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
+    if (resolvedDecl != nullptr) {
+      throw std::runtime_error("Decl already resolved");
+    }
     this->resolvedDecl = resolvedDecl;
   }
 };

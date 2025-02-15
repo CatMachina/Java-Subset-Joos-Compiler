@@ -56,12 +56,14 @@ void TypeLinker::buildSymbolTable() {
 void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   if (!node)
     throw std::runtime_error("Node is null when resolving AST");
-  // TODO: need to differentiate between types of AST nodes, since getChildren doesn't work?
-  // Something like:
+  // TODO: need to differentiate between types of AST nodes, since getChildren
+  // doesn't work? Something like:
   /*
-  if (auto programDecl = std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(node)) {
+  if (auto programDecl =
+  std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(node)) {
     resolveAST(programDecl->getBody());
-  } else if (auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
+  } else if (auto classDecl =
+  std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
     resolveAST(classDecl->getSuperClass());
     for (auto &child : classDecl->getInterfaces()) {
       resolveAST(child);
@@ -69,9 +71,9 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     for (auto &child : classDecl->getClassBodyDecls()) {
       resolveAST(child);
     }
-  } else if (auto interfaceDecl = std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(node)) {
-    for (auto &child : interfaceDecl->getExtendsInterfaces()) {
-      resolveAST(child);
+  } else if (auto interfaceDecl =
+  std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(node)) { for (auto
+  &child : interfaceDecl->getExtendsInterfaces()) { resolveAST(child);
     }
     for (auto &child : interfaceDecl->getInterfaceBodyDecls()) {
       resolveAST(child);
@@ -80,8 +82,9 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     // TODO: ...
   }
   */
-  // Edward: why not just add a virtual function to ASTNode that returns children?
-  
+  // Edward: why not just add a virtual function to ASTNode that returns
+  // children?
+
   for (auto child : node->getChildren()) {
     if (!child)
       continue;
@@ -90,9 +93,7 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
       // if not resolved, resolve.
       if (!type->isResolved()) {
-        type->resolve(*this);
-        // this->resolveType(type) makes more sense to me, just a comment for now
-        // this does make more sense
+        resolveType(type);
       }
     }
     // Case: New AST root
@@ -186,6 +187,8 @@ void TypeLinker::initContext(
   }
 
   // Step 3: Add Decl from the Same Package (Different ASTs)
+  // info already in symbol table, no need another loop of ast
+  /*
   for (auto astNode : astManager->getASTs()) {
     if (astNode == node) {
       continue; // skip the current AST
@@ -217,6 +220,7 @@ void TypeLinker::initContext(
       context[key] = Package::packageChild{decl};
     }
   }
+  */
 
   // Step 4: Single-Type Imports (import pkg.ClassName)
   for (auto impt : node->getImports()) {
@@ -227,7 +231,7 @@ void TypeLinker::initContext(
     if (std::holds_alternative<std::shared_ptr<Decl>>(imptType.value())) {
       throw std::runtime_error("Failed to resolve single-type imports to type");
     }
-    auto decl = std::get<std::shared_ptr<Decl>>(imptType);
+    auto decl = std::get<std::shared_ptr<Decl>>(imptType.value());
     // Check: No two single-type-import declarations clash with each other.
     if (singleTypeImports.find(decl->name) != context.end()) {
       throw std::runtime_error(
@@ -238,25 +242,16 @@ void TypeLinker::initContext(
   }
 
   // Step 5: All Decl from the Current AST
-  for (auto &tuple : pkg->children) {
-    auto key = tuple.first;
-    auto value = tuple.second;
-    // we only add decl
-    if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
-      continue;
-    auto decl = std::get<std::shared_ptr<Decl>>(value);
-    if (context.find(key) != context.end()) {
-      // TODO
-      continue;
-    }
-    context[key] = Package::packageChild{decl};
+  // this will shadow everything
+  if (auto body = node->getBody()) {
+    context[body->getName()] = Package::packageChild{body};
   }
 }
 
-// Question: Doesn't have to be an import, it just finds the package object given
-// the AST node. Am I right?
-// Well what i wanted was a function that expect an unresolved import and
-// resolve it to a package or a decl. package if on demand.
+// Question: Doesn't have to be an import, it just finds the package object
+// given the AST node. Am I right? Well what i wanted was a function that expect
+// an unresolved import and resolve it to a package or a decl. package if on
+// demand. result returned from symbol table
 Package::packageChild TypeLinker::resolveImport(
     std::shared_ptr<parsetree::ast::UnresolvedType> node) {
   // Base cases
@@ -284,6 +279,45 @@ Package::packageChild TypeLinker::resolveImport(
   return currentPkg;
 }
 
+void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
+  // only resolve if not resolved
+  auto unresolvedType =
+      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+          type) if (!unresolvedType) return;
+  if (unresolvedType->isResolved())
+    return; // tbh should not happen
+
+  if (unresolvedType->getIdentifiers().size() == 0)
+    return; // ??
+
+  Package::packageChild currentType;
+  for (auto &id : unresolvedType->getIdentifiers()) {
+    if (id == unresolvedType->getIdentifiers().front()) {
+      currentType = resolveSimpleName(id);
+      if (!currentType) {
+        throw std::runtime_error("Could not resolve type at " + id);
+      }
+    } else {
+      // interior nodes in the tree should not be decl
+      if (std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
+        throw std::runtime_error(
+            "resolving package should not be decl when resolving type");
+      }
+      auto pkg = std::get<std::shared_ptr<Package>>(currentType);
+      if (pkg->children.find(id) == pkg->children.end()) {
+        throw std::runtime_error("Could not resolve type " + id +
+                                 " since this is not found");
+      }
+      currentType = pkg->children.at(id);
+    }
+  }
+  // check the leaf node is decl
+  if (!std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
+    throw std::runtime_error("resolved type should be decl");
+  }
+  unresolvedType->setResolveDecl(std::get<std::shared_ptr<Decl>>(currentType));
+}
+
 /*
 Simple names have no . in their names.
 We traverse the namespaces in the following priority order:
@@ -292,9 +326,10 @@ We traverse the namespaces in the following priority order:
   3. Type in same package
   4. Import-on-demand package (e.g. import a.b.*)
 */
-std::shared_ptr<Decl> TypeLinker::resolveSimpleName(const std::string
-&simpleName) {
-  return context.find(simpleName) != context.end() ? context[simpleName] : nullptr;
+Package::packageChild
+TypeLinker::resolveSimpleName(const std::string &simpleName) {
+  return context.find(simpleName) != context.end() ? context[simpleName]
+                                                   : nullptr;
 }
 
 /*
@@ -305,7 +340,7 @@ Remark 10.2. If there is a usage c.d and a single-type import a.b.c,
 then a.b.c.d will never be resolved to c.d.
 */
 std::shared_ptr<Decl> TypeLinker::resolveQualifiedName(
-  std::shared_ptr<parsetree::ast::QualifiedIdentifier> qualifiedIdentifier) {
+    std::shared_ptr<parsetree::ast::QualifiedIdentifier> qualifiedIdentifier) {
   for (auto &id : qualifiedIdentifier->getIdentifiers()) {
     // TODO
   }
