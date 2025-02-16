@@ -108,7 +108,35 @@ void TypeLinker::initContext(
   5. All Decl from the Current AST
   */
 
-  // Step 1:
+  // Step 0: System Packages
+  std::vector<std::string> systemPackages = {"io", "lang", "util"};
+  for (const auto &systemPackage : systemPackages) {
+    auto impt = resolveImport({"java", systemPackage});
+    auto pkg = std::get<std::shared_ptr<Package>>(impt);
+    for (auto &tuple : pkg->children) {
+      auto key = tuple.first;
+      auto value = tuple.second;
+      // we only add decl
+      if (!std::holds_alternative<std::shared_ptr<Decl>>(value))
+        continue;
+      auto decl = std::get<std::shared_ptr<Decl>>(value);
+      if (context.find(key) != context.end()) {
+        // already in context by another on demand import
+        if (std::holds_alternative<std::shared_ptr<Decl>>(context[key]) &&
+            std::get<std::shared_ptr<Decl>>(context[key]) == decl) {
+          // same import, all good
+          continue;
+        }
+        // different import from different package
+        // ambiguous?
+        context[key] = std::shared_ptr<Decl>(nullptr);
+        continue;
+      }
+      context[key] = Package::packageChild{decl};
+    }
+  }
+
+  // Step 1: Import-on-Demand Declarations (import pkg.*)
   for (auto impt : node->getImports()) {
     if (!impt->hasStar())
       continue; // not on demand
@@ -228,9 +256,16 @@ Package::packageChild TypeLinker::resolveImport(
   if (node->getIdentifiers().size() == 0) {
     return rootPackage->children[DEFAULT_PACKAGE_NAME];
   }
+  return resolveImport(node->getIdentifiers());
+}
 
+Package::packageChild
+TypeLinker::resolveImport(const std::vector<std::string> &identifiers) {
+  if (identifiers.size() == 0) {
+    return rootPackage->children[DEFAULT_PACKAGE_NAME];
+  }
   Package::packageChild currentPkg = rootPackage;
-  for (auto &id : node->getIdentifiers()) {
+  for (auto &id : identifiers) {
     if (std::holds_alternative<std::shared_ptr<Decl>>(currentPkg)) {
       throw std::runtime_error("internal node should not be decl");
     }

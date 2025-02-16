@@ -28,6 +28,9 @@ public:
   Package::packageChild
   resolveImport(std::shared_ptr<parsetree::ast::UnresolvedType> node);
 
+  Package::packageChild
+  resolveImport(const std::vector<std::string> &identifiers);
+
   void resolveType(std::shared_ptr<parsetree::ast::Type> type);
 
   Package::packageChild resolveSimpleName(const std::string &simpleName);
