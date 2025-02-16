@@ -32,6 +32,9 @@ void TypeLinker::buildSymbolTable() {
       }
       // The subpackage name already exists.
       auto const &child = currentPackage->children[id];
+      if (std::holds_alternative<std::shared_ptr<Decl>>(child)) {
+        throw std::runtime_error("Prefix include a decl for at " + id);
+      }
       // Get the next subpackage.
       currentPackage = std::get<std::shared_ptr<Package>>(child);
     }
