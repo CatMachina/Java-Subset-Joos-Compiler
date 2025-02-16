@@ -38,13 +38,10 @@ public:
 
 class Decl : public AstNode {
   std::string name;
-  bool isDummy_ = false;
 
 public:
-  explicit Decl(std::string name, bool isDummy = false)
-      : name{name}, isDummy_{isDummy} {}
+  explicit Decl(std::string name) : name{name} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
-  [[nodiscard]] bool isDummy() const noexcept { return isDummy_; }
 };
 
 class CodeBody : public AstNode {};
@@ -238,8 +235,7 @@ public:
             std::vector<std::shared_ptr<ReferenceType>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 
-  // Hack
-  ClassDecl(std::string name) : Decl{name, true} {}
+  ClassDecl(std::string name) : Decl{name} {}
 
   std::ostream &print(std::ostream &os) const;
 

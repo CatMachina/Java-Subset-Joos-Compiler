@@ -7,13 +7,6 @@ std::shared_ptr<parsetree::ast::ProgramDecl> EnvManager::BuildProgramDecl(
     const std::shared_ptr<parsetree::ast::ReferenceType> &package,
     std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> imports,
     const std::shared_ptr<parsetree::ast::CodeBody> &body) {
-  // java program imports java.lang.*s
-  auto javaPkg = BuildUnresolvedType();
-  javaPkg->addIdentifier("java");
-  javaPkg->addIdentifier("lang");
-  imports.push_back(std::make_shared<parsetree::ast::ImportDecl>(
-      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(javaPkg),
-      true));
   return std::make_shared<parsetree::ast::ProgramDecl>(package, imports, body);
 }
 

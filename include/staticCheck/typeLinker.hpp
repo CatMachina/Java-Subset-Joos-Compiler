@@ -44,12 +44,6 @@ private:
   std::unordered_map<std::string, Package::packageChild>
       context; // for each AST
 
-  // Global env? (package - classes/interfaces - fields/methods - variables)
-  // std::unique_ptr<GlobalEnvironment> globalEnv;
-
-  // void enterScope() { envs.push_back(std::make_shared<Environment>()); };
-  // void leaveScope() { envs.pop_back(); };
-
   static const std::string DEFAULT_PACKAGE_NAME;
 };
 

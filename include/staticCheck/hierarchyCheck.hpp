@@ -136,8 +136,7 @@ class HierarchyCheck {
       if (std::holds_alternative<std::shared_ptr<Decl>>(child)) {
         // Perform checks
         std::shared_ptr<Decl> decl = std::get<std::shared_ptr<Decl>>(child);
-        ret = ret &&
-              checkProperExtends(decl) &&
+        ret = ret && checkProperExtends(decl) &&
               checkMethodSignatures(
                   decl, std::unordered_map<
                             std::string,

@@ -137,18 +137,8 @@ int main(int argc, char **argv) {
 
       astManager->addAST(ast);
     }
-    astManager->finalize();
 
     // Second pass: environment (symbol table) building + type linking
-
-    // Don't know if it should be integrated into the first pass
-    // since I don't want the existing env manager to handl too much work?
-    // I feel we should have separate passes to make each stage clear
-    // but I'll just writing down some ideas for now.
-
-    // Maybe a wrapper class for this stack
-    // Environment class would contain maps fromsimple names to decls?
-
     static_check::TypeLinker linker{std::move(astManager)};
     std::shared_ptr<static_check::Package> rootPackage =
         linker.getRootPackage();
@@ -161,9 +151,6 @@ int main(int argc, char **argv) {
       return EXIT_ERROR;
     }
     std::cout << "Passed hierarchy check\n";
-
-    // This pass depends on the input file order?
-    // => We might need a third pass to resolve types across different files?
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {
