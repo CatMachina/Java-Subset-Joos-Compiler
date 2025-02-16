@@ -267,6 +267,16 @@ public:
     }
     return children;
   }
+
+  std::vector<std::shared_ptr<AstNode>> getInterfaces()
+  {
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &node : interfaces)
+    {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    return children;
+  }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {
