@@ -260,22 +260,18 @@ public:
     return children;
   }
 
-  std::vector<std::shared_ptr<AstNode>> getSuperClasses() {
-    std::vector<std::shared_ptr<AstNode>> children;
-    for (const auto &node : superClasses) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    return children;
+  std::vector<std::shared_ptr<ReferenceType>> getSuperClasses() {
+    return superClasses;
   }
 
-  std::vector<std::shared_ptr<AstNode>> getInterfaces()
+  std::vector<std::shared_ptr<ReferenceType>> getInterfaces()
   {
-    std::vector<std::shared_ptr<AstNode>> children;
-    for (const auto &node : interfaces)
-    {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    return children;
+    return interfaces;
+  }
+
+  std::vector<std::shared_ptr<Decl>> getClassMembers()
+  {
+    return classBodyDecls;
   }
 };
 

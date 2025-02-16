@@ -49,19 +49,13 @@ class HierarchyCheck {
 
   bool checkProperExtends(std::shared_ptr<Decl> decl) {
     std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
-    std::cout << "Check extends\n";
     if (dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
       std::shared_ptr<parsetree::ast::ClassDecl> classDecl =
           dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
-      std::vector<std::shared_ptr<parsetree::ast::AstNode>> superClasses =
+      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superClasses =
           classDecl->getSuperClasses();
-      std::cout << "Is a class\n";
-      for (std::shared_ptr<parsetree::ast::AstNode> superClass : superClasses) {
-        std::shared_ptr<parsetree::ast::ReferenceType> castedSuperClass =
-            dynamic_pointer_cast<parsetree::ast::ReferenceType>(superClass);
-        std::cout << "get name\n";
-        if (castedSuperClass->getResolvedDecl())
-          std::cout << castedSuperClass->getResolvedDecl()->getName() << "\n";
+      for (std::shared_ptr<parsetree::ast::ReferenceType> superClass : superClasses) {
+          std::cout << superClass->getResolvedDecl()->getName() << "\n";
       }
     }
     return true;
