@@ -60,7 +60,8 @@ class HierarchyCheck {
         std::shared_ptr<parsetree::ast::ReferenceType> castedSuperClass =
             dynamic_pointer_cast<parsetree::ast::ReferenceType>(superClass);
         std::cout << "get name\n";
-        std::cout << castedSuperClass->getDecl()->getName() << "\n";
+        if (castedSuperClass->getResolvedDecl())
+          std::cout << castedSuperClass->getResolvedDecl()->getName() << "\n";
       }
     }
     return true;

@@ -129,8 +129,9 @@ public:
     this->resolvedDecl = resolvedDecl;
   }
 
-  std::shared_ptr<Decl> getDecl() {
-    return decl;
+  std::shared_ptr<static_check::Decl> getResolvedDecl()
+  {
+    return resolvedDecl;
   }
 };
 
