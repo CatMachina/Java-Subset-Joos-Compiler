@@ -275,14 +275,39 @@ ParseTreeVisitor::visitArrayCreation(const NodePtr &node) {
   return ops;
 }
 
+std::vector<std::string>
+ParseTreeVisitor::visitUnresolvedTypeExpr(const NodePtr &node) {
+  check_node_type(node, NodeType::QualifiedName);
+  check_num_children(node, 1, 2);
+  std::vector<std::string> ids;
+
+  if (node->num_children() == 1) {
+    ids.push_back(visitIdentifier(node->child_at(0)));
+  } else if (node->num_children() == 2) {
+    ids = visitUnresolvedTypeExpr(node->child_at(0));
+    ids.push_back(visitIdentifier(node->child_at(1)));
+    // ids.push_back(std::make_shared<ast::FieldAccess>());
+  }
+  return ids;
+}
+
 std::vector<std::shared_ptr<ast::ExprNode>>
 ParseTreeVisitor::visitClassCreation(const NodePtr &node) {
+  std::cout << "class creation\n";
   check_node_type(node, NodeType::ClassCreation);
   check_num_children(node, 2, 2);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
-  auto exprNodes = visitQualifiedIdentifierInExpr(node->child_at(0));
-  ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
-             std::make_move_iterator(exprNodes.end()));
+  // auto exprNodes = visitQualifiedIdentifierInExpr(node->child_at(0));
+  // ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
+  //            std::make_move_iterator(exprNodes.end()));
+  // FIXME: Hack
+  auto exprNodes = visitUnresolvedTypeExpr(node->child_at(0));
+  std::shared_ptr<ast::UnresolvedTypeExpr> exprNode =
+      std::make_shared<ast::UnresolvedTypeExpr>();
+  for (auto id : exprNodes) {
+    exprNode->addIdentifier(id);
+  }
+  ops.push_back(exprNode);
 
   std::vector<std::shared_ptr<ast::ExprNode>> args;
   visitArgumentList(node->child_at(1), args);

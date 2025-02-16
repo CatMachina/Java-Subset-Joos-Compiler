@@ -158,7 +158,7 @@ void TypeLinker::initContext(
         }
         // different import from different package
         // ambiguous?
-        context[key] = std::shared_ptr<Decl>(nullptr);
+        context[key] = Package::packageChild{nullptr};
         continue;
       }
       context[key] = Package::packageChild{decl};
