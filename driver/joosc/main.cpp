@@ -14,6 +14,7 @@
 #include "parseTree/sourceNode.hpp"
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/envManager.hpp"
+#include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/typeLinker.hpp"
 
 #include <memory>
@@ -153,6 +154,13 @@ int main(int argc, char **argv) {
         linker.getRootPackage();
     rootPackage->printStructure();
     linker.resolve();
+    static_check::HierarchyCheck hierarchyChecker{rootPackage};
+    std::cout << "Starting hierarchy check\n";
+    if (!hierarchyChecker.check()) {
+      std::cout << "Did not pass hierarchy check\n";
+      return EXIT_ERROR;
+    }
+    std::cout << "Passed hierarchy check\n";
 
     // This pass depends on the input file order?
     // => We might need a third pass to resolve types across different files?

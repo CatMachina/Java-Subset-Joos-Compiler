@@ -128,6 +128,10 @@ public:
     }
     this->resolvedDecl = resolvedDecl;
   }
+
+  std::shared_ptr<Decl> getDecl() {
+    return decl;
+  }
 };
 
 class UnresolvedType : public ReferenceType {
@@ -249,6 +253,14 @@ public:
     for (const auto &node : interfaces) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
+    for (const auto &node : superClasses) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    return children;
+  }
+
+  std::vector<std::shared_ptr<AstNode>> getSuperClasses() {
+    std::vector<std::shared_ptr<AstNode>> children;
     for (const auto &node : superClasses) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
