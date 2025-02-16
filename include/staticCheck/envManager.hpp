@@ -8,7 +8,13 @@ namespace static_check {
 
 class EnvManager {
 public:
-  EnvManager() {}
+  EnvManager() {
+    // everything inherits java.lang.Object
+    objectType = BuildUnresolvedType();
+    objectType->addIdentifier("java");
+    objectType->addIdentifier("lang");
+    objectType->addIdentifier("Object");
+  }
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::ProgramDecl> BuildProgramDecl(
       const std::shared_ptr<parsetree::ast::ReferenceType> &package,

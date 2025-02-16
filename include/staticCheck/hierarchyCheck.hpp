@@ -326,7 +326,7 @@ class HierarchyCheck {
         ret = ret && checkAcyclic(decl);
         ret = ret && checkDuplicateSignatures(decl);
         ret = ret && checkInheritence(decl);
-        if (!ret)
+         if (!ret)
           return false;
       } else if (std::holds_alternative<std::shared_ptr<Package>>(child)) {
         std::shared_ptr<Package> childPackage =
