@@ -20,9 +20,9 @@ ParseTreeVisitor::visitProgramDecl(const NodePtr &node) {
   auto package = visitPackageDecl(node->child_at(0));
 
   // Visit the import declarations
-  std::vector<ast::ImportDecl> imports;
-  visitListPattern<NodeType::ImportDeclList, ast::ImportDecl, true>(
-      node->child_at(1), imports);
+  std::vector<std::shared_ptr<ast::ImportDecl>> imports;
+  visitListPattern<NodeType::ImportDeclList, std::shared_ptr<ast::ImportDecl>,
+                   true>(node->child_at(1), imports);
 
   // Visit the body, if it exists
   std::shared_ptr<ast::CodeBody> body_ast_node = nullptr;
@@ -47,23 +47,24 @@ ParseTreeVisitor::visitProgramDecl(const NodePtr &node) {
 
 std::shared_ptr<ast::ReferenceType>
 ParseTreeVisitor::visitPackageDecl(const NodePtr &node) {
-  if (!node) return envManager.BuildUnresolvedType();
+  if (!node)
+    return envManager.BuildUnresolvedType();
   check_node_type(node, NodeType::PackageDecl);
   check_num_children(node, 1, 1);
   return visitReferenceType(node->child_at(0));
 }
 
 template <>
-ast::ImportDecl
+std::shared_ptr<ast::ImportDecl>
 ParseTreeVisitor::visit<NodeType::ImportDeclList>(const NodePtr &node) {
   check_num_children(node, 1, 1);
   auto id = visitReferenceType(node->child_at(0));
 
   switch (node->get_node_type()) {
   case NodeType::SingleImportDecl:
-    return ast::ImportDecl{id, /* hasStar */ false};
+    return std::make_shared<ast::ImportDecl>(id, /* hasStar */ false);
   case NodeType::MultiImportDecl:
-    return ast::ImportDecl{id, /* hasStar */ true};
+    return std::make_shared<ast::ImportDecl>(id, /* hasStar */ true);
   default:
     throw std::runtime_error(
         "visit<ImportDeclList> called on an invalid node type");

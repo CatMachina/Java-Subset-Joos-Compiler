@@ -104,20 +104,10 @@ public:
   [[nodiscard]] std::shared_ptr<ast::MethodDecl>
   visitAbstractMethodDecl(const NodePtr &node);
 
-  // template <>
-  // [[nodiscard]] std::shared_ptr<ast::Decl>
-  // visit<nodeType::ClassBodyDeclList>(const NodePtr &node);
-  // template <>
-  // [[nodiscard]] std::shared_ptr<ast::VarDecl>
-  // visit<nodeType::ParameterList>(const NodePtr &node);
-  // template <>
-  // [[nodiscard]] std::shared_ptr<ast::Decl>
-  // visit<nodeType::InterfaceBodyDeclList>(const NodePtr &node);
-
   // Statement visitors
   struct VariableDecl {
     std::shared_ptr<ast::Type> type;
-    std::string_view name;
+    std::string name;
     std::shared_ptr<ast::Expr> init;
   };
   [[nodiscard]] VariableDecl visitLocalDecl(const NodePtr &type,

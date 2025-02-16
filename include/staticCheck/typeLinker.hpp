@@ -19,26 +19,30 @@ public:
 
   std::shared_ptr<Package> getRootPackage() { return rootPackage; }
 
+  void initContext(std::shared_ptr<parsetree::ast::ProgramDecl> node);
+
   ////////////////////// Resolvers ////////////////////
+  // Second pass
   void resolve();
 
-  // Resolver method to call for each AST
-  // Essentially, AST nodes that represent a "use" will be decorated with a
-  // Decl object (that is in global env)?
+  Package::packageChild
+  resolveImport(std::shared_ptr<parsetree::ast::UnresolvedType> node);
 
-  // Resolver for single-type import
+  void resolveType(std::shared_ptr<parsetree::ast::Type> type);
 
-  // Resolver for type (class/interface)
-
-  ////////////////////// Checkers ////////////////////
+  Package::packageChild resolveSimpleName(const std::string &simpleName);
 
 private:
   // First pass?
   void buildSymbolTable();
+  // Second pass recursive helper
+  void resolveAST(std::shared_ptr<parsetree::ast::AstNode> ast);
 
   // std::vector<std::shared_ptr<Environment>> envs;
   std::unique_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<Package> rootPackage; // no decl
+  std::unordered_map<std::string, Package::packageChild>
+      context; // for each AST
 
   // Global env? (package - classes/interfaces - fields/methods - variables)
   // std::unique_ptr<GlobalEnvironment> globalEnv;
