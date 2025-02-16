@@ -148,81 +148,184 @@ class HierarchyCheck {
     return true;
   }
 
-  bool checkMethodSignatures(
-      std::shared_ptr<Decl> decl,
-      std::unordered_map<std::string,
-                         std::shared_ptr<parsetree::ast::MethodDecl>>
-          methodMap) {
+  bool checkDuplicateSignatures(std::shared_ptr<Decl> decl) {
     std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
-    bool valid = true;
-
-    auto checkMethods = [&](auto decl) {
-      for (auto &method : decl->getMethods()) {
-        std::string signature = method->getSignature();
-        std::string returnTypeStr =
-            method->getReturnType() ? method->getReturnType()->toString() : "";
-
-        if (methodMap.count(signature)) {
-          std::string existingReturnTypeStr =
-              methodMap[signature]->getReturnType()
-                  ? methodMap[signature]->getReturnType()->toString()
-                  : "";
-
-          if (existingReturnTypeStr != returnTypeStr) {
-            std::cout
-                << "Error: Conflicting methods in " << decl->getName() << ": "
-                << method->getName()
-                << " have the same signature but different return types.\n";
-            valid = false;
-          }
-        } else {
-          methodMap[signature] = method;
-        }
-      }
-    };
-
     if (auto classDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
-      checkMethods(classDecl);
 
-      if (!classDecl->getSuperClasses().empty()) {
-        for (auto &superClass : classDecl->getSuperClasses()) {
-          if (superClass && superClass->getResolvedDecl()) {
-            checkMethodSignatures(superClass->getResolvedDecl(), methodMap);
-          }
-        }
+      // Check to see if class contains duplicate methods or constructors
+      std::vector<std::unordered_set<std::string>> sameClassSignatures(
+          2, std::unordered_set<std::string>());
+      for (auto &method : classDecl->getMethods()) {
+        // Continue if method is nullptr
+        if (!method)
+          continue;
+        // Differentiate check/store depending on if constructor or not
+        int index = method->isConstructor() ? 1 : 0;
+        std::string signature = method->getSignature();
+        if (sameClassSignatures[index].count(signature))
+          return false;
+        sameClassSignatures[index].insert(signature);
       }
     } else if (auto interfaceDecl =
                    std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                        astNode)) {
-      checkMethods(interfaceDecl);
 
-      if (!interfaceDecl->getInterfaces().empty()) {
-        for (auto &superInterface : interfaceDecl->getInterfaces()) {
-          if (superInterface && superInterface->getResolvedDecl()) {
-            checkMethodSignatures(superInterface->getResolvedDecl(), methodMap);
-          }
-        }
+      // Check to see if interface contains duplicate methods
+      std::unordered_set<std::string> sameClassMethodSignatures;
+      for (auto &method : interfaceDecl->getMethods()) {
+        // Continue if method is nullptr
+        if (!method)
+          continue;
+        // Check/store method signatures
+        std::string signature = method->getSignature();
+        if (sameClassMethodSignatures.count(signature))
+          return false;
+        sameClassMethodSignatures.insert(signature);
       }
     }
 
-    return valid;
+    return true;
+  }
+
+  bool getInheritedMethods(
+      std::shared_ptr<parsetree::ast::Decl> astNode,
+      std::unordered_map<std::string,
+                         std::shared_ptr<parsetree::ast::MethodDecl>>
+          &abstractMethodMap,
+      std::unordered_map<std::string,
+                         std::shared_ptr<parsetree::ast::MethodDecl>>
+          &methodMap) {
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      for (auto &superInterface : classDecl->getInterfaces()) {
+        if(!superInterface || !superInterface->getResolvedDecl() || !superInterface->getResolvedDecl()->getAstNode())
+          continue;
+        auto superInterfaceDecl =
+            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(superInterface->getResolvedDecl()->getAstNode());
+        if(superInterfaceDecl && !getInheritedMethods(superInterfaceDecl, abstractMethodMap, methodMap))
+          return false;
+      }
+      for (auto &superClass : classDecl->getSuperClasses()) {
+        if (!superClass || !superClass->getResolvedDecl() || !superClass->getResolvedDecl()->getAstNode())
+          continue;
+        auto superClassDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superClass->getResolvedDecl()->getAstNode());
+        if(superClass && !getInheritedMethods(superClassDecl, abstractMethodMap, methodMap))
+          return false;
+      }
+      // Resolve current interface's abstract methods
+      for (auto &method : classDecl->getMethods())
+      {
+        if(!method)
+          continue;
+        std::string signature = method->getSignature();
+        // Some inherited functions have same signature but different return types
+        if (abstractMethodMap.count(signature) && abstractMethodMap[signature]->getReturnType()->toString() != method->getReturnType()->toString())
+          return false;
+        if (methodMap.count(signature) && methodMap[signature]->getReturnType()->toString() != method->getReturnType()->toString())
+          return false;
+        // If same signature and return, don't insert; otherwise not present, so insert
+        if (method->getModifiers() && method->getModifiers()->isAbstract() && !abstractMethodMap.count(signature))
+        {
+          abstractMethodMap[signature] = method;
+        }
+        else if (!methodMap.count(signature) && !method->isConstructor()) {
+          methodMap[signature] = method;
+        }
+      }
+    }
+    else if (auto interfaceDecl =
+                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode))
+    {
+      // Get inherited abstract methods
+      for (auto &superInterface : interfaceDecl->getInterfaces())
+      {
+        if (!superInterface || !superInterface->getResolvedDecl() || !superInterface->getResolvedDecl()->getAstNode())
+          continue;
+        auto superInterfaceDecl =
+            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(superInterface);
+        if(superInterface && !getInheritedMethods(superInterfaceDecl, abstractMethodMap, methodMap))
+          return false;
+      }
+      // Resolve current interface's abstract methods
+      for (auto &method : interfaceDecl->getMethods())
+      {
+        if(!method)
+          continue;
+        std::string signature = method->getSignature();
+        // Some inherited functions have same signature but different return types
+        if (abstractMethodMap.count(signature) && abstractMethodMap[signature]->getReturnType()->toString() != method->getReturnType()->toString()) 
+          return false;
+        if (methodMap.count(signature) && methodMap[signature]->getReturnType()->toString() != method->getReturnType()->toString())
+          return false;
+        // If same signature and return, don't insert; otherwise not present, so insert
+        if (!abstractMethodMap.count(signature))
+        {
+          abstractMethodMap[signature] = method;
+        }
+      }
+    }
+    return true;
+  }
+
+  
+
+  bool checkInheritence(std::shared_ptr<Decl> decl) {
+    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
+    std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
+        abstractMethodMap;
+    std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
+        methodMap;
+    // Type conflict of same signature, different return type methods in superclasses
+    if(!getInheritedMethods(astNode, abstractMethodMap, methodMap)) {
+      return false;
+    }
+
+    // Check for abstract or unimplemented abstract methods
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode))
+    {
+      // If abstract, then don't continue checking
+      if(classDecl->getModifiers()->isAbstract())
+        return true;
+
+      // Check for abstract methods
+      for(auto &method : classDecl->getMethods()) {
+        if(method->getModifiers()->isAbstract()) {
+          std::cerr
+              << "Error: Class " << classDecl->getName()
+              << " contains abstract methods but is not declared abstract.\n";
+          return false;
+        }
+      }
+
+      for (auto &[signature, methodDecl] : abstractMethodMap)
+      {
+        if(!methodMap.count(signature)) {
+          std::cerr
+              << "Error: Class " << classDecl->getName()
+              << " inherits an unimplemented abstract method but is not declared abstract.\n";
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   bool traverseTree(std::shared_ptr<Package> node) {
     if (node == nullptr)
       return true;
 
-    std::cout << "Traverse Start\n";
     for (auto &[ch, child] : node->children) {
       if (std::holds_alternative<std::shared_ptr<static_check::Decl>>(child)) {
         // Perform checks
         std::shared_ptr<Decl> decl = std::get<std::shared_ptr<Decl>>(child);
-        bool ret = checkProperExtends(decl) && checkAcyclic(decl);
-         && checkMethodSignatures(
-                decl, std::unordered_map<
-                          std::string,
-                          std::shared_ptr<parsetree::ast::MethodDecl>>());
+        // Order matters!
+        bool ret = checkProperExtends(decl);
+        ret = ret && checkAcyclic(decl);
+        ret = ret && checkDuplicateSignatures(decl);
+        ret = ret && checkInheritence(decl);
         if (!ret)
           return false;
       } else if (std::holds_alternative<std::shared_ptr<Package>>(child)) {
@@ -232,7 +335,6 @@ class HierarchyCheck {
           return false;
       }
     }
-    std::cout << "Traverse End\n";
     return true;
   }
 
