@@ -101,6 +101,8 @@ int main(int argc, char **argv) {
         return EXIT_ERROR;
       }
 
+      // parse_tree->print(std::cerr);
+
       // Build AST from the parse tree
       std::shared_ptr<parsetree::ast::ProgramDecl> ast;
       static_check::EnvManager env;

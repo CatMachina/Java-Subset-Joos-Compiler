@@ -161,6 +161,9 @@ public:
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitQualifiedIdentifierInExpr(const NodePtr &node);
 
+  [[nodiscard]] std::vector<std::string>
+  visitUnresolvedTypeExpr(const NodePtr &node);
+
   std::shared_ptr<ast::ExprNode> visitBasicType(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::Expr> visitExpression(const NodePtr &node);

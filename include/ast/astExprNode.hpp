@@ -42,6 +42,19 @@ private:
   std::string name;
 };
 
+class UnresolvedTypeExpr : public ExprNode, public UnresolvedType {
+public:
+  UnresolvedTypeExpr() : UnresolvedType() {}
+  std::ostream &print(std::ostream &os) const override {
+    os << "(UnresolvedTypeExpr: ";
+    for (const auto &id : getIdentifiers()) {
+      os << id << ".";
+    }
+    os << ")";
+    return os;
+  }
+};
+
 class ThisNode : public ExprNode {
 public:
   std::ostream &print(std::ostream &os) const override {
