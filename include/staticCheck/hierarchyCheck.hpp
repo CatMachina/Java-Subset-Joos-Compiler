@@ -50,69 +50,77 @@ class HierarchyCheck {
   bool checkProperExtends(std::shared_ptr<Decl> decl) {
     std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
     if (dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
-      // Do class checks
       std::shared_ptr<parsetree::ast::ClassDecl> classDecl =
           dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
-
-      // Check super classes
       std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superClasses =
           classDecl->getSuperClasses();
       for (std::shared_ptr<parsetree::ast::ReferenceType> superClass :
            superClasses) {
-        // Check if extended class is a class
-        if (!dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-                superClass->getResolvedDecl()))
-          return false;
-
-        // Cast to class
-        std::shared_ptr<parsetree::ast::ClassDecl> superClassDecl =
-            dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-                superClass->getResolvedDecl()->getAstNode());
-        // Check if class is final
-        if (superClassDecl->getModifiers()->isFinal())
-          return false;
-      }
-
-      // Check interfaces
-      std::unordered_set<std::shared_ptr<parsetree::ast::Decl>> uniqueInterfaces;
-      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> interfaces =
-          classDecl->getInterfaces();
-      for (std::shared_ptr<parsetree::ast::ReferenceType> interface :
-           interfaces) {
-        // Check if interfaces is an interface
-        if (!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                interface->getResolvedDecl()))
-          return false;
-        
-        // Store and check for duplicate interfaces
-        if (uniqueInterfaces.count(interface->getResolvedDecl()->getAstNode()))
-          return false;
-        uniqueInterfaces.insert(interface->getResolvedDecl()->getAstNode());
-      }
-    } else if (dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode)){
-      // Do interfaces check
-      std::shared_ptr<parsetree::ast::InterfaceDecl> interface =
-          dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode);
-
-      // Check super interfaces
-      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superInterfaces =
-          interface->getInterfaces();
-      std::unordered_set<std::shared_ptr<parsetree::ast::Decl>> uniqueInterfaces;
-      for (std::shared_ptr<parsetree::ast::ReferenceType> superInterface :
-           superInterfaces)
-      {
-        // Check if extended interfaces are interfaces
-        if (!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                superInterface->getResolvedDecl()))
-          return false;
-
-        // Store and check for duplicate interfaces
-        if (uniqueInterfaces.count(superInterface->getResolvedDecl()->getAstNode()))
-          return false;
-        uniqueInterfaces.insert(superInterface->getResolvedDecl()->getAstNode());
+        std::cout << superClass->getResolvedDecl()->getName() << "\n";
       }
     }
     return true;
+  }
+
+  bool checkMethodSignatures(
+      std::shared_ptr<Decl> decl,
+      std::unordered_map<std::string,
+                         std::shared_ptr<parsetree::ast::MethodDecl>>
+          methodMap) {
+    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
+    bool valid = true;
+
+    auto checkMethods = [&](auto decl) {
+      for (auto &method : decl->getMethods()) {
+        std::string signature = method->getSignature();
+        std::string returnTypeStr =
+            method->getReturnType() ? method->getReturnType()->toString() : "";
+
+        if (methodMap.count(signature)) {
+          std::string existingReturnTypeStr =
+              methodMap[signature]->getReturnType()
+                  ? methodMap[signature]->getReturnType()->toString()
+                  : "";
+
+          if (existingReturnTypeStr != returnTypeStr) {
+            std::cout
+                << "Error: Conflicting methods in " << decl->getName() << ": "
+                << method->getName()
+                << " have the same signature but different return types.\n";
+            valid = false;
+          }
+        } else {
+          methodMap[signature] = method;
+        }
+      }
+    };
+
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      checkMethods(classDecl);
+
+      if (!classDecl->getSuperClasses().empty()) {
+        for (auto &superClass : classDecl->getSuperClasses()) {
+          if (superClass && superClass->getResolvedDecl()) {
+            checkMethodSignatures(superClass->getResolvedDecl(), methodMap);
+          }
+        }
+      }
+    } else if (auto interfaceDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                       astNode)) {
+      checkMethods(interfaceDecl);
+
+      if (!interfaceDecl->getInterfaces().empty()) {
+        for (auto &superInterface : interfaceDecl->getInterfaces()) {
+          if (superInterface && superInterface->getResolvedDecl()) {
+            checkMethodSignatures(superInterface->getResolvedDecl(), methodMap);
+          }
+        }
+      }
+    }
+
+    return valid;
   }
 
   bool traverseTree(std::shared_ptr<Package> node) {
@@ -122,11 +130,18 @@ class HierarchyCheck {
     bool ret = true;
     std::cout << "Traverse Start\n";
     for (auto &[ch, child] : node->children) {
+      if (ch == "java")
+        continue;
       std::cout << ch << "\n";
       if (std::holds_alternative<std::shared_ptr<Decl>>(child)) {
         // Perform checks
         std::shared_ptr<Decl> decl = std::get<std::shared_ptr<Decl>>(child);
-        ret = ret && checkProperExtends(decl);
+        ret = ret &&
+              checkProperExtends(decl) &&
+              checkMethodSignatures(
+                  decl, std::unordered_map<
+                            std::string,
+                            std::shared_ptr<parsetree::ast::MethodDecl>>());
       } else if (std::holds_alternative<std::shared_ptr<Package>>(child)) {
         std::shared_ptr<Package> childPackage =
             std::get<std::shared_ptr<Package>>(child);
