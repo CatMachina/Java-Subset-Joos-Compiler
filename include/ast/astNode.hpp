@@ -265,6 +265,8 @@ public:
     return classBodyDecls;
   }
 
+  std::shared_ptr<Modifiers> getModifiers() { return modifiers; }
+
   std::vector<std::shared_ptr<MethodDecl>> getMethods() {
     std::vector<std::shared_ptr<MethodDecl>> methods;
 

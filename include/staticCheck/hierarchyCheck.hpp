@@ -8,55 +8,141 @@ namespace static_check {
 
 class HierarchyCheck {
   std::shared_ptr<Package> rootPackage;
-  // std::unique_ptr<parsetree::ast::ASTManager> astManager;
 
-  // Get the first package of the qualified name
-  std::string getFirstToken(const std::string &qualifiedName) {
-    size_t pos = qualifiedName.find('.');
-    return (pos == std::string::npos) ? qualifiedName
-                                      : qualifiedName.substr(0, pos);
+  bool isClass(std::shared_ptr<parsetree::ast::AstNode> decl) {
+    return !!dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl);
   }
 
-  // Get class definition from root
-  // std::shared_ptr<Decl> getClassDef(std::string qualifiedName) {
-  //   return getClassDefHelper(rootPackage, qualifiedName);
-  // }
-
-  // std::shared_ptr<Decl> getClassDefHelper(std::shared_ptr<Package> root,
-  // std::string qualifiedName)
-  // {
-  //   std::string topPackage = getFirstToken(qualifiedName);
-  //   if (topPackage.length() == qualifiedName.length()) {
-  //     // Just the class name remaining
-
-  //   }
-  //   if (!root->children.count(topPackage)) {
-  //     return nullptr;
-  //   }
-  //   root =
-  // }
-
-  // Get interface definition from root
-
-  // Create a set of functions signatures with comparators
-
-  // Get all parent functions
+  bool isInterface(std::shared_ptr<parsetree::ast::AstNode> decl) {
+    return !!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
+  }
 
   // Check acyclic class hierarchy
-  // bool acyclicCheck() {
+  bool checkAcyclicHelper(
+      std::shared_ptr<parsetree::ast::Decl> decl,
+      std::unordered_set<std::shared_ptr<parsetree::ast::AstNode>> &visited,
+      std::unordered_set<std::shared_ptr<parsetree::ast::AstNode>> &inStack) {
+    inStack.insert(decl);
+    visited.insert(decl);
+    if (isClass(decl)) {
+      std::shared_ptr<parsetree::ast::ClassDecl> classDecl =
+          dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl);
+      for (auto &superClass : classDecl->getSuperClasses()) {
+        if (!superClass)
+          continue;
+        auto astNode = superClass->getResolvedDecl()->getAstNode();
+        // If in current stack, then there's a cycle
+        if (inStack.count(astNode))
+          return false;
+        if (!visited.count(astNode) &&
+            !checkAcyclicHelper(astNode, visited, inStack))
+          return false;
+      }
 
-  // }
+      for (auto &superInterface : classDecl->getInterfaces()) {
+        if (!superInterface)
+          continue;
+        auto astNode = superInterface->getResolvedDecl()->getAstNode();
+        // If in current stack, then there's a cycle
+        if (inStack.count(astNode))
+          return false;
+        if (!visited.count(astNode) &&
+            !checkAcyclicHelper(astNode, visited, inStack))
+          ;
+      }
+    } else if (isInterface(decl)) {
+      std::shared_ptr<parsetree::ast::InterfaceDecl> interfaceDecl =
+          dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
+
+      for (auto &superInterface : interfaceDecl->getInterfaces()) {
+        if (!superInterface)
+          continue;
+        auto astNode = superInterface->getResolvedDecl()->getAstNode();
+        // If in current stack, then there's a cycle
+        if (inStack.count(astNode))
+          return false;
+        if (!visited.count(astNode) &&
+            !checkAcyclicHelper(astNode, visited, inStack))
+          return false;
+      }
+    }
+    inStack.erase(decl);
+    return true;
+  }
+
+  bool checkAcyclic(std::shared_ptr<Decl> decl) {
+    std::unordered_set<std::shared_ptr<parsetree::ast::AstNode>> visited;
+    std::unordered_set<std::shared_ptr<parsetree::ast::AstNode>> inStack;
+    return checkAcyclicHelper(decl->getAstNode(), visited, inStack);
+  }
 
   bool checkProperExtends(std::shared_ptr<Decl> decl) {
     std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
-    if (dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+    if (isClass(astNode)) {
+      // Do class checks
       std::shared_ptr<parsetree::ast::ClassDecl> classDecl =
           dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
-      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superClasses =
-          classDecl->getSuperClasses();
-      for (std::shared_ptr<parsetree::ast::ReferenceType> superClass :
-           superClasses) {
-        std::cout << superClass->getResolvedDecl()->getName() << "\n";
+      // Check super classes
+      for (auto &superClass : classDecl->getSuperClasses()) {
+        if (!superClass || !superClass->getResolvedDecl() ||
+            !superClass->getResolvedDecl()->getAstNode())
+          continue;
+
+        // Check if extended class is a class
+        if (!isClass(superClass->getResolvedDecl()->getAstNode()))
+          return false;
+
+        // Cast to class
+        std::shared_ptr<parsetree::ast::ClassDecl> superClassDecl =
+            dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+                superClass->getResolvedDecl()->getAstNode());
+        // Check if class is final
+        if (superClassDecl->getModifiers() &&
+            superClassDecl->getModifiers()->isFinal())
+          return false;
+      }
+
+      // Check interfaces
+      std::unordered_set<std::shared_ptr<parsetree::ast::Decl>>
+          uniqueInterfaces;
+      for (auto &superInterface : classDecl->getInterfaces()) {
+        if (!superInterface || !superInterface->getResolvedDecl() ||
+            !superInterface->getResolvedDecl()->getAstNode())
+          continue;
+
+        // Check if interfaces is an interface
+        if (!isInterface(superInterface->getResolvedDecl()->getAstNode()))
+          return false;
+
+        // Store and check for duplicate interfaces
+        if (uniqueInterfaces.count(
+                superInterface->getResolvedDecl()->getAstNode()))
+          return false;
+        uniqueInterfaces.insert(
+            superInterface->getResolvedDecl()->getAstNode());
+      }
+    } else if (isInterface(astNode)) {
+      // Do interfaces check
+      std::shared_ptr<parsetree::ast::InterfaceDecl> interfaceDecl =
+          dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode);
+
+      // Check super interfaces
+      std::unordered_set<std::shared_ptr<parsetree::ast::Decl>>
+          uniqueInterfaces;
+      for (auto &superInterface : interfaceDecl->getInterfaces()) {
+        if (!superInterface || !superInterface->getResolvedDecl() ||
+            !superInterface->getResolvedDecl()->getAstNode())
+          continue;
+        // Check if interfaces is an interface
+        if (!isInterface(superInterface->getResolvedDecl()->getAstNode()))
+          return false;
+
+        // Store and check for duplicate interfaces
+        if (uniqueInterfaces.count(
+                superInterface->getResolvedDecl()->getAstNode()))
+          return false;
+        uniqueInterfaces.insert(
+            superInterface->getResolvedDecl()->getAstNode());
       }
     }
     return true;
@@ -127,42 +213,35 @@ class HierarchyCheck {
     if (node == nullptr)
       return true;
 
-    bool ret = true;
     std::cout << "Traverse Start\n";
     for (auto &[ch, child] : node->children) {
-      if (ch == "java")
-        continue;
-      std::cout << ch << "\n";
-      if (std::holds_alternative<std::shared_ptr<Decl>>(child)) {
+      if (std::holds_alternative<std::shared_ptr<static_check::Decl>>(child)) {
         // Perform checks
         std::shared_ptr<Decl> decl = std::get<std::shared_ptr<Decl>>(child);
-        ret = ret && checkProperExtends(decl) &&
-              checkMethodSignatures(
-                  decl, std::unordered_map<
-                            std::string,
-                            std::shared_ptr<parsetree::ast::MethodDecl>>());
+        bool ret = checkProperExtends(decl) && checkAcyclic(decl);
+         && checkMethodSignatures(
+                decl, std::unordered_map<
+                          std::string,
+                          std::shared_ptr<parsetree::ast::MethodDecl>>());
+        if (!ret)
+          return false;
       } else if (std::holds_alternative<std::shared_ptr<Package>>(child)) {
         std::shared_ptr<Package> childPackage =
             std::get<std::shared_ptr<Package>>(child);
-        ret = ret && traverseTree(childPackage);
+        if (!traverseTree(childPackage))
+          return false;
       }
     }
     std::cout << "Traverse End\n";
-    return ret;
+    return true;
   }
 
 public:
-  HierarchyCheck(std::shared_ptr<Package> rootPackage
-                 //, std::unique_ptr<parsetree::ast::ASTManager> astManager
-                 )
-      : rootPackage{rootPackage} // , astManager(std::move(astManager))
-  {}
+  HierarchyCheck(std::shared_ptr<Package> rootPackage)
+      : rootPackage{rootPackage} {}
 
   bool check() {
-    // Adhoc integrated checks (tree-level checks)
-    // acyclicCheck
-    std::cout << "Start check\n";
-    // Traverse tree and validate each node (class-level checks)
+    // Traverse tree and validate each node
     return traverseTree(rootPackage);
   }
 };
