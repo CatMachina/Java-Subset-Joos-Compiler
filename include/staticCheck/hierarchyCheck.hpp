@@ -74,13 +74,20 @@ class HierarchyCheck {
       }
 
       // Check interfaces
+      std::unordered_set<std::shared_ptr<parsetree::ast::Decl>> uniqueInterfaces;
       std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> interfaces =
           classDecl->getInterfaces();
       for (std::shared_ptr<parsetree::ast::ReferenceType> interface :
            interfaces) {
+        // Check if interfaces is an interface
         if (!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                 interface->getResolvedDecl()))
           return false;
+        
+        // Store and check for duplicate interfaces
+        if (uniqueInterfaces.count(interface->getResolvedDecl()->getAstNode()))
+          return false;
+        uniqueInterfaces.insert(interface->getResolvedDecl()->getAstNode());
       }
     } else if (dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode)){
       // Do interfaces check
@@ -90,6 +97,7 @@ class HierarchyCheck {
       // Check super interfaces
       std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superInterfaces =
           interface->getInterfaces();
+      std::unordered_set<std::shared_ptr<parsetree::ast::Decl>> uniqueInterfaces;
       for (std::shared_ptr<parsetree::ast::ReferenceType> superInterface :
            superInterfaces)
       {
@@ -97,6 +105,11 @@ class HierarchyCheck {
         if (!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                 superInterface->getResolvedDecl()))
           return false;
+
+        // Store and check for duplicate interfaces
+        if (uniqueInterfaces.count(superInterface->getResolvedDecl()->getAstNode()))
+          return false;
+        uniqueInterfaces.insert(superInterface->getResolvedDecl()->getAstNode());
       }
     }
     return true;
@@ -109,8 +122,6 @@ class HierarchyCheck {
     bool ret = true;
     std::cout << "Traverse Start\n";
     for (auto &[ch, child] : node->children) {
-      if (ch == "java")
-        continue;
       std::cout << ch << "\n";
       if (std::holds_alternative<std::shared_ptr<Decl>>(child)) {
         // Perform checks
