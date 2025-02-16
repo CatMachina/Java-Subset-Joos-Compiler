@@ -129,10 +129,7 @@ public:
     this->resolvedDecl = resolvedDecl;
   }
 
-  std::shared_ptr<static_check::Decl> getResolvedDecl()
-  {
-    return resolvedDecl;
-  }
+  std::shared_ptr<static_check::Decl> getResolvedDecl() { return resolvedDecl; }
 };
 
 class UnresolvedType : public ReferenceType {
@@ -264,15 +261,15 @@ public:
     return superClasses;
   }
 
-  std::vector<std::shared_ptr<ReferenceType>> getInterfaces()
-  {
+  std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
     return interfaces;
   }
 
-  std::vector<std::shared_ptr<Decl>> getClassMembers()
-  {
+  std::vector<std::shared_ptr<Decl>> getClassMembers() {
     return classBodyDecls;
   }
+
+  std::shared_ptr<Modifiers> getModifiers() { return modifiers; }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {
@@ -298,6 +295,10 @@ public:
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
     return children;
+  }
+
+  std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
+    return interfaces;
   }
 };
 

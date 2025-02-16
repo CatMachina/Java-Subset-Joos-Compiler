@@ -50,12 +50,53 @@ class HierarchyCheck {
   bool checkProperExtends(std::shared_ptr<Decl> decl) {
     std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
     if (dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      // Do class checks
       std::shared_ptr<parsetree::ast::ClassDecl> classDecl =
           dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
+
+      // Check super classes
       std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superClasses =
           classDecl->getSuperClasses();
-      for (std::shared_ptr<parsetree::ast::ReferenceType> superClass : superClasses) {
-          std::cout << superClass->getResolvedDecl()->getName() << "\n";
+      for (std::shared_ptr<parsetree::ast::ReferenceType> superClass :
+           superClasses) {
+        // Check if extended class is a class
+        if (!dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+                superClass->getResolvedDecl()))
+          return false;
+
+        // Cast to class
+        std::shared_ptr<parsetree::ast::ClassDecl> superClassDecl =
+            dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+                superClass->getResolvedDecl()->getAstNode());
+        // Check if class is final
+        if (superClassDecl->getModifiers()->isFinal())
+          return false;
+      }
+
+      // Check interfaces
+      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> interfaces =
+          classDecl->getInterfaces();
+      for (std::shared_ptr<parsetree::ast::ReferenceType> interface :
+           interfaces) {
+        if (!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                interface->getResolvedDecl()))
+          return false;
+      }
+    } else if (dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode)){
+      // Do interfaces check
+      std::shared_ptr<parsetree::ast::InterfaceDecl> interface =
+          dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode);
+
+      // Check super interfaces
+      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superInterfaces =
+          interface->getInterfaces();
+      for (std::shared_ptr<parsetree::ast::ReferenceType> superInterface :
+           superInterfaces)
+      {
+        // Check if extended interfaces are interfaces
+        if (!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                superInterface->getResolvedDecl()))
+          return false;
       }
     }
     return true;
@@ -68,7 +109,8 @@ class HierarchyCheck {
     bool ret = true;
     std::cout << "Traverse Start\n";
     for (auto &[ch, child] : node->children) {
-      if (ch == "java") continue;
+      if (ch == "java")
+        continue;
       std::cout << ch << "\n";
       if (std::holds_alternative<std::shared_ptr<Decl>>(child)) {
         // Perform checks
