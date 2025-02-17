@@ -726,6 +726,55 @@ class HierarchyCheck {
           }
         }
       }
+
+      for (auto &superClass : classDecl->getSuperClasses()) {
+        if (!superClass)
+          continue;
+        if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+          auto superClassDecl =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
+          if (!superClassDecl)
+            continue;
+
+          for (auto &superMethod : superClassDecl->getMethods()) {
+            std::string superSignature = superMethod->getSignature();
+            bool isSuperMethodProtected =
+                superMethod->getModifiers() &&
+                superMethod->getModifiers()->isProtected();
+
+            for (auto &superInterface : classDecl->getInterfaces()) {
+              if (!superInterface)
+                continue;
+              if (auto superIntDecl =
+                      superInterface->getResolvedDecl()->getAstNode()) {
+                auto superInterfaceDecl =
+                    std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                        superIntDecl);
+                if (!superInterfaceDecl)
+                  continue;
+
+                for (auto &superIntMethod : superInterfaceDecl->getMethods()) {
+                  if (superIntMethod->getSignature() == superSignature) {
+                    bool isSuperIntMethodPublic =
+                        superIntMethod->getModifiers() &&
+                        superIntMethod->getModifiers()->isPublic();
+                    if (isSuperMethodProtected && isSuperIntMethodPublic) {
+                      std::cerr
+                          << "Error: Class " << classDecl->getName()
+                          << " inherits protected method "
+                          << superMethod->getName() << " from "
+                          << superClassDecl->getName()
+                          << " which conflicts with required public method in "
+                          << superInterfaceDecl->getName() << "\n";
+                      return false;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     } else if (auto interfaceDecl =
                    std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                        astNode)) {
