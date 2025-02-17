@@ -239,6 +239,13 @@ class HierarchyCheck {
     return true;
   }
 
+  std::string getSafeReturnType(std::shared_ptr<parsetree::ast::MethodDecl> method)
+  {
+    if(!method->getReturnType())
+      return "Void";
+    return method->getReturnType()->toString();
+  }
+
   bool getInheritedMethods(
       std::shared_ptr<parsetree::ast::Decl> astNode,
       std::unordered_map<std::string,
@@ -268,27 +275,26 @@ class HierarchyCheck {
         auto superClassDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
                 superClass->getResolvedDecl()->getAstNode());
-        if (superClass &&
+
+        if (superClassDecl &&
             !getInheritedMethods(superClassDecl, abstractMethodMap, methodMap))
           return false;
       }
-      // Resolve current interface's abstract methods
+      // Resolve current classes's methods
       for (auto &method : classDecl->getMethods()) {
-        if (!method)
+        if (!method || method->isConstructor())
           continue;
         std::string signature = method->getSignature();
-        // Some inherited functions have same signature but different return
-        // types
+        // Some inherited functions have same signature but different return types
         if (abstractMethodMap.count(signature) &&
-            abstractMethodMap[signature]->getReturnType()->toString() !=
-                method->getReturnType()->toString())
+            getSafeReturnType(abstractMethodMap[signature]) !=
+                getSafeReturnType(method))
           return false;
         if (methodMap.count(signature) &&
-            methodMap[signature]->getReturnType()->toString() !=
-                method->getReturnType()->toString())
+            getSafeReturnType(methodMap[signature]) !=
+                getSafeReturnType(method))
           return false;
         // If same signature and return, don't insert; otherwise not present, so
-        // insert
         if (method->getModifiers() && method->getModifiers()->isAbstract() &&
             !abstractMethodMap.count(signature)) {
           abstractMethodMap[signature] = method;
@@ -320,12 +326,12 @@ class HierarchyCheck {
         // Some inherited functions have same signature but different return
         // types
         if (abstractMethodMap.count(signature) &&
-            abstractMethodMap[signature]->getReturnType()->toString() !=
-                method->getReturnType()->toString())
+            getSafeReturnType(abstractMethodMap[signature]) !=
+                getSafeReturnType(method))
           return false;
         if (methodMap.count(signature) &&
-            methodMap[signature]->getReturnType()->toString() !=
-                method->getReturnType()->toString())
+            getSafeReturnType(methodMap[signature]) !=
+                getSafeReturnType(method))
           return false;
         // If same signature and return, don't insert; otherwise not present, so
         // insert
@@ -343,8 +349,7 @@ class HierarchyCheck {
         abstractMethodMap;
     std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
         methodMap;
-    // Type conflict of same signature, different return type methods in
-    // superclasses
+    // Type conflict of same signature, different return type methods in superclasses
     if (!getInheritedMethods(astNode, abstractMethodMap, methodMap)) {
       return false;
     }
