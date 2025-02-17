@@ -1,5 +1,5 @@
 #!/usr/bin/bash
 
-git log --sparse --full-history > a1.log
+git log --sparse --full-history > a2.log
 
-zip -r a1.zip . -x ".gitignore" ".vscode/*" ".git/*"
+zip -r a2.zip . -x ".gitignore" ".vscode/*" ".git/*"
