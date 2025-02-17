@@ -657,13 +657,15 @@ class HierarchyCheck {
     return true;
   }
 
-  bool checkProtectedMethodOverride(std::shared_ptr<Decl> decl) {
+  bool checkProtectedMethodOverride(std::shared_ptr<Decl> decl,
+                                    std::shared_ptr<Package> rootPackage) {
     std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
     if (!astNode)
       return true;
 
     if (auto classDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+
       for (auto &method : classDecl->getMethods()) {
         std::string signature = method->getSignature();
         bool isMethodProtected =
@@ -717,6 +719,78 @@ class HierarchyCheck {
                             << " in class " << classDecl->getName()
                             << " cannot override public method from interface "
                             << superInterfaceDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    } else if (auto interfaceDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                       astNode)) {
+
+      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>>
+          superInterfaces = interfaceDecl->getInterfaces();
+
+      for (auto &method : interfaceDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        std::cout << "DEBUG: Checking method: " << signature << " in interface "
+                  << interfaceDecl->getName() << "\n";
+
+        auto objectDecl = resolveJavaLangObjectInterfaces(rootPackage);
+        if (objectDecl) {
+          for (auto &objectMethod : objectDecl->getMethods()) {
+            if (!objectMethod)
+              continue;
+            if (objectMethod->getSignature() == signature) {
+              bool isObjectMethodFinal =
+                  objectMethod->getModifiers() &&
+                  objectMethod->getModifiers()->isProtected();
+              if (isObjectMethodFinal) {
+                std::cerr
+                    << "Error: Method " << method->getName() << " in interface "
+                    << interfaceDecl->getName()
+                    << " cannot override final method from java.lang.Object\n";
+                return false;
+              }
+            }
+          }
+        }
+
+        for (auto &superInterface : superInterfaces) {
+          if (!superInterface || !superInterface->getResolvedDecl()) {
+            std::cout << "DEBUG: Skipping unresolved superinterface\n";
+            continue;
+          }
+
+          if (auto superDecl =
+                  superInterface->getResolvedDecl()->getAstNode()) {
+            auto superInterfaceDecl =
+                std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                    superDecl);
+            if (!superInterfaceDecl) {
+              std::cout << "DEBUG: Skipping superinterface that is not an "
+                           "interface\n";
+              continue;
+            }
+
+            for (auto &superMethod : superInterfaceDecl->getMethods()) {
+              if (!superMethod)
+                continue;
+              std::cout << "DEBUG: Comparing against superinterface method: "
+                        << superMethod->getSignature() << "\n";
+
+              if (superMethod->getSignature() == signature) {
+                bool isSuperMethodFinal =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isFinal();
+                if (isSuperMethodFinal) {
+                  std::cerr
+                      << "Error: Method " << method->getName()
+                      << " in interface " << interfaceDecl->getName()
+                      << " cannot override final method from superinterface "
+                      << superInterfaceDecl->getName() << "\n";
                   return false;
                 }
               }
@@ -881,7 +955,7 @@ class HierarchyCheck {
         ret = ret && checkMethodReturnTypeOverride(decl);
         if (ret)
           std::cout << "Passed return type override\n";
-        ret = ret && checkProtectedMethodOverride(decl);
+        ret = ret && checkProtectedMethodOverride(decl, rootPackage);
         if (ret)
           std::cout << "Passed protected override\n";
         ret = ret && checkFinalMethodOverride(decl, rootPackage);
