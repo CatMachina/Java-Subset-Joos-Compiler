@@ -282,9 +282,7 @@ public:
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 
   // WARNING - ONLY USE FOR java.lang.Object
-  void clearSuperClasses() {
-    superClasses.clear();
-  }
+  void clearSuperClasses() { superClasses.clear(); }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {
@@ -429,7 +427,14 @@ public:
     for (const auto &param : params) {
       if (!first)
         signature += ", ";
-      signature += param->getType()->toString();
+      
+      std::string param_type = param->getType()->toString();
+      size_t pos = param_type.find_last_of('.');
+      if (pos != std::string::npos) {
+        param_type = param_type.substr(pos + 1);
+      }
+
+      signature += param_type;
       first = false;
     }
     signature += ")";

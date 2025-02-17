@@ -20,28 +20,21 @@ class HierarchyCheck {
   // Clear object of superclass of itself
   void resolveJavaLangObject() {
     auto javaPackageVariant = rootPackage->getChild("java");
-    if
-    (!std::holds_alternative<std::shared_ptr<Package>>(javaPackageVariant))
-    {
+    if (!std::holds_alternative<std::shared_ptr<Package>>(javaPackageVariant)) {
       std::cerr << "ERROR: Could not find java package\n";
       return;
     }
-    auto javaPackage =
-    std::get<std::shared_ptr<Package>>(javaPackageVariant);
+    auto javaPackage = std::get<std::shared_ptr<Package>>(javaPackageVariant);
 
     auto langPackageVariant = javaPackage->getChild("lang");
-    if
-    (!std::holds_alternative<std::shared_ptr<Package>>(langPackageVariant))
-    {
+    if (!std::holds_alternative<std::shared_ptr<Package>>(langPackageVariant)) {
       std::cerr << "ERROR: Could not find java.lang package\n";
       return;
     }
-    auto langPackage =
-    std::get<std::shared_ptr<Package>>(langPackageVariant);
+    auto langPackage = std::get<std::shared_ptr<Package>>(langPackageVariant);
 
     auto objectDeclVariant = langPackage->getChild("Object");
-    if
-    (!std::holds_alternative<std::shared_ptr<Decl>>(objectDeclVariant)) {
+    if (!std::holds_alternative<std::shared_ptr<Decl>>(objectDeclVariant)) {
       std::cerr << "ERROR: Could not find java.lang.Object\n";
       return;
     }
@@ -61,10 +54,10 @@ class HierarchyCheck {
     auto objectAstDecl =
         std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
     if (!objectAstDecl) {
-      std::cerr << "ERROR: Failed to cast Object decl to AST ClassDecl\n"; 
+      std::cerr << "ERROR: Failed to cast Object decl to AST ClassDecl\n";
       return;
     }
-    
+
     objectAstDecl->clearSuperClasses();
   }
 
@@ -239,9 +232,9 @@ class HierarchyCheck {
     return true;
   }
 
-  std::string getSafeReturnType(std::shared_ptr<parsetree::ast::MethodDecl> method)
-  {
-    if(!method->getReturnType())
+  std::string
+  getSafeReturnType(std::shared_ptr<parsetree::ast::MethodDecl> method) {
+    if (!method->getReturnType())
       return "Void";
     return method->getReturnType()->toString();
   }
@@ -285,7 +278,8 @@ class HierarchyCheck {
         if (!method || method->isConstructor())
           continue;
         std::string signature = method->getSignature();
-        // Some inherited functions have same signature but different return types
+        // Some inherited functions have same signature but different return
+        // types
         if (abstractMethodMap.count(signature) &&
             getSafeReturnType(abstractMethodMap[signature]) !=
                 getSafeReturnType(method))
@@ -349,7 +343,8 @@ class HierarchyCheck {
         abstractMethodMap;
     std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
         methodMap;
-    // Type conflict of same signature, different return type methods in superclasses
+    // Type conflict of same signature, different return type methods in
+    // superclasses
     if (!getInheritedMethods(astNode, abstractMethodMap, methodMap)) {
       return false;
     }
@@ -554,8 +549,7 @@ class HierarchyCheck {
       for (auto &method : classDecl->getMethods()) {
         std::string signature = method->getSignature();
         std::string returnType =
-            method->getReturnType() ? method->getReturnType()->toString() :
-            "";
+            method->getReturnType() ? method->getReturnType()->toString() : "";
 
         std::cout << "DEBUG: Checking method: " << signature << " in class "
                   << classDecl->getName() << "\n";
@@ -570,7 +564,8 @@ class HierarchyCheck {
               continue;
 
             for (auto &superMethod : superClassDecl->getMethods()) {
-              if (!superMethod) continue;
+              if (!superMethod)
+                continue;
               if (superMethod->getSignature() == signature) {
                 std::string superReturnType =
                     superMethod->getReturnType()
@@ -675,44 +670,37 @@ class HierarchyCheck {
       std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superClasses =
           classDecl->getSuperClasses();
 
-      // if (superClasses.size() == 2) {
-      //   std::cout << "DEBUG: No explicit superclass, assigning "
-      //                "java.lang.Object as superclass\n";
-      //   auto objectDecl = resolveJavaLangObject(rootPackage);
-      //   if (!objectDecl) {
-      //     std::cerr << "ERROR: Failed to resolve java.lang.Object\n";
-      //     return true;
-      //   }
-      //   auto objectRefType =
-      //       std::make_shared<parsetree::ast::ReferenceType>(objectDecl);
-      //   superClasses.push_back(objectRefType);
-      // }
-
       for (auto &method : classDecl->getMethods()) {
         std::string signature = method->getSignature();
         std::cout << "DEBUG: Checking method: " << signature << " in class "
                   << classDecl->getName() << "\n";
 
         for (auto &superClass : superClasses) {
-          if (!superClass || !superClass->getResolvedDecl())
+          if (!superClass || !superClass->getResolvedDecl()) {
+            std::cout << "DEBUG: Skipping unresolved superclass\n";
             continue;
+          }
+
           if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
             auto superClassDecl =
                 std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
-            if (!superClassDecl)
+            if (!superClassDecl) {
+              std::cout << "DEBUG: Skipping superclass that is not a class\n";
               continue;
+            }
 
             for (auto &superMethod : superClassDecl->getMethods()) {
               if (!superMethod)
                 continue;
+
               std::cout << "DEBUG: Comparing against superclass method: "
                         << superMethod->getSignature() << "\n";
 
               if (superMethod->getSignature() == signature) {
-
                 bool isSuperMethodFinal =
                     superMethod->getModifiers() &&
                     superMethod->getModifiers()->isFinal();
+
                 if (isSuperMethodFinal) {
                   std::cerr << "Error: Method " << method->getName()
                             << " in class " << classDecl->getName()
@@ -739,31 +727,31 @@ class HierarchyCheck {
         std::shared_ptr<Decl> decl = std::get<std::shared_ptr<Decl>>(child);
         // Order matters!
         bool ret = checkProperExtends(decl);
-        if(ret)
+        if (ret)
           std::cout << "Passed extends\n";
         ret = ret && checkAcyclic(decl);
-        if(ret)
+        if (ret)
           std::cout << "Passed acyclic\n";
         ret = ret && checkDuplicateSignatures(decl);
-        if(ret)
+        if (ret)
           std::cout << "Passed duplicate\n";
         ret = ret && checkInheritence(decl);
-        if(ret)
+        if (ret)
           std::cout << "Passed inheritence\n";
         ret = ret && checkStaticMethodOverride(decl);
-        if(ret)
+        if (ret)
           std::cout << "Passed static override\n";
         ret = ret && checkNonStaticMethodOverride(decl);
-        if(ret)
+        if (ret)
           std::cout << "Passed nonstatic override\n";
         ret = ret && checkMethodReturnTypeOverride(decl);
-        if(ret)
+        if (ret)
           std::cout << "Passed return type override\n";
         ret = ret && checkProtectedMethodOverride(decl);
-        if(ret)
+        if (ret)
           std::cout << "Passed protected override\n";
         ret = ret && checkFinalMethodOverride(decl, rootPackage);
-        if(ret)
+        if (ret)
           std::cout << "Passed final override\n";
         if (!ret)
           return false;
