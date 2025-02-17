@@ -17,57 +17,56 @@ class HierarchyCheck {
     return !!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
   }
 
-  // Get java.lang.object helper
-  // std::shared_ptr<parsetree::ast::Decl>
-  // resolveJavaLangObject(std::shared_ptr<Package> rootPackage) {
-  //   auto javaPackageVariant = rootPackage->getChild("java");
-  //   if
-  //   (!std::holds_alternative<std::shared_ptr<Package>>(javaPackageVariant))
-  //   {
-  //     std::cerr << "ERROR: Could not find java package\n";
-  //     return nullptr;
-  //   }
-  //   auto javaPackage =
-  //   std::get<std::shared_ptr<Package>>(javaPackageVariant);
+  // Clear object of superclass of itself
+  void resolveJavaLangObject() {
+    auto javaPackageVariant = rootPackage->getChild("java");
+    if
+    (!std::holds_alternative<std::shared_ptr<Package>>(javaPackageVariant))
+    {
+      std::cerr << "ERROR: Could not find java package\n";
+      return;
+    }
+    auto javaPackage =
+    std::get<std::shared_ptr<Package>>(javaPackageVariant);
 
-  //   auto langPackageVariant = javaPackage->getChild("lang");
-  //   if
-  //   (!std::holds_alternative<std::shared_ptr<Package>>(langPackageVariant))
-  //   {
-  //     std::cerr << "ERROR: Could not find java.lang package\n";
-  //     return nullptr;
-  //   }
-  //   auto langPackage =
-  //   std::get<std::shared_ptr<Package>>(langPackageVariant);
+    auto langPackageVariant = javaPackage->getChild("lang");
+    if
+    (!std::holds_alternative<std::shared_ptr<Package>>(langPackageVariant))
+    {
+      std::cerr << "ERROR: Could not find java.lang package\n";
+      return;
+    }
+    auto langPackage =
+    std::get<std::shared_ptr<Package>>(langPackageVariant);
 
-  //   auto objectDeclVariant = langPackage->getChild("Object");
-  //   if
-  //   (!std::holds_alternative<std::shared_ptr<Decl>>(objectDeclVariant)) {
-  //     std::cerr << "ERROR: Could not find java.lang.Object\n";
-  //     return nullptr;
-  //   }
+    auto objectDeclVariant = langPackage->getChild("Object");
+    if
+    (!std::holds_alternative<std::shared_ptr<Decl>>(objectDeclVariant)) {
+      std::cerr << "ERROR: Could not find java.lang.Object\n";
+      return;
+    }
 
-  //   auto objectDecl = std::get<std::shared_ptr<Decl>>(objectDeclVariant);
-  //   if (!objectDecl) {
-  //     std::cerr << "ERROR: Object decl is null\n";
-  //     return nullptr;
-  //   }
+    auto objectDecl = std::get<std::shared_ptr<Decl>>(objectDeclVariant);
+    if (!objectDecl) {
+      std::cerr << "ERROR: Object decl is null\n";
+      return;
+    }
 
-  //   auto astNode = objectDecl->getAstNode();
-  //   if (!astNode) {
-  //     std::cerr << "ERROR: Object decl has no AST node\n";
-  //     return nullptr;
-  //   }
+    auto astNode = objectDecl->getAstNode();
+    if (!astNode) {
+      std::cerr << "ERROR: Object decl has no AST node\n";
+      return;
+    }
 
-  //   auto objectAstDecl =
-  //       std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
-  //   if (!objectAstDecl) {
-  //     std::cerr << "ERROR: Failed to cast Object decl to AST
-  //     ClassDecl\n"; return nullptr;
-  //   }
-
-  //   return objectAstDecl;
-  // }
+    auto objectAstDecl =
+        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
+    if (!objectAstDecl) {
+      std::cerr << "ERROR: Failed to cast Object decl to AST ClassDecl\n"; 
+      return;
+    }
+    
+    objectAstDecl->clearSuperClasses();
+  }
 
   // Check acyclic class hierarchy
   bool checkAcyclicHelper(
@@ -374,53 +373,6 @@ class HierarchyCheck {
                        "declared abstract.\n";
           return false;
         }
-      }
-    }
-    return true;
-  }
-
-  bool checkAbstractClass(std::shared_ptr<Decl> decl) {
-    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
-    if (!astNode)
-      return true;
-
-    if (auto classDecl =
-            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
-      bool hasAbstractMethod = false;
-
-      if (!classDecl->getModifiers())
-        return true;
-
-      bool isAbstract =
-          classDecl->getModifiers() && classDecl->getModifiers()->isAbstract();
-
-      for (auto &method : classDecl->getMethods()) {
-        if (method && method->getModifiers() &&
-            method->getModifiers()->isAbstract()) {
-          hasAbstractMethod = true;
-          break;
-        }
-      }
-
-      for (auto &superClass : classDecl->getSuperClasses()) {
-        if (!superClass)
-          continue;
-
-        auto superDecl = superClass->getResolvedDecl();
-        if (!superDecl)
-          continue;
-
-        if (!checkAbstractClass(superDecl)) {
-          hasAbstractMethod = true;
-          break;
-        }
-      }
-
-      if (hasAbstractMethod && !isAbstract) {
-        std::cerr
-            << "Error: Class " << classDecl->getName()
-            << " contains abstract methods but is not declared abstract.\n";
-        return false;
       }
     }
     return true;
@@ -782,15 +734,32 @@ class HierarchyCheck {
         std::shared_ptr<Decl> decl = std::get<std::shared_ptr<Decl>>(child);
         // Order matters!
         bool ret = checkProperExtends(decl);
+        if(ret)
+          std::cout << "Passed extends\n";
         ret = ret && checkAcyclic(decl);
-        // ret = ret && checkDuplicateSignatures(decl);
-        // ret = ret && checkInheritence(decl);
-        // ret = ret && checkAbstractClass(decl);
+        if(ret)
+          std::cout << "Passed acyclic\n";
+        ret = ret && checkDuplicateSignatures(decl);
+        if(ret)
+          std::cout << "Passed duplicate\n";
+        ret = ret && checkInheritence(decl);
+        if(ret)
+          std::cout << "Passed inheritence\n";
         ret = ret && checkStaticMethodOverride(decl);
+        if(ret)
+          std::cout << "Passed static override\n";
         ret = ret && checkNonStaticMethodOverride(decl);
-        // ret = ret && checkMethodReturnTypeOverride(decl);
+        if(ret)
+          std::cout << "Passed nonstatic override\n";
+        ret = ret && checkMethodReturnTypeOverride(decl);
+        if(ret)
+          std::cout << "Passed return type override\n";
         ret = ret && checkProtectedMethodOverride(decl);
+        if(ret)
+          std::cout << "Passed protected override\n";
         ret = ret && checkFinalMethodOverride(decl, rootPackage);
+        if(ret)
+          std::cout << "Passed final override\n";
         if (!ret)
           return false;
       } else if (std::holds_alternative<std::shared_ptr<Package>>(child)) {
@@ -808,6 +777,7 @@ public:
       : rootPackage{rootPackage} {}
 
   bool check() {
+    resolveJavaLangObject();
     // Traverse tree and validate each node
     return traverseTree(rootPackage);
   }

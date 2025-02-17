@@ -280,6 +280,11 @@ public:
   }
 
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
+
+  // WARNING - ONLY USE FOR java.lang.Object
+  void clearSuperClasses() {
+    superClasses.clear();
+  }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {
