@@ -278,6 +278,8 @@ public:
 
     return methods;
   }
+
+  std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {

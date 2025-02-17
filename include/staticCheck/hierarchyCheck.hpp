@@ -17,6 +17,58 @@ class HierarchyCheck {
     return !!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
   }
 
+  // Get java.lang.object helper
+  // std::shared_ptr<parsetree::ast::Decl>
+  // resolveJavaLangObject(std::shared_ptr<Package> rootPackage) {
+  //   auto javaPackageVariant = rootPackage->getChild("java");
+  //   if
+  //   (!std::holds_alternative<std::shared_ptr<Package>>(javaPackageVariant))
+  //   {
+  //     std::cerr << "ERROR: Could not find java package\n";
+  //     return nullptr;
+  //   }
+  //   auto javaPackage =
+  //   std::get<std::shared_ptr<Package>>(javaPackageVariant);
+
+  //   auto langPackageVariant = javaPackage->getChild("lang");
+  //   if
+  //   (!std::holds_alternative<std::shared_ptr<Package>>(langPackageVariant))
+  //   {
+  //     std::cerr << "ERROR: Could not find java.lang package\n";
+  //     return nullptr;
+  //   }
+  //   auto langPackage =
+  //   std::get<std::shared_ptr<Package>>(langPackageVariant);
+
+  //   auto objectDeclVariant = langPackage->getChild("Object");
+  //   if
+  //   (!std::holds_alternative<std::shared_ptr<Decl>>(objectDeclVariant)) {
+  //     std::cerr << "ERROR: Could not find java.lang.Object\n";
+  //     return nullptr;
+  //   }
+
+  //   auto objectDecl = std::get<std::shared_ptr<Decl>>(objectDeclVariant);
+  //   if (!objectDecl) {
+  //     std::cerr << "ERROR: Object decl is null\n";
+  //     return nullptr;
+  //   }
+
+  //   auto astNode = objectDecl->getAstNode();
+  //   if (!astNode) {
+  //     std::cerr << "ERROR: Object decl has no AST node\n";
+  //     return nullptr;
+  //   }
+
+  //   auto objectAstDecl =
+  //       std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
+  //   if (!objectAstDecl) {
+  //     std::cerr << "ERROR: Failed to cast Object decl to AST
+  //     ClassDecl\n"; return nullptr;
+  //   }
+
+  //   return objectAstDecl;
+  // }
+
   // Check acyclic class hierarchy
   bool checkAcyclicHelper(
       std::shared_ptr<parsetree::ast::Decl> decl,
@@ -199,69 +251,86 @@ class HierarchyCheck {
     if (auto classDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
       for (auto &superInterface : classDecl->getInterfaces()) {
-        if(!superInterface || !superInterface->getResolvedDecl() || !superInterface->getResolvedDecl()->getAstNode())
+        if (!superInterface || !superInterface->getResolvedDecl() ||
+            !superInterface->getResolvedDecl()->getAstNode())
           continue;
         auto superInterfaceDecl =
-            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(superInterface->getResolvedDecl()->getAstNode());
-        if(superInterfaceDecl && !getInheritedMethods(superInterfaceDecl, abstractMethodMap, methodMap))
+            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                superInterface->getResolvedDecl()->getAstNode());
+        if (superInterfaceDecl &&
+            !getInheritedMethods(superInterfaceDecl, abstractMethodMap,
+                                 methodMap))
           return false;
       }
       for (auto &superClass : classDecl->getSuperClasses()) {
-        if (!superClass || !superClass->getResolvedDecl() || !superClass->getResolvedDecl()->getAstNode())
+        if (!superClass || !superClass->getResolvedDecl() ||
+            !superClass->getResolvedDecl()->getAstNode())
           continue;
         auto superClassDecl =
-            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superClass->getResolvedDecl()->getAstNode());
-        if(superClass && !getInheritedMethods(superClassDecl, abstractMethodMap, methodMap))
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+                superClass->getResolvedDecl()->getAstNode());
+        if (superClass &&
+            !getInheritedMethods(superClassDecl, abstractMethodMap, methodMap))
           return false;
       }
       // Resolve current interface's abstract methods
-      for (auto &method : classDecl->getMethods())
-      {
-        if(!method)
+      for (auto &method : classDecl->getMethods()) {
+        if (!method)
           continue;
         std::string signature = method->getSignature();
-        // Some inherited functions have same signature but different return types
-        if (abstractMethodMap.count(signature) && abstractMethodMap[signature]->getReturnType()->toString() != method->getReturnType()->toString())
+        // Some inherited functions have same signature but different return
+        // types
+        if (abstractMethodMap.count(signature) &&
+            abstractMethodMap[signature]->getReturnType()->toString() !=
+                method->getReturnType()->toString())
           return false;
-        if (methodMap.count(signature) && methodMap[signature]->getReturnType()->toString() != method->getReturnType()->toString())
+        if (methodMap.count(signature) &&
+            methodMap[signature]->getReturnType()->toString() !=
+                method->getReturnType()->toString())
           return false;
-        // If same signature and return, don't insert; otherwise not present, so insert
-        if (method->getModifiers() && method->getModifiers()->isAbstract() && !abstractMethodMap.count(signature))
-        {
+        // If same signature and return, don't insert; otherwise not present, so
+        // insert
+        if (method->getModifiers() && method->getModifiers()->isAbstract() &&
+            !abstractMethodMap.count(signature)) {
           abstractMethodMap[signature] = method;
-        }
-        else if (!methodMap.count(signature) && !method->isConstructor()) {
+        } else if (!methodMap.count(signature) && !method->isConstructor()) {
           methodMap[signature] = method;
         }
       }
-    }
-    else if (auto interfaceDecl =
-                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(astNode))
-    {
+    } else if (auto interfaceDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                       astNode)) {
       // Get inherited abstract methods
-      for (auto &superInterface : interfaceDecl->getInterfaces())
-      {
-        if (!superInterface || !superInterface->getResolvedDecl() || !superInterface->getResolvedDecl()->getAstNode())
+      for (auto &superInterface : interfaceDecl->getInterfaces()) {
+        if (!superInterface || !superInterface->getResolvedDecl() ||
+            !superInterface->getResolvedDecl()->getAstNode())
           continue;
         auto superInterfaceDecl =
-            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(superInterface);
-        if(superInterface && !getInheritedMethods(superInterfaceDecl, abstractMethodMap, methodMap))
+            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                superInterface);
+        if (superInterface &&
+            !getInheritedMethods(superInterfaceDecl, abstractMethodMap,
+                                 methodMap))
           return false;
       }
       // Resolve current interface's abstract methods
-      for (auto &method : interfaceDecl->getMethods())
-      {
-        if(!method)
+      for (auto &method : interfaceDecl->getMethods()) {
+        if (!method)
           continue;
         std::string signature = method->getSignature();
-        // Some inherited functions have same signature but different return types
-        if (abstractMethodMap.count(signature) && abstractMethodMap[signature]->getReturnType()->toString() != method->getReturnType()->toString()) 
+        // Some inherited functions have same signature but different return
+        // types
+        if (abstractMethodMap.count(signature) &&
+            abstractMethodMap[signature]->getReturnType()->toString() !=
+                method->getReturnType()->toString())
           return false;
-        if (methodMap.count(signature) && methodMap[signature]->getReturnType()->toString() != method->getReturnType()->toString())
+        if (methodMap.count(signature) &&
+            methodMap[signature]->getReturnType()->toString() !=
+                method->getReturnType()->toString())
           return false;
-        // If same signature and return, don't insert; otherwise not present, so insert
-        if (!abstractMethodMap.count(signature))
-        {
+        // If same signature and return, don't insert; otherwise not present, so
+        // insert
+        if (!abstractMethodMap.count(signature)) {
           abstractMethodMap[signature] = method;
         }
       }
@@ -269,30 +338,28 @@ class HierarchyCheck {
     return true;
   }
 
-  
-
   bool checkInheritence(std::shared_ptr<Decl> decl) {
     std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
     std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
         abstractMethodMap;
     std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
         methodMap;
-    // Type conflict of same signature, different return type methods in superclasses
-    if(!getInheritedMethods(astNode, abstractMethodMap, methodMap)) {
+    // Type conflict of same signature, different return type methods in
+    // superclasses
+    if (!getInheritedMethods(astNode, abstractMethodMap, methodMap)) {
       return false;
     }
 
     // Check for abstract or unimplemented abstract methods
     if (auto classDecl =
-            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode))
-    {
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
       // If abstract, then don't continue checking
-      if(classDecl->getModifiers()->isAbstract())
+      if (classDecl->getModifiers()->isAbstract())
         return true;
 
       // Check for abstract methods
-      for(auto &method : classDecl->getMethods()) {
-        if(method->getModifiers()->isAbstract()) {
+      for (auto &method : classDecl->getMethods()) {
+        if (method->getModifiers()->isAbstract()) {
           std::cerr
               << "Error: Class " << classDecl->getName()
               << " contains abstract methods but is not declared abstract.\n";
@@ -300,13 +367,405 @@ class HierarchyCheck {
         }
       }
 
-      for (auto &[signature, methodDecl] : abstractMethodMap)
-      {
-        if(!methodMap.count(signature)) {
-          std::cerr
-              << "Error: Class " << classDecl->getName()
-              << " inherits an unimplemented abstract method but is not declared abstract.\n";
+      for (auto &[signature, methodDecl] : abstractMethodMap) {
+        if (!methodMap.count(signature)) {
+          std::cerr << "Error: Class " << classDecl->getName()
+                    << " inherits an unimplemented abstract method but is not "
+                       "declared abstract.\n";
           return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  bool checkAbstractClass(std::shared_ptr<Decl> decl) {
+    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
+    if (!astNode)
+      return true;
+
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      bool hasAbstractMethod = false;
+
+      if (!classDecl->getModifiers())
+        return true;
+
+      bool isAbstract =
+          classDecl->getModifiers() && classDecl->getModifiers()->isAbstract();
+
+      for (auto &method : classDecl->getMethods()) {
+        if (method && method->getModifiers() &&
+            method->getModifiers()->isAbstract()) {
+          hasAbstractMethod = true;
+          break;
+        }
+      }
+
+      for (auto &superClass : classDecl->getSuperClasses()) {
+        if (!superClass)
+          continue;
+
+        auto superDecl = superClass->getResolvedDecl();
+        if (!superDecl)
+          continue;
+
+        if (!checkAbstractClass(superDecl)) {
+          hasAbstractMethod = true;
+          break;
+        }
+      }
+
+      if (hasAbstractMethod && !isAbstract) {
+        std::cerr
+            << "Error: Class " << classDecl->getName()
+            << " contains abstract methods but is not declared abstract.\n";
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool checkStaticMethodOverride(std::shared_ptr<Decl> decl) {
+    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
+
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      for (auto &method : classDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        bool isMethodStatic =
+            method->getModifiers() && method->getModifiers()->isStatic();
+
+        for (auto &superClass : classDecl->getSuperClasses()) {
+          if (!superClass)
+            continue;
+          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+            auto superClassDecl =
+                std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
+            if (!superClassDecl)
+              continue;
+
+            std::cout << superClassDecl->getMethods().size() << std::endl;
+
+            for (auto &superMethod : superClassDecl->getMethods()) {
+              std::cout << superMethod->getSignature() << " " << signature
+                        << std::endl;
+              if (superMethod->getSignature() == signature) {
+                bool isSuperMethodStatic =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isStatic();
+                if (isSuperMethodStatic && !isMethodStatic) {
+                  std::cerr << "Error: Non-static method " << method->getName()
+                            << " in class " << classDecl->getName()
+                            << " cannot override static method from superclass "
+                            << superClassDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    } else if (auto interfaceDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                       astNode)) {
+      for (auto &method : interfaceDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        bool isMethodStatic =
+            method->getModifiers() && method->getModifiers()->isStatic();
+
+        for (auto &superInterface : interfaceDecl->getInterfaces()) {
+          if (!superInterface)
+            continue;
+          if (auto superDecl =
+                  superInterface->getResolvedDecl()->getAstNode()) {
+            auto superInterfaceDecl =
+                std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                    superDecl);
+            if (!superInterfaceDecl)
+              continue;
+
+            for (auto &superMethod : superInterfaceDecl->getMethods()) {
+              if (superMethod->getSignature() == signature) {
+                bool isSuperMethodStatic =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isStatic();
+                if (isSuperMethodStatic && !isMethodStatic) {
+                  std::cerr
+                      << "Error: Non-static method " << method->getName()
+                      << " in interface " << interfaceDecl->getName()
+                      << " cannot override static method from superinterface "
+                      << superInterfaceDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  bool checkNonStaticMethodOverride(std::shared_ptr<Decl> decl) {
+    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
+    if (!astNode)
+      return true;
+
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      for (auto &method : classDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        bool isMethodStatic =
+            method->getModifiers() && method->getModifiers()->isStatic();
+
+        for (auto &superClass : classDecl->getSuperClasses()) {
+          if (!superClass)
+            continue;
+          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+            auto superClassDecl =
+                std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
+            if (!superClassDecl)
+              continue;
+
+            for (auto &superMethod : superClassDecl->getMethods()) {
+              if (superMethod->getSignature() == signature) {
+                bool isSuperMethodStatic =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isStatic();
+                if (!isSuperMethodStatic && isMethodStatic) {
+                  std::cerr
+                      << "Error: Static method " << method->getName()
+                      << " in class " << classDecl->getName()
+                      << " cannot override non-static method from superclass "
+                      << superClassDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    } else if (auto interfaceDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                       astNode)) {
+      for (auto &method : interfaceDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        bool isMethodStatic =
+            method->getModifiers() && method->getModifiers()->isStatic();
+
+        for (auto &superInterface : interfaceDecl->getInterfaces()) {
+          if (!superInterface)
+            continue;
+          if (auto superDecl =
+                  superInterface->getResolvedDecl()->getAstNode()) {
+            auto superInterfaceDecl =
+                std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                    superDecl);
+            if (!superInterfaceDecl)
+              continue;
+
+            for (auto &superMethod : superInterfaceDecl->getMethods()) {
+              if (superMethod->getSignature() == signature) {
+                bool isSuperMethodStatic =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isStatic();
+                if (!isSuperMethodStatic && isMethodStatic) {
+                  std::cerr << "Error: Static method " << method->getName()
+                            << " in interface " << interfaceDecl->getName()
+                            << " cannot override non-static method from "
+                               "superinterface "
+                            << superInterfaceDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  bool checkMethodReturnTypeOverride(std::shared_ptr<Decl> decl) {
+    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
+    if (!astNode)
+      return true;
+
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      for (auto &method : classDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        std::string returnType =
+            method->getReturnType() ? method->getReturnType()->toString() :
+            "";
+
+        std::cout << "DEBUG: Checking method: " << signature << " in class "
+                  << classDecl->getName() << "\n";
+
+        for (auto &superClass : classDecl->getSuperClasses()) {
+          if (!superClass)
+            continue;
+          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+            auto superClassDecl =
+                std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
+            if (!superClassDecl)
+              continue;
+
+            for (auto &superMethod : superClassDecl->getMethods()) {
+              if (!superMethod) continue;
+              if (superMethod->getSignature() == signature) {
+                std::string superReturnType =
+                    superMethod->getReturnType()
+                        ? superMethod->getReturnType()->toString()
+                        : "";
+                if (superReturnType != returnType) {
+                  std::cerr << "Error: Method " << method->getName()
+                            << " in class " << classDecl->getName()
+                            << " overrides a method with a different return "
+                               "type from superclass "
+                            << superClassDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  bool checkProtectedMethodOverride(std::shared_ptr<Decl> decl) {
+    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
+    if (!astNode)
+      return true;
+
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      for (auto &method : classDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        bool isMethodProtected =
+            method->getModifiers() && method->getModifiers()->isProtected();
+
+        for (auto &superClass : classDecl->getSuperClasses()) {
+          if (!superClass)
+            continue;
+          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+            auto superClassDecl =
+                std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
+            if (!superClassDecl)
+              continue;
+
+            for (auto &superMethod : superClassDecl->getMethods()) {
+              if (superMethod->getSignature() == signature) {
+                bool isSuperMethodPublic =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isPublic();
+                if (isSuperMethodPublic && isMethodProtected) {
+                  std::cerr << "Error: Protected method " << method->getName()
+                            << " in class " << classDecl->getName()
+                            << " cannot override public method from superclass "
+                            << superClassDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+
+        for (auto &superInterface : classDecl->getInterfaces()) {
+          if (!superInterface)
+            continue;
+
+          if (auto superDecl =
+                  superInterface->getResolvedDecl()->getAstNode()) {
+            auto superInterfaceDecl =
+                std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                    superDecl);
+            if (!superInterfaceDecl)
+              continue;
+
+            for (auto &superMethod : superInterfaceDecl->getMethods()) {
+              if (superMethod->getSignature() == signature) {
+                bool isSuperMethodPublic =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isPublic();
+                if (isSuperMethodPublic && isMethodProtected) {
+                  std::cerr << "Error: Protected method " << method->getName()
+                            << " in class " << classDecl->getName()
+                            << " cannot override public method from interface "
+                            << superInterfaceDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  bool checkFinalMethodOverride(std::shared_ptr<Decl> decl,
+                                std::shared_ptr<Package> rootPackage) {
+    std::shared_ptr<parsetree::ast::Decl> astNode = decl->getAstNode();
+    if (!astNode)
+      return true;
+
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
+      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> superClasses =
+          classDecl->getSuperClasses();
+
+      // if (superClasses.size() == 2) {
+      //   std::cout << "DEBUG: No explicit superclass, assigning "
+      //                "java.lang.Object as superclass\n";
+      //   auto objectDecl = resolveJavaLangObject(rootPackage);
+      //   if (!objectDecl) {
+      //     std::cerr << "ERROR: Failed to resolve java.lang.Object\n";
+      //     return true;
+      //   }
+      //   auto objectRefType =
+      //       std::make_shared<parsetree::ast::ReferenceType>(objectDecl);
+      //   superClasses.push_back(objectRefType);
+      // }
+
+      for (auto &method : classDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        std::cout << "DEBUG: Checking method: " << signature << " in class "
+                  << classDecl->getName() << "\n";
+
+        for (auto &superClass : superClasses) {
+          if (!superClass || !superClass->getResolvedDecl())
+            continue;
+          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+            auto superClassDecl =
+                std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
+            if (!superClassDecl)
+              continue;
+
+            for (auto &superMethod : superClassDecl->getMethods()) {
+              if (!superMethod)
+                continue;
+              std::cout << "DEBUG: Comparing against superclass method: "
+                        << superMethod->getSignature() << "\n";
+
+              if (superMethod->getSignature() == signature) {
+
+                bool isSuperMethodFinal =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isFinal();
+                if (isSuperMethodFinal) {
+                  std::cerr << "Error: Method " << method->getName()
+                            << " in class " << classDecl->getName()
+                            << " cannot override final method from superclass "
+                            << superClassDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -324,9 +783,15 @@ class HierarchyCheck {
         // Order matters!
         bool ret = checkProperExtends(decl);
         ret = ret && checkAcyclic(decl);
-        ret = ret && checkDuplicateSignatures(decl);
-        ret = ret && checkInheritence(decl);
-         if (!ret)
+        // ret = ret && checkDuplicateSignatures(decl);
+        // ret = ret && checkInheritence(decl);
+        // ret = ret && checkAbstractClass(decl);
+        ret = ret && checkStaticMethodOverride(decl);
+        ret = ret && checkNonStaticMethodOverride(decl);
+        // ret = ret && checkMethodReturnTypeOverride(decl);
+        ret = ret && checkProtectedMethodOverride(decl);
+        ret = ret && checkFinalMethodOverride(decl, rootPackage);
+        if (!ret)
           return false;
       } else if (std::holds_alternative<std::shared_ptr<Package>>(child)) {
         std::shared_ptr<Package> childPackage =
