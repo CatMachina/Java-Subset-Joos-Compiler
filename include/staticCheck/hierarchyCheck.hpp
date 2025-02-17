@@ -17,6 +17,24 @@ class HierarchyCheck {
     return !!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
   }
 
+  // TODO: fix automatic java.lang.Object inheritance
+  std::vector<std::shared_ptr<parsetree::ast::ClassDecl>>
+  sanitizedSuperClasses(std::shared_ptr<parsetree::ast::ClassDecl> classDecl) {
+    std::vector<std::shared_ptr<parsetree::ast::ClassDecl>> superClasses;
+    for (auto &superClass : classDecl->getSuperClasses()) {
+      if (superClass && superClass->getResolvedDecl() &&
+          superClass->getResolvedDecl()->getAstNode()) {
+        auto astNode = superClass->getResolvedDecl()->getAstNode();
+        std::shared_ptr<parsetree::ast::ClassDecl> superClassDecl =
+            dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
+        if (astNode->getName() != "Object") {
+          superClasses.push_back(superClassDecl);
+        }
+      }
+    }
+    return superClasses;
+  }
+
   // Clear object of superclass of itself
   void resolveJavaLangObject() {
     auto javaPackageVariant = rootPackage->getChild("java");
@@ -288,9 +306,9 @@ class HierarchyCheck {
       std::unordered_map<std::string,
                          std::shared_ptr<parsetree::ast::MethodDecl>>
           &abstractMethodMap,
-      std::unordered_map<std::string,
-                         std::shared_ptr<parsetree::ast::MethodDecl>>
-          &methodMap) {
+      std::unordered_map<
+          std::string, std::shared_ptr<parsetree::ast::MethodDecl>> &methodMap,
+      std::unordered_set<std::string> &implements) {
     if (auto classDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
       for (auto &superInterface : classDecl->getInterfaces()) {
@@ -302,19 +320,12 @@ class HierarchyCheck {
                 superInterface->getResolvedDecl()->getAstNode());
         if (superInterfaceDecl &&
             !getInheritedMethods(superInterfaceDecl, abstractMethodMap,
-                                 methodMap))
+                                 methodMap, implements))
           return false;
       }
-      for (auto &superClass : classDecl->getSuperClasses()) {
-        if (!superClass || !superClass->getResolvedDecl() ||
-            !superClass->getResolvedDecl()->getAstNode())
-          continue;
-        auto superClassDecl =
-            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-                superClass->getResolvedDecl()->getAstNode());
-
-        if (superClassDecl &&
-            !getInheritedMethods(superClassDecl, abstractMethodMap, methodMap))
+      for (auto &superClass : sanitizedSuperClasses(classDecl)) {
+        if (!getInheritedMethods(superClass, abstractMethodMap, methodMap,
+                                 implements))
           return false;
       }
       // Resolve current classes's methods
@@ -332,12 +343,22 @@ class HierarchyCheck {
             getSafeReturnType(methodMap[signature]) !=
                 getSafeReturnType(method))
           return false;
-        // If same signature and return, don't insert; otherwise not present, so
-        if (method->getModifiers() && method->getModifiers()->isAbstract() &&
-            !abstractMethodMap.count(signature)) {
-          abstractMethodMap[signature] = method;
-        } else if (!methodMap.count(signature) && !method->isConstructor()) {
-          methodMap[signature] = method;
+        // Handle abstract method;
+        if (method->getModifiers() && method->getModifiers()->isAbstract()) {
+          // Add to map if not exists yet
+          if (!abstractMethodMap.count(signature))
+            abstractMethodMap[signature] = method;
+          // New abstract declaration means that it needs to be implemented by
+          // child node
+          implements.erase(signature);
+        } else if (!method->isConstructor()) {
+          // Add to map if not exists yet
+          if (!methodMap.count(signature))
+            methodMap[signature] = method;
+          // If abstract signature exists, this method implements it
+          if (abstractMethodMap.count(signature)) {
+            implements.insert(signature);
+          }
         }
       }
     } else if (auto interfaceDecl =
@@ -353,7 +374,7 @@ class HierarchyCheck {
                 superInterface);
         if (superInterface &&
             !getInheritedMethods(superInterfaceDecl, abstractMethodMap,
-                                 methodMap))
+                                 methodMap, implements))
           return false;
       }
       // Resolve current interface's abstract methods
@@ -376,6 +397,9 @@ class HierarchyCheck {
         if (!abstractMethodMap.count(signature)) {
           abstractMethodMap[signature] = method;
         }
+        // New abstract declaration means that it needs to be implemented by
+        // child node
+        implements.erase(signature);
       }
     }
     return true;
@@ -387,9 +411,11 @@ class HierarchyCheck {
         abstractMethodMap;
     std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
         methodMap;
+    std::unordered_set<std::string> implements;
     // Type conflict of same signature, different return type methods in
     // superclasses
-    if (!getInheritedMethods(astNode, abstractMethodMap, methodMap)) {
+    if (!getInheritedMethods(astNode, abstractMethodMap, methodMap,
+                             implements)) {
       return false;
     }
 
@@ -409,9 +435,8 @@ class HierarchyCheck {
           return false;
         }
       }
-
       for (auto &[signature, methodDecl] : abstractMethodMap) {
-        if (!methodMap.count(signature)) {
+        if (!implements.count(signature)) {
           std::cerr << "Error: Class " << classDecl->getName()
                     << " inherits an unimplemented abstract method but is not "
                        "declared abstract.\n";
