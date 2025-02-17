@@ -25,22 +25,6 @@ public:
   getASTs() const {
     return asts;
   }
-  void finalize() {
-    for (const auto &pkg : predefinedPackages) {
-      auto packageType = std::make_shared<parsetree::ast::UnresolvedType>();
-      packageType->addIdentifier("java");
-      packageType->addIdentifier(pkg.packageName);
-
-      for (const auto &className : pkg.classes) {
-        auto dummyBody = std::make_shared<parsetree::ast::ClassDecl>(className);
-        auto dummyAST = std::make_shared<parsetree::ast::ProgramDecl>(
-            packageType,
-            std::vector<std::shared_ptr<parsetree::ast::ImportDecl>>(),
-            dummyBody);
-        asts.push_back(dummyAST);
-      }
-    }
-  }
 };
 
 } // namespace parsetree::ast

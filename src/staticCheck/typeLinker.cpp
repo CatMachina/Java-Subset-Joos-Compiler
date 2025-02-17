@@ -16,11 +16,6 @@ void TypeLinker::buildSymbolTable() {
 
     // Traverse the package name to find the leaf package.
     std::shared_ptr<Package> currentPackage = rootPackage;
-    // FIXME: hack on system import duplicate check
-    bool isSystem = false;
-    if (package->getIdentifiers().size() != 0) {
-      isSystem = (package->getIdentifiers()[0] == "java");
-    }
     for (const auto &id : package->getIdentifiers()) {
       // If the subpackage name is not in the symbol table, add it
       // and continue to the next one.
@@ -54,18 +49,7 @@ void TypeLinker::buildSymbolTable() {
     }
     if (currentPackage->children.find(body->getName()) !=
         currentPackage->children.end()) {
-      if (!isSystem) {
-        throw std::runtime_error("Duplicate declaration at " + body->getName());
-      } else {
-        // duplicat import of system func
-        // only add the non-dummy one
-        // FIXME: hack
-        if (!body->isDummy()) {
-          currentPackage->children[body->getName()] =
-              std::make_shared<Body>(body);
-          continue;
-        }
-      }
+      throw std::runtime_error("Duplicate declaration at " + body->getName());
     }
     // add to symbol table
     currentPackage->children[body->getName()] = std::make_shared<Body>(body);
@@ -81,8 +65,6 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
       continue;
 
     // Case: Type
-    // Would this be ReferenceType?
-    // it should be.
     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
       // if not resolved, resolve.
       if (!type->isResolved()) {
@@ -129,7 +111,7 @@ void TypeLinker::initContext(
   5. All Decl from the Current AST
   */
 
-  // Step 1:
+  // Step 1: Import-on-Demand Declarations (import pkg.*)
   for (auto impt : node->getImports()) {
     if (!impt->hasStar())
       continue; // not on demand
@@ -239,10 +221,6 @@ void TypeLinker::initContext(
   }
 }
 
-// Question: Doesn't have to be an import, it just finds the package object
-// given the AST node. Am I right? Well what i wanted was a function that expect
-// an unresolved import and resolve it to a package or a decl. package if on
-// demand. result returned from symbol table
 Package::packageChild TypeLinker::resolveImport(
     std::shared_ptr<parsetree::ast::UnresolvedType> node) {
   // Base cases
@@ -253,9 +231,16 @@ Package::packageChild TypeLinker::resolveImport(
   if (node->getIdentifiers().size() == 0) {
     return rootPackage->children[DEFAULT_PACKAGE_NAME];
   }
+  return resolveImport(node->getIdentifiers());
+}
 
+Package::packageChild
+TypeLinker::resolveImport(const std::vector<std::string> &identifiers) {
+  if (identifiers.size() == 0) {
+    return rootPackage->children[DEFAULT_PACKAGE_NAME];
+  }
   Package::packageChild currentPkg = rootPackage;
-  for (auto &id : node->getIdentifiers()) {
+  for (auto &id : identifiers) {
     if (std::holds_alternative<std::shared_ptr<Decl>>(currentPkg)) {
       throw std::runtime_error("internal node should not be decl");
     }
@@ -325,148 +310,5 @@ TypeLinker::resolveSimpleName(const std::string &simpleName) {
   return context.find(simpleName) != context.end() ? context[simpleName]
                                                    : nullptr;
 }
-
-/*
-Qualified names always have . in their names (e.g. a.b.c.d).
-We simply traverse the sequence of names listed starting from the top-level
-name.
-Remark 10.2. If there is a usage c.d and a single-type import a.b.c,
-then a.b.c.d will never be resolved to c.d.
-*/
-// std::shared_ptr<Decl> TypeLinker::resolveQualifiedName(
-//     std::shared_ptr<parsetree::ast::QualifiedIdentifier> qualifiedIdentifier)
-//     {
-//   for (auto &id : qualifiedIdentifier->getIdentifiers()) {
-//     // TODO
-//   }
-// }
-
-// //////////////////// Declaration Visitors ////////////////////
-
-// void TypeLinker::visitProgramDecl(const
-// std::shared_ptr<parsetree::ast::ProgramDecl> node) {
-//   enterScope();
-//   visitPackageDecl();
-//   for (auto import : imports) {
-//     visitImportDecl(import);
-//   }
-//   visitCodeBody();
-//   leaveScope()
-// }
-
-// void TypeLinker::visitCodeBody(const
-// std::shared_ptr<parsetree::ast::CodeBody> node) {
-//   switch (node->type()) {
-//     case ProgramDecl:
-//       visitProgramDecl();
-//       break;
-//     case ClassDecl:
-//       visitPackageDecl();
-//       break;
-//     case InterfaceDecl:
-//       visitInterfaceDecl();
-//       break;
-//     default:
-//       // not a codebody
-//   }
-// }
-
-// void TypeLinker::visitPackageDecl(const
-// std::shared_ptr<parsetree::ast::PackageDecl> node) {
-//   enterScope();
-//   registerDecl(node);
-//   leaveScope();
-// }
-
-// void TypeLinker::visitImportDecl(const
-// std::shared_ptr<parsetree::ast::ImportDecl> node) {
-//   resolve(node);
-// }
-
-// void TypeLinker::visitClassDecl(const
-// std::shared_ptr<parsetree::ast::ClassDecl> node) {
-//   enterScope();
-//   registerDecl(node);
-//   for (auto decl : classBodyDecls) {
-//     visitDecl();
-//   }
-//   leaveScope();
-// }
-
-// void TypeLinker::visitInterfaceDecl(const
-// std::shared_ptr<parsetree::ast::InterfaceDecl> node) {
-//   enterScope();
-//   registerDecl(node);
-//   for (auto decl : interfaceBodyDecls) {
-//     visitDecl();
-//   }
-//   leaveScope();
-// }
-
-// void TypeLinker::visitMethodDecl(const
-// std::shared_ptr<parsetree::ast::MethodDecl> node) {
-//   enterScope();
-//   registerDecl(node);
-//   for (auto param : params) {
-//      visitVarDecl(param);
-//   }
-//   visitBlock(methodBody);
-//   leaveScope();
-// }
-
-// void TypeLinker::visitFieldDecl(const
-// std::shared_ptr<parsetree::ast::FieldDecl> node) {
-//   registerDecl(node);
-// }
-
-// void TypeLinker::visitVarDecl(const std::shared_ptr<parsetree::ast::VarDecl>
-// node) {
-//   registerDecl(node);
-// }
-
-// //////////////////// Statement Visitors ////////////////////
-
-// void TypeLinker::visitBlock(const std::shared_ptr<parsetree::ast::Block>
-// node) {
-//   enterScope();
-//   for (auto statement : node->getStatements()) {
-//     visitStatement(statement);
-//   }
-//   leaveScope();
-// }
-
-// void TypeLinker::visitStatement(const std::shared_ptr<parsetree::ast::Stmt>
-// node) {
-//   // TODO: Different kinds of statements
-// }
-
-// void TypeLinker::visitDeclStmt(const
-// std::shared_ptr<parsetree::ast::DeclStmt> node) {
-//   visitVarDecl(node->getDecl());
-// }
-
-// //////////////////// Expression Visitors ////////////////////
-
-// // TODO
-// void TypeLinker::visitExpression(const std::shared_ptr<parsetree::ast::Expr>
-// node) {
-//   auto exprNodes = node->getExprNodes();
-//   auto lastExprNode = node->getLastExprNode();
-//   for (auto exprNode : exprNodes) {
-//     if (auto typeNode =
-//     std::dynamic_pointer_cast<parsetree::ast::TypeNode>(exprNode)) {
-//       // resolve
-//     } else if (auto arrayType =
-//     std::dynamic_pointer_cast<ast::ArrayType>(exprNode)) {
-//       // resolve
-//     } else if (auto qid =
-//     std::dynamic_pointer_cast<QualifiedIdentifier>(exprNode)) {
-//       // resolve
-//     } else if (auto memberName =
-//     std::dynamic_pointer_cast<MemberName>(exprNode)) {
-//       // resolve
-//     }
-//   }
-// }
 
 } // namespace static_check

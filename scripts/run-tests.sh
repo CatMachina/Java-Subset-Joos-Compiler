@@ -3,6 +3,7 @@
 ASSIGNMENT_ARG=$1
 ASSIGNMENT=${ASSIGNMENT_ARG:="a2"}
 TEST_DIR="/u/cs444/pub/assignment_testcases/$ASSIGNMENT"
+STDLIB="/u/cs444/pub/stdlib/2.0"
 
 ROOT_DIR="$HOME/cs444/joosc"
 BUILD_DIR="$ROOT_DIR/build"
@@ -36,12 +37,17 @@ ulimit -c 0
 
 for testcase in "$TEST_DIR"/*; do
     testcase_name=$(basename "$testcase")
+    
+    # Expand standard library files
+    mapfile -t stdlib_files < <(find "$STDLIB" -type f -name "*.java")
+    
     if [ -f "$testcase" ]; then
-        # Single file test case
-        files_to_test=("$testcase")
+        # Single file test case - include standard library
+        files_to_test=("$testcase" "${stdlib_files[@]}")
     elif [ -d "$testcase" ]; then
-        # Directory test case - include all .java files
-        mapfile -t files_to_test < <(find "$testcase" -type f -name "*.java")
+        # Directory test case - include all .java files from the directory and standard library
+        mapfile -t testcase_files < <(find "$testcase" -type f -name "*.java")
+        files_to_test=("${testcase_files[@]}" "${stdlib_files[@]}")
     else
         continue
     fi

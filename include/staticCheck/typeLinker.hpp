@@ -28,6 +28,9 @@ public:
   Package::packageChild
   resolveImport(std::shared_ptr<parsetree::ast::UnresolvedType> node);
 
+  Package::packageChild
+  resolveImport(const std::vector<std::string> &identifiers);
+
   void resolveType(std::shared_ptr<parsetree::ast::Type> type);
 
   Package::packageChild resolveSimpleName(const std::string &simpleName);
@@ -43,12 +46,6 @@ private:
   std::shared_ptr<Package> rootPackage; // no decl
   std::unordered_map<std::string, Package::packageChild>
       context; // for each AST
-
-  // Global env? (package - classes/interfaces - fields/methods - variables)
-  // std::unique_ptr<GlobalEnvironment> globalEnv;
-
-  // void enterScope() { envs.push_back(std::make_shared<Environment>()); };
-  // void leaveScope() { envs.pop_back(); };
 
   static const std::string DEFAULT_PACKAGE_NAME;
 };

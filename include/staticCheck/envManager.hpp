@@ -9,7 +9,7 @@ namespace static_check {
 class EnvManager {
 public:
   EnvManager() {
-    // everything inherites java.lang.Object
+    // everything inherits java.lang.Object
     objectType = BuildUnresolvedType();
     objectType->addIdentifier("java");
     objectType->addIdentifier("lang");

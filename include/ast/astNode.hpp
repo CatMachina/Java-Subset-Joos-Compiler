@@ -38,13 +38,10 @@ public:
 
 class Decl : public AstNode {
   std::string name;
-  bool isDummy_ = false;
 
 public:
-  explicit Decl(std::string name, bool isDummy = false)
-      : name{name}, isDummy_{isDummy} {}
+  explicit Decl(std::string name) : name{name} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
-  [[nodiscard]] bool isDummy() const noexcept { return isDummy_; }
 };
 
 class CodeBody : public AstNode {};
@@ -128,6 +125,8 @@ public:
     }
     this->resolvedDecl = resolvedDecl;
   }
+
+  std::shared_ptr<static_check::Decl> getResolvedDecl() { return resolvedDecl; }
 };
 
 class UnresolvedType : public ReferenceType {
@@ -236,8 +235,7 @@ public:
             std::vector<std::shared_ptr<ReferenceType>> interfaces,
             std::vector<std::shared_ptr<Decl>> classBodyDecls);
 
-  // Hack
-  ClassDecl(std::string name) : Decl{name, true} {}
+  ClassDecl(std::string name) : Decl{name} {}
 
   std::ostream &print(std::ostream &os) const;
 
@@ -254,6 +252,37 @@ public:
     }
     return children;
   }
+
+  std::vector<std::shared_ptr<ReferenceType>> getSuperClasses() {
+    return superClasses;
+  }
+
+  std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
+    return interfaces;
+  }
+
+  std::vector<std::shared_ptr<Decl>> getClassMembers() {
+    return classBodyDecls;
+  }
+
+  std::shared_ptr<Modifiers> getModifiers() { return modifiers; }
+
+  std::vector<std::shared_ptr<MethodDecl>> getMethods() {
+    std::vector<std::shared_ptr<MethodDecl>> methods;
+
+    for (const auto &decl : classBodyDecls) {
+      if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+        methods.push_back(methodDecl);
+      }
+    }
+
+    return methods;
+  }
+
+  std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
+
+  // WARNING - ONLY USE FOR java.lang.Object
+  void clearSuperClasses() { superClasses.clear(); }
 };
 
 class InterfaceDecl : public CodeBody, public Decl {
@@ -280,47 +309,21 @@ public:
     }
     return children;
   }
-};
 
-class MethodDecl : public Decl {
-  std::shared_ptr<Modifiers> modifiers;
-  std::shared_ptr<Type> returnType;
-  std::vector<std::shared_ptr<VarDecl>> params;
-  std::vector<std::shared_ptr<VarDecl>> localDecls;
-  std::shared_ptr<Block> methodBody;
-  bool isConstructor_;
+  std::vector<std::shared_ptr<MethodDecl>> getMethods() {
+    std::vector<std::shared_ptr<MethodDecl>> methods;
 
-  // Check for explicit this() or super() calls
-  void checkSuperThisCalls(std::shared_ptr<Block> block) const;
+    for (const auto &decl : interfaceBodyDecls) {
+      if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+        methods.push_back(methodDecl);
+      }
+    }
 
-public:
-  MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
-             std::shared_ptr<Type> returnType,
-             std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
-             std::shared_ptr<Block> methodBody);
-
-  template <std::ranges::range T>
-  requires std::same_as<std::ranges::range_value_t<T>, std::shared_ptr<VarDecl>>
-  void addDecls(T decls) {
-    localDecls.reserve(decls.size());
-    localDecls.insert(localDecls.end(), decls.begin(), decls.end());
+    return methods;
   }
 
-  std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
-  bool isConstructor() const { return isConstructor_; }
-  bool hasBody() const { return methodBody != nullptr; };
-
-  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::vector<std::shared_ptr<AstNode>> children;
-    children.push_back(std::dynamic_pointer_cast<AstNode>(returnType));
-    for (const auto &node : params) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : localDecls) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    children.push_back(std::dynamic_pointer_cast<AstNode>(methodBody));
-    return children;
+  std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
+    return interfaces;
   }
 };
 
@@ -375,6 +378,70 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(type));
     return children;
   }
+};
+
+class MethodDecl : public Decl {
+  std::shared_ptr<Modifiers> modifiers;
+  std::shared_ptr<Type> returnType;
+  std::vector<std::shared_ptr<VarDecl>> params;
+  std::vector<std::shared_ptr<VarDecl>> localDecls;
+  std::shared_ptr<Block> methodBody;
+  bool isConstructor_;
+
+  // Check for explicit this() or super() calls
+  void checkSuperThisCalls(std::shared_ptr<Block> block) const;
+
+public:
+  MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
+             std::shared_ptr<Type> returnType,
+             std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
+             std::shared_ptr<Block> methodBody);
+
+  template <std::ranges::range T>
+  requires std::same_as<std::ranges::range_value_t<T>, std::shared_ptr<VarDecl>>
+  void addDecls(T decls) {
+    localDecls.reserve(decls.size());
+    localDecls.insert(localDecls.end(), decls.begin(), decls.end());
+  }
+
+  std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
+  bool isConstructor() const { return isConstructor_; }
+  bool hasBody() const { return methodBody != nullptr; };
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    children.push_back(std::dynamic_pointer_cast<AstNode>(returnType));
+    for (const auto &node : params) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : localDecls) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    children.push_back(std::dynamic_pointer_cast<AstNode>(methodBody));
+    return children;
+  }
+
+  std::string getSignature() const {
+    std::string signature = getName() + "(";
+    bool first = true;
+    for (const auto &param : params) {
+      if (!first)
+        signature += ", ";
+
+      std::string param_type = param->getType()->toString();
+      size_t pos = param_type.find_last_of('.');
+      if (pos != std::string::npos) {
+        param_type = param_type.substr(pos + 1);
+      }
+
+      signature += param_type;
+      first = false;
+    }
+    signature += ")";
+    return signature;
+  }
+
+  std::shared_ptr<Type> getReturnType() { return returnType; }
 };
 
 // Statements /////////////////////////////////////////////////////////////
