@@ -365,14 +365,15 @@ class HierarchyCheck {
                    std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                        astNode)) {
       // Get inherited abstract methods
-      for (auto &superInterface : interfaceDecl->getInterfaces()) {
+      for (auto &superInterface : interfaceDecl->getInterfaces())
+      {
         if (!superInterface || !superInterface->getResolvedDecl() ||
             !superInterface->getResolvedDecl()->getAstNode())
           continue;
         auto superInterfaceDecl =
             std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                superInterface);
-        if (superInterface &&
+                superInterface->getResolvedDecl()->getAstNode());
+        if (superInterfaceDecl &&
             !getInheritedMethods(superInterfaceDecl, abstractMethodMap,
                                  methodMap, implements))
           return false;
