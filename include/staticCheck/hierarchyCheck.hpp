@@ -61,6 +61,50 @@ class HierarchyCheck {
     objectAstDecl->clearSuperClasses();
   }
 
+  std::shared_ptr<parsetree::ast::ClassDecl>
+  resolveJavaLangObjectInterfaces(std::shared_ptr<Package> rootPackage) {
+    auto javaPackageVariant = rootPackage->getChild("java");
+    if (!std::holds_alternative<std::shared_ptr<Package>>(javaPackageVariant)) {
+      std::cerr << "ERROR: Could not find java package\n";
+      return nullptr;
+    }
+    auto javaPackage = std::get<std::shared_ptr<Package>>(javaPackageVariant);
+
+    auto langPackageVariant = javaPackage->getChild("lang");
+    if (!std::holds_alternative<std::shared_ptr<Package>>(langPackageVariant)) {
+      std::cerr << "ERROR: Could not find java.lang package\n";
+      return nullptr;
+    }
+    auto langPackage = std::get<std::shared_ptr<Package>>(langPackageVariant);
+
+    auto objectDeclVariant = langPackage->getChild("Object");
+    if (!std::holds_alternative<std::shared_ptr<Decl>>(objectDeclVariant)) {
+      std::cerr << "ERROR: Could not find java.lang.Object\n";
+      return nullptr;
+    }
+
+    auto objectDecl = std::get<std::shared_ptr<Decl>>(objectDeclVariant);
+    if (!objectDecl) {
+      std::cerr << "ERROR: Object decl is null\n";
+      return nullptr;
+    }
+
+    auto astNode = objectDecl->getAstNode();
+    if (!astNode) {
+      std::cerr << "ERROR: Object decl has no AST node\n";
+      return nullptr;
+    }
+
+    auto objectAstDecl =
+        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
+    if (!objectAstDecl) {
+      std::cerr << "ERROR: Failed to cast Object decl to AST ClassDecl\n";
+      return nullptr;
+    }
+
+    return objectAstDecl;
+  }
+
   // Check acyclic class hierarchy
   bool checkAcyclicHelper(
       std::shared_ptr<parsetree::ast::Decl> decl,
@@ -676,36 +720,101 @@ class HierarchyCheck {
                   << classDecl->getName() << "\n";
 
         for (auto &superClass : superClasses) {
-          if (!superClass || !superClass->getResolvedDecl()) {
-            std::cout << "DEBUG: Skipping unresolved superclass\n";
+          if (!superClass || !superClass->getResolvedDecl())
             continue;
-          }
-
           if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
             auto superClassDecl =
                 std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
-            if (!superClassDecl) {
-              std::cout << "DEBUG: Skipping superclass that is not a class\n";
+            if (!superClassDecl)
               continue;
-            }
 
             for (auto &superMethod : superClassDecl->getMethods()) {
               if (!superMethod)
                 continue;
-
               std::cout << "DEBUG: Comparing against superclass method: "
+                        << superMethod->getSignature() << "\n";
+
+              if (superMethod->getSignature() == signature) {
+
+                bool isSuperMethodFinal =
+                    superMethod->getModifiers() &&
+                    superMethod->getModifiers()->isFinal();
+                if (isSuperMethodFinal) {
+                  std::cerr << "Error: Method " << method->getName()
+                            << " in class " << classDecl->getName()
+                            << " cannot override final method from superclass "
+                            << superClassDecl->getName() << "\n";
+                  return false;
+                }
+              }
+            }
+          }
+        }
+      }
+    } else if (auto interfaceDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                       astNode)) {
+      std::vector<std::shared_ptr<parsetree::ast::ReferenceType>>
+          superInterfaces = interfaceDecl->getInterfaces();
+
+      for (auto &method : interfaceDecl->getMethods()) {
+        std::string signature = method->getSignature();
+        std::cout << "DEBUG: Checking method: " << signature << " in interface "
+                  << interfaceDecl->getName() << "\n";
+
+        auto objectDecl = resolveJavaLangObjectInterfaces(rootPackage);
+        if (objectDecl) {
+          for (auto &objectMethod : objectDecl->getMethods()) {
+            if (!objectMethod)
+              continue;
+            if (objectMethod->getSignature() == signature) {
+              bool isObjectMethodFinal =
+                  objectMethod->getModifiers() &&
+                  objectMethod->getModifiers()->isFinal();
+              if (isObjectMethodFinal) {
+                std::cerr
+                    << "Error: Method " << method->getName() << " in interface "
+                    << interfaceDecl->getName()
+                    << " cannot override final method from java.lang.Object\n";
+                return false;
+              }
+            }
+          }
+        }
+
+        for (auto &superInterface : superInterfaces) {
+          if (!superInterface || !superInterface->getResolvedDecl()) {
+            std::cout << "DEBUG: Skipping unresolved superinterface\n";
+            continue;
+          }
+
+          if (auto superDecl =
+                  superInterface->getResolvedDecl()->getAstNode()) {
+            auto superInterfaceDecl =
+                std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                    superDecl);
+            if (!superInterfaceDecl) {
+              std::cout << "DEBUG: Skipping superinterface that is not an "
+                           "interface\n";
+              continue;
+            }
+
+            for (auto &superMethod : superInterfaceDecl->getMethods()) {
+              if (!superMethod)
+                continue;
+              std::cout << "DEBUG: Comparing against superinterface method: "
                         << superMethod->getSignature() << "\n";
 
               if (superMethod->getSignature() == signature) {
                 bool isSuperMethodFinal =
                     superMethod->getModifiers() &&
                     superMethod->getModifiers()->isFinal();
-
                 if (isSuperMethodFinal) {
-                  std::cerr << "Error: Method " << method->getName()
-                            << " in class " << classDecl->getName()
-                            << " cannot override final method from superclass "
-                            << superClassDecl->getName() << "\n";
+                  std::cerr
+                      << "Error: Method " << method->getName()
+                      << " in interface " << interfaceDecl->getName()
+                      << " cannot override final method from superinterface "
+                      << superInterfaceDecl->getName() << "\n";
                   return false;
                 }
               }

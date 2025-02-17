@@ -427,7 +427,7 @@ public:
     for (const auto &param : params) {
       if (!first)
         signature += ", ";
-      
+
       std::string param_type = param->getType()->toString();
       size_t pos = param_type.find_last_of('.');
       if (pos != std::string::npos) {
