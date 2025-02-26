@@ -6,6 +6,10 @@
 
 namespace static_check {
 
+// Q: Do we need this? 
+// I am thinking about decorating AST nodes (storing pointers to Decl objects)
+// Like how we did type linking
+// Or are we having a new implementation?
 class ExprName {
 public:
   enum class Type {
@@ -44,6 +48,7 @@ public:
 
   void resolve() {
     for (auto ast : astManager->getASTs()) {
+      // Q: resolveAST?
       resolveRecursive(ast);
     }
   }
@@ -60,7 +65,8 @@ private:
   std::unique_ptr<parsetree::ast::ASTManager> astManager;
   // hard to reuse envManager? this is my bad of not implementing it nicely
   // std::unique_ptr<EnvManager> envManager;
-
+  // Q: Can we reuse it for local scopes?
+  
   std::shared_ptr<parsetree::ast::ProgramDecl> currentProgramDecl;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
 };
