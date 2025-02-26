@@ -16,6 +16,7 @@
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/typeLinker.hpp"
+#include "staticCheck/nameDisambiguation.hpp"
 
 #include <memory>
 
@@ -140,12 +141,14 @@ int main(int argc, char **argv) {
       astManager->addAST(ast);
     }
 
-    // Second pass: environment (symbol table) building + type linking
+    // environment (symbol table) building + type linking
     static_check::TypeLinker linker{std::move(astManager)};
     std::shared_ptr<static_check::Package> rootPackage =
         linker.getRootPackage();
     rootPackage->printStructure();
     linker.resolve();
+
+    // hierarchy checking
     static_check::HierarchyCheck hierarchyChecker{rootPackage};
     std::cout << "Starting hierarchy check\n";
     if (!hierarchyChecker.check()) {
@@ -153,6 +156,8 @@ int main(int argc, char **argv) {
       return EXIT_ERROR;
     }
     std::cout << "Passed hierarchy check\n";
+    
+    // TODO: name disambiguation
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

@@ -3,7 +3,6 @@
 #include "ast/ast.hpp"
 #include "environment.hpp"
 #include <memory>
-#include <stack>
 
 namespace static_check {
 
@@ -41,7 +40,6 @@ private:
   // Second pass recursive helper
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> ast);
 
-  // std::vector<std::shared_ptr<Environment>> envs;
   std::unique_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<Package> rootPackage; // no decl
   std::unordered_map<std::string, Package::packageChild>
