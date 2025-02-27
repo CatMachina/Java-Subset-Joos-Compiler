@@ -159,7 +159,7 @@ public:
   visitArrayTypeInExpr(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
-  visitQualifiedIdentifierInExpr(const NodePtr &node);
+  visitQualifiedIdentifierInExpr(const NodePtr &node, bool isMethod = false);
 
   [[nodiscard]] std::vector<std::string>
   visitUnresolvedTypeExpr(const NodePtr &node);

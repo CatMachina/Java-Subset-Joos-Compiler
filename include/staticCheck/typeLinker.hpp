@@ -34,6 +34,15 @@ public:
 
   Package::packageChild resolveSimpleName(const std::string &simpleName);
 
+  std::unordered_map<std::string, Package::packageChild> &
+  getContext(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+    auto it = contextMap.find(node);
+    if (it == contextMap.end()) {
+      throw std::runtime_error("Could not find context for node");
+    }
+    return it->second;
+  }
+
 private:
   // First pass?
   void buildSymbolTable();
@@ -42,8 +51,12 @@ private:
 
   std::unique_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<Package> rootPackage; // no decl
-  std::unordered_map<std::string, Package::packageChild>
-      context; // for each AST
+  // std::unordered_map<std::string, Package::packageChild>
+  //     context; // for each AST
+  std::unordered_map<std::shared_ptr<parsetree::ast::ProgramDecl>,
+                     std::unordered_map<std::string, Package::packageChild>>
+      contextMap;
+  std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram; // for each AST
 
   static const std::string DEFAULT_PACKAGE_NAME;
 };

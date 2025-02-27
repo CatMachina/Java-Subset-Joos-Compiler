@@ -42,6 +42,16 @@ private:
   std::string name;
 };
 
+class MethodName : public MemberName {
+public:
+  MethodName(std::string_view name) : MemberName{name} {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(Method name: " << getName() << ")";
+    return os;
+  }
+};
+
 class UnresolvedTypeExpr : public ExprNode, public UnresolvedType {
 public:
   UnresolvedTypeExpr() : UnresolvedType() {}

@@ -55,62 +55,49 @@ lookupNamedDecl(std::shared_ptr<parsetree::ast::DeclContext> ctx,
   return nullptr;
 }
 
-bool NameDisambiguator::reclassifyDecl(
-    std::shared_ptr<parsetree::ast::CodeBody> ctx,
-    std::shared_ptr<ExprName> data) {
-  if (auto decl = lookupNamedDecl(currentContext, data->getNode()->getName())) {
+std::shared_ptr<parsetree::ast::Decl>
+NameDisambiguator::reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
+                                  std::shared_ptr<MemberName> node) {
+  if (auto decl = lookupNamedDecl(currentContext, node->getName())) {
     if (auto varDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl)) {
-      data->reclassify(ExprName::Type::ExpressionName, varDecl);
-      return true;
+      // data->reclassify(ExprName::Type::ExpressionName, varDecl);
+      return varDecl;
     } else if (auto fieldDecl =
                    std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
-      data->reclassify(ExprName::Type::ExpressionName, fieldDecl);
-      return true;
+      // data->reclassify(ExprName::Type::ExpressionName, fieldDecl);
+      return fieldDecl;
     }
   }
   if (auto ctxDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(ctx)) {
     if (auto parentCtx = std::dynamic_pointer_cast<parsetree::ast::CodeBody>(
             ctxDecl->getParent())) {
-      return reclassifyDecl(parentCtx, data);
+      return reclassifyDecl(parentCtx, node);
     }
   }
   return false;
 }
 
 // JLS 6.5.2
-std::shared_ptr<ExprName> NameDisambiguator::disambiguate(
-    std::shared_ptr<parsetree::ast::MemberName> node) {
-  /*
-  JLS 6.5.2:
-  1. local variable decl, param decl, or field decl → ExpressionName.
-  2. local or member types (eg. local class) → TypeName.
-  3. in top-level class/interface in the same compilation unit or
-  single-type-import declaration → TypeName.
-  4. types in the same package (other compilation units) → TypeName.
-  5. type-import-on-demand in same compilation unit: Exactly one match →
-  TypeName, else → Compile-time error
-  6. none of the above, assume it's a package name → PackageName.
 
-  May be we can split it into reclassify Decl and reclassify import?
-  Decl: Search in this context, if not found, search parent context
-  Import: search in type linker context
-  */
+/*
+JLS 6.5.2:
+1. local variable decl, param decl, or field decl → ExpressionName.
+2. local or member types (eg. local class) → TypeName.
+3. in top-level class/interface in the same compilation unit or
+single-type-import declaration → TypeName.
+4. types in the same package (other compilation units) → TypeName.
+5. type-import-on-demand in same compilation unit: Exactly one match →
+TypeName, else → Compile-time error
+6. none of the above, assume it's a package name → PackageName.
 
-  // A: Make sense (?)
-  // For the Decls, I am still thinking about having a context manager for both
-  // local and global
+May be we can split it into reclassify Decl and reclassify import?
+Decl: Search in this context, if not found, search parent context
+Import: search in type linker context
+*/
 
-  // Q: But 3,4,5,6 already implemented in type linking, right?
-
-  // before being a single ambiguous name, it could be method
-  if (auto method =
-          std::dynamic_pointer_cast<parsetree::ast::MethodName>(node)) {
-    return std::make_shared<ExprName>(ExprName::Type::MethodName, method);
-  }
-
-  throw std::runtime_error("Fail to disambiguate");
-}
+// Q: But 3,4,5,6 already implemented in type linking, right?
+// A: seems so yeah
 
 // TODO
 std::shared_ptr<Decl> NameDisambiguator::findInScope(
@@ -155,7 +142,18 @@ symbol table maybe?) (It seems that name disambiguation isn't a lot of work?)
 */
 
 void NameDisambiguator::disambiguate(
-    std::shared_ptr<parsetree::ast::Expr> expr) {
+    std::shared_ptr<parsetree::ast::MemberName> expr) {
+  /*
+  Edward:
+  we can just check all MemberNames instead? not Expr, or MethodName
+  and step 1 and step 2 can just be combined and use reclassifyDecl instead?
+  */
+  auto decl = reclassifyDecl(currentContext, expr);
+  if (decl != nullptr) {
+    expr->setResolveDecl(decl);
+    return;
+  }
+  /*
   std::vector<std::shared_ptr<parsetree::ast::MemberName>> memberNames;
   for (auto exprNode : expr->getExprNodes()) {
     if (auto memberName =
@@ -175,7 +173,29 @@ void NameDisambiguator::disambiguate(
     expr->setResolveDecl(fieldDecl);
     return;
   }
+  */
+
   // 3. If a_1.(...).a_k is a type in the global environment
+  // maybe this?
+  auto &context = typeLinker->getContext(currentProgram);
+  auto import = context.find(expr->getName()) != context.end()
+                    ? context[expr->getName()]
+                    : nullptr;
+  if (!import) {
+    throw std::runtime_error("No import for " + expr->getName());
+  }
+  if (auto decl = std::get_if<std::shared_ptr<parsetree::ast::Decl>>(import)) {
+    if (!decl) {
+      throw std::runtime_error("Ambiguous import-on-demand conflict");
+    }
+    // data->reclassify(ExprName::Type::TypeName, decl);
+    expr->setResolveDecl(decl);
+  } else if (auto pkg = std::get_if<std::shared_ptr<Package>>(import)) {
+    // this is a package name...
+    // data->reclassify(ExprName::Type::PackageName, pkg);
+  }
+
+  /*
   std::vector<std::string> identifiers;
   Package::packageChild typeDecl;
   for (int i = 0; i < memberNames.size(); ++i) {
@@ -192,16 +212,20 @@ void NameDisambiguator::disambiguate(
   if (typeDecl == nullptr) {
     throw std::runtime_error("Failed to disambiguate");
   }
+  */
 }
 
-// TODO: Method invocation
-void NameDisambiguator::resolveExpr(
-    std::shared_ptr<parsetree::ast::Expr> node) {
-  auto last = node->getLastExprNode();
-  if (auto fieldAccess =
-          std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(last)) {
-    disambiguate(node);
+// TODO: Method invocation: done, we skip method for disambiguation
+void NameDisambiguator::resolveExprNode(
+    std::shared_ptr<parsetree::ast::ExprNode> node) {
+  auto name = std::dynamic_pointer_cast<parsetree::ast::MemberName>(node);
+  if (!name)
+    return; // currently only member name need disambiguation
+  if (auto method =
+          std::dynamic_pointer_cast<parsetree::ast::MethodName>(name)) {
+    return; // method invocation don't need disambiguation
   }
+  disambiguate(name);
 }
 
 void NameDisambiguator::resolveAST(
@@ -216,16 +240,17 @@ void NameDisambiguator::resolveAST(
           std::dynamic_pointer_cast<parsetree::ast::CodeBody>(node)) {
     beginContext(codeBody);
   }
-  if (auto expr = std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
-    resolveExpr(expr);
+  if (auto expr = std::dynamic_pointer_cast<parsetree::ast::ExprNode>(node)) {
+    resolveExprNode(expr);
   }
   auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node);
   if (block) {
     enterScope();
   }
   for (auto child : node->getChildren()) {
-    if
-      !(child) { continue; }
+    if (!child) {
+      continue;
+    }
     resolveAST(child);
   }
   if (block) {

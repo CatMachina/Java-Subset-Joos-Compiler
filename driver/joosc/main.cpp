@@ -16,7 +16,7 @@
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/typeLinker.hpp"
-#include "staticCheck/nameDisambiguation.hpp"
+// #include "staticCheck/nameDisambiguation.hpp"
 
 #include <memory>
 
@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
       return EXIT_ERROR;
     }
     std::cout << "Passed hierarchy check\n";
-    
+
     // TODO: name disambiguation
 
     return EXIT_SUCCESS;

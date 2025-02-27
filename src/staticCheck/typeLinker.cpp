@@ -91,7 +91,9 @@ void TypeLinker::resolve() {
 void TypeLinker::initContext(
     std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   // clear the current context and single type imports
-  context.clear();
+  // context.clear();
+  auto &context = contextMap[node];
+  currentProgram = node;
   // singleTypeImports.clear();
   auto packageAstNode =
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
@@ -307,6 +309,7 @@ We traverse the namespaces in the following priority order:
 */
 Package::packageChild
 TypeLinker::resolveSimpleName(const std::string &simpleName) {
+  auto &context = contextMap[currentProgram];
   return context.find(simpleName) != context.end() ? context[simpleName]
                                                    : nullptr;
 }

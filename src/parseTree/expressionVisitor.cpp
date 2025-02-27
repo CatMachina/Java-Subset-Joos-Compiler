@@ -172,7 +172,7 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
 
   if (node->num_children() == 2) {
-    auto qualifiedId = visitQualifiedIdentifierInExpr(node->child_at(0));
+    auto qualifiedId = visitQualifiedIdentifierInExpr(node->child_at(0), true);
     ops.insert(ops.end(), qualifiedId.begin(), qualifiedId.end());
 
     std::vector<std::shared_ptr<ast::ExprNode>> args;
@@ -335,18 +335,20 @@ void ParseTreeVisitor::visitArgumentList(
 }
 
 std::vector<std::shared_ptr<ast::ExprNode>>
-ParseTreeVisitor::visitQualifiedIdentifierInExpr(const NodePtr &node) {
+ParseTreeVisitor::visitQualifiedIdentifierInExpr(const NodePtr &node,
+                                                 bool isMethod) {
   check_node_type(node, NodeType::QualifiedName);
   check_num_children(node, 1, 2);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
 
+  auto identifier = visitIdentifier(node->child_at(node->num_children() - 1));
   if (node->num_children() == 1) {
-    ops.push_back(
-        std::make_shared<ast::MemberName>(visitIdentifier(node->child_at(0))));
+    ops.push_back(isMethod ? std::make_shared<ast::MethodName>(identifier)
+                           : std::make_shared<ast::MemberName>(identifier));
   } else if (node->num_children() == 2) {
     ops = visitQualifiedIdentifierInExpr(node->child_at(0));
-    ops.push_back(
-        std::make_shared<ast::MemberName>(visitIdentifier(node->child_at(1))));
+    ops.push_back(isMethod ? std::make_shared<ast::MethodName>(identifier)
+                           : std::make_shared<ast::MemberName>(identifier));
     ops.push_back(std::make_shared<ast::FieldAccess>());
   }
   return ops;
