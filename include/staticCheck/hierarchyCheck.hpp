@@ -365,8 +365,7 @@ class HierarchyCheck {
                    std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                        astNode)) {
       // Get inherited abstract methods
-      for (auto &superInterface : interfaceDecl->getInterfaces())
-      {
+      for (auto &superInterface : interfaceDecl->getInterfaces()) {
         if (!superInterface || !superInterface->getResolvedDecl() ||
             !superInterface->getResolvedDecl()->getAstNode())
           continue;
@@ -467,11 +466,11 @@ class HierarchyCheck {
             if (!superClassDecl)
               continue;
 
-            std::cout << superClassDecl->getMethods().size() << std::endl;
+            // std::cout << superClassDecl->getMethods().size() << std::endl;
 
             for (auto &superMethod : superClassDecl->getMethods()) {
-              std::cout << superMethod->getSignature() << " " << signature
-                        << std::endl;
+              // std::cout << superMethod->getSignature() << " " << signature
+              //           << std::endl;
               if (superMethod->getSignature() == signature) {
                 bool isSuperMethodStatic =
                     superMethod->getModifiers() &&
@@ -622,8 +621,8 @@ class HierarchyCheck {
         std::string returnType =
             method->getReturnType() ? method->getReturnType()->toString() : "";
 
-        std::cout << "DEBUG: Checking method: " << signature << " in class "
-                  << classDecl->getName() << "\n";
+        // std::cout << "DEBUG: Checking method: " << signature << " in class "
+        //           << classDecl->getName() << "\n";
 
         for (auto &superClass : classDecl->getSuperClasses()) {
           if (!superClass)
@@ -664,8 +663,9 @@ class HierarchyCheck {
 
       for (auto &method : interfaceDecl->getMethods()) {
         std::string signature = method->getSignature();
-        std::cout << "DEBUG: Checking method: " << signature << " in interface "
-                  << interfaceDecl->getName() << "\n";
+        // std::cout << "DEBUG: Checking method: " << signature << " in
+        // interface "
+        //           << interfaceDecl->getName() << "\n";
 
         auto objectDecl = resolveJavaLangObjectInterfaces(rootPackage);
         if (objectDecl) {
@@ -688,7 +688,7 @@ class HierarchyCheck {
 
         for (auto &superInterface : superInterfaces) {
           if (!superInterface || !superInterface->getResolvedDecl()) {
-            std::cout << "DEBUG: Skipping unresolved superinterface\n";
+            // std::cout << "DEBUG: Skipping unresolved superinterface\n";
             continue;
           }
 
@@ -698,16 +698,16 @@ class HierarchyCheck {
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
             if (!superInterfaceDecl) {
-              std::cout << "DEBUG: Skipping superinterface that is not an "
-                           "interface\n";
+              // std::cout << "DEBUG: Skipping superinterface that is not an "
+              //              "interface\n";
               continue;
             }
 
             for (auto &superMethod : superInterfaceDecl->getMethods()) {
               if (!superMethod)
                 continue;
-              std::cout << "DEBUG: Comparing against superinterface method: "
-                        << superMethod->getSignature() << "\n";
+              // std::cout << "DEBUG: Comparing against superinterface method: "
+              //           << superMethod->getSignature() << "\n";
 
               if (superMethod->getSignature() == signature) {
                 bool isSuperMethodFinal =
@@ -857,8 +857,9 @@ class HierarchyCheck {
 
       for (auto &method : interfaceDecl->getMethods()) {
         std::string signature = method->getSignature();
-        std::cout << "DEBUG: Checking method: " << signature << " in interface "
-                  << interfaceDecl->getName() << "\n";
+        // std::cout << "DEBUG: Checking method: " << signature << " in
+        // interface "
+        //           << interfaceDecl->getName() << "\n";
 
         auto objectDecl = resolveJavaLangObjectInterfaces(rootPackage);
         if (objectDecl) {
@@ -882,7 +883,7 @@ class HierarchyCheck {
 
         for (auto &superInterface : superInterfaces) {
           if (!superInterface || !superInterface->getResolvedDecl()) {
-            std::cout << "DEBUG: Skipping unresolved superinterface\n";
+            // std::cout << "DEBUG: Skipping unresolved superinterface\n";
             continue;
           }
 
@@ -892,16 +893,16 @@ class HierarchyCheck {
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
             if (!superInterfaceDecl) {
-              std::cout << "DEBUG: Skipping superinterface that is not an "
-                           "interface\n";
+              // std::cout << "DEBUG: Skipping superinterface that is not an "
+              //              "interface\n";
               continue;
             }
 
             for (auto &superMethod : superInterfaceDecl->getMethods()) {
               if (!superMethod)
                 continue;
-              std::cout << "DEBUG: Comparing against superinterface method: "
-                        << superMethod->getSignature() << "\n";
+              // std::cout << "DEBUG: Comparing against superinterface method: "
+              //           << superMethod->getSignature() << "\n";
 
               if (superMethod->getSignature() == signature) {
                 bool isSuperMethodFinal =
@@ -937,8 +938,8 @@ class HierarchyCheck {
 
       for (auto &method : classDecl->getMethods()) {
         std::string signature = method->getSignature();
-        std::cout << "DEBUG: Checking method: " << signature << " in class "
-                  << classDecl->getName() << "\n";
+        // std::cout << "DEBUG: Checking method: " << signature << " in class "
+        //           << classDecl->getName() << "\n";
 
         for (auto &superClass : superClasses) {
           if (!superClass || !superClass->getResolvedDecl())
@@ -952,8 +953,8 @@ class HierarchyCheck {
             for (auto &superMethod : superClassDecl->getMethods()) {
               if (!superMethod)
                 continue;
-              std::cout << "DEBUG: Comparing against superclass method: "
-                        << superMethod->getSignature() << "\n";
+              // std::cout << "DEBUG: Comparing against superclass method: "
+              //           << superMethod->getSignature() << "\n";
 
               if (superMethod->getSignature() == signature) {
 
@@ -980,8 +981,9 @@ class HierarchyCheck {
 
       for (auto &method : interfaceDecl->getMethods()) {
         std::string signature = method->getSignature();
-        std::cout << "DEBUG: Checking method: " << signature << " in interface "
-                  << interfaceDecl->getName() << "\n";
+        // std::cout << "DEBUG: Checking method: " << signature << " in
+        // interface "
+        //           << interfaceDecl->getName() << "\n";
 
         auto objectDecl = resolveJavaLangObjectInterfaces(rootPackage);
         if (objectDecl) {
@@ -1005,7 +1007,7 @@ class HierarchyCheck {
 
         for (auto &superInterface : superInterfaces) {
           if (!superInterface || !superInterface->getResolvedDecl()) {
-            std::cout << "DEBUG: Skipping unresolved superinterface\n";
+            // std::cout << "DEBUG: Skipping unresolved superinterface\n";
             continue;
           }
 
@@ -1015,16 +1017,16 @@ class HierarchyCheck {
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
             if (!superInterfaceDecl) {
-              std::cout << "DEBUG: Skipping superinterface that is not an "
-                           "interface\n";
+              // std::cout << "DEBUG: Skipping superinterface that is not an "
+              //              "interface\n";
               continue;
             }
 
             for (auto &superMethod : superInterfaceDecl->getMethods()) {
               if (!superMethod)
                 continue;
-              std::cout << "DEBUG: Comparing against superinterface method: "
-                        << superMethod->getSignature() << "\n";
+              // std::cout << "DEBUG: Comparing against superinterface method: "
+              //           << superMethod->getSignature() << "\n";
 
               if (superMethod->getSignature() == signature) {
                 bool isSuperMethodFinal =
@@ -1057,32 +1059,32 @@ class HierarchyCheck {
         std::shared_ptr<Decl> decl = std::get<std::shared_ptr<Decl>>(child);
         // Order matters!
         bool ret = checkProperExtends(decl);
-        if (ret)
-          std::cout << "Passed extends\n";
+        // if (ret)
+        //   std::cout << "Passed extends\n";
         ret = ret && checkAcyclic(decl);
-        if (ret)
-          std::cout << "Passed acyclic\n";
+        // if (ret)
+        //   std::cout << "Passed acyclic\n";
         ret = ret && checkDuplicateSignatures(decl);
-        if (ret)
-          std::cout << "Passed duplicate\n";
+        // if (ret)
+        //   std::cout << "Passed duplicate\n";
         ret = ret && checkInheritence(decl);
-        if (ret)
-          std::cout << "Passed inheritence\n";
+        // if (ret)
+        //   std::cout << "Passed inheritence\n";
         ret = ret && checkStaticMethodOverride(decl);
-        if (ret)
-          std::cout << "Passed static override\n";
+        // if (ret)
+        //   std::cout << "Passed static override\n";
         ret = ret && checkNonStaticMethodOverride(decl);
-        if (ret)
-          std::cout << "Passed nonstatic override\n";
+        // if (ret)
+        //   std::cout << "Passed nonstatic override\n";
         ret = ret && checkMethodReturnTypeOverride(decl, rootPackage);
-        if (ret)
-          std::cout << "Passed return type override\n";
+        // if (ret)
+        //   std::cout << "Passed return type override\n";
         ret = ret && checkProtectedMethodOverride(decl, rootPackage);
-        if (ret)
-          std::cout << "Passed protected override\n";
+        // if (ret)
+        //   std::cout << "Passed protected override\n";
         ret = ret && checkFinalMethodOverride(decl, rootPackage);
-        if (ret)
-          std::cout << "Passed final override\n";
+        // if (ret)
+        //   std::cout << "Passed final override\n";
         if (!ret)
           return false;
       } else if (std::holds_alternative<std::shared_ptr<Package>>(child)) {

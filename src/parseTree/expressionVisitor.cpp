@@ -293,7 +293,6 @@ ParseTreeVisitor::visitUnresolvedTypeExpr(const NodePtr &node) {
 
 std::vector<std::shared_ptr<ast::ExprNode>>
 ParseTreeVisitor::visitClassCreation(const NodePtr &node) {
-  std::cout << "class creation\n";
   check_node_type(node, NodeType::ClassCreation);
   check_num_children(node, 2, 2);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
