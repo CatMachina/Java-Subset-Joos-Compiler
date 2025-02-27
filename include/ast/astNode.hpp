@@ -267,6 +267,18 @@ public:
 
   std::shared_ptr<Modifiers> getModifiers() { return modifiers; }
 
+  std::vector<std::shared_ptr<FieldDecl>> getFields() {
+    std::vector<std::shared_ptr<FieldDecl>> fields;
+
+    for (const auto &decl : classBodyDecls) {
+      if (auto fieldDecl = std::dynamic_pointer_cast<FieldDecl>(decl)) {
+        fields.push_back(fieldDecl);
+      }
+    }
+
+    return fields;
+  }
+
   std::vector<std::shared_ptr<MethodDecl>> getMethods() {
     std::vector<std::shared_ptr<MethodDecl>> methods;
 

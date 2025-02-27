@@ -6,7 +6,7 @@
 
 namespace static_check {
 
-// Q: Do we need this? 
+// Q: Do we need this?
 // I am thinking about decorating AST nodes (storing pointers to Decl objects)
 // Like how we did type linking
 // Or are we having a new implementation?
@@ -17,6 +17,7 @@ public:
     TypeName,
     ExpressionName,
     MethodName,
+    FieldName,
     SingleAmbiguousName
   }
 
@@ -49,7 +50,7 @@ public:
   void resolve() {
     for (auto ast : astManager->getASTs()) {
       // Q: resolveAST?
-      resolveRecursive(ast);
+      resolveAST(ast);
     }
   }
 
@@ -57,17 +58,18 @@ private:
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> node);
 
   void beginProgram(std::shared_ptr<parsetree::ast::ProgramDecl> programDecl) {
-    currentProgramDecl = programDecl;
+    currentProgram = programDecl;
   }
-  void beginContext((std::shared_ptr<parsetree::ast::CodeBody> ctx) {
-    currentContext = ctx; }
+  void beginContext(std::shared_ptr<parsetree::ast::CodeBody> codeBody) {
+    currentContext = codeBody;
+  }
 
   std::unique_ptr<parsetree::ast::ASTManager> astManager;
   // hard to reuse envManager? this is my bad of not implementing it nicely
   // std::unique_ptr<EnvManager> envManager;
   // Q: Can we reuse it for local scopes?
-  
-  std::shared_ptr<parsetree::ast::ProgramDecl> currentProgramDecl;
+
+  std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
 };
 

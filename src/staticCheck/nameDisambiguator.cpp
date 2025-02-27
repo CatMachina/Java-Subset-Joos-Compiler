@@ -2,11 +2,15 @@
 
 namespace static_check {
 
+//////////////////// Helpers ////////////////////
+
+/*
 // TODO: is this an non-static field in the current class?
 bool NameDisambiguator::isNonStaticField(std::string &id) { return true; }
 
 // TODO: is this a static field in the current class?
 bool NameDisambiguator::isStaticField(std::string &id) { return true; }
+*/
 
 std::shared_ptr<parsetree::ast::Decl>
 lookupNamedDecl(std::shared_ptr<parsetree::ast::DeclContext> ctx,
@@ -33,7 +37,8 @@ lookupNamedDecl(std::shared_ptr<parsetree::ast::DeclContext> ctx,
       classDecl) {
     std::shared_ptr<parsetree::ast::Decl> result = nullptr;
     // how to get inherited members? in hierarchy checking?
-    // A: There is a getInheritedMethods in hiearchy checking, we might need a getInheritedFields?
+    // A: There is a getInheritedMethods in hiearchy checking, we might need a
+    // getInheritedFields?
     for (const auto decl : getInheritedMembers(classDecl)) {
       if (condition(decl)) {
         if (result)
@@ -92,8 +97,9 @@ std::shared_ptr<ExprName> NameDisambiguator::disambiguate(
   Import: search in type linker context
   */
 
-  // A: Make sense (?) 
-  // For the Decls, I am still thinking about having a context manager for both local and global 
+  // A: Make sense (?)
+  // For the Decls, I am still thinking about having a context manager for both
+  // local and global
 
   // Q: But 3,4,5,6 already implemented in type linking, right?
 
@@ -103,30 +109,32 @@ std::shared_ptr<ExprName> NameDisambiguator::disambiguate(
     return std::make_shared<ExprName>(ExprName::Type::MethodName, method);
   }
 
-  std::shared_ptr<ExprName> data =
-      std::make_shared<ExprName>(ExprName::Type::SingleAmbiguousName, node);
-
-  if (reclassifyDecl(currentContext, data))
-    return data;
-
-  // imports
-  auto import =
-      typeLinker->getImport(currentContext, data->getNode()->getName());
-  if (!import) {
-    throw std::runtime_error("No import for " + data->getNode()->getName());
-  }
-  if (auto decl = std::get_if<std::shared_ptr<parsetree::ast::Decl>>(import)) {
-    if (!decl) {
-      throw std::runtime_error("Ambiguous import-on-demand conflict");
-    }
-    data->reclassify(ExprName::Type::TypeName, decl);
-    return data;
-  } else if (auto pkg = std::get_if<std::shared_ptr<Package>>(import)) {
-    data->reclassify(ExprName::Type::PackageName, pkg);
-    return data;
-  }
-
   throw std::runtime_error("Fail to disambiguate");
+}
+
+// TODO
+std::shared_ptr<Decl> NameDisambiguator::findInScope(
+    std::shared_ptr<parsetree::ast::MemberName> identifier) {}
+
+// TODO: Decl obj for field?
+std::shared_ptr<Decl> NameDisambiguator::findInContainedSet(
+    std::shared_ptr<parsetree::ast::MemberName> identifier) {
+  auto currentClass =
+      std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(currentContext);
+  if (!currentClass)
+    throw std::runtime_error("Current class not exist");
+  auto declaredFields = currentClass->getFields();
+  for (auto field : declaredFields) {
+    if (field->getName() == identifier->getName()) {
+      return field;
+    }
+  }
+  // Check inherited fields
+  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>>
+      inheritedFields;
+  hierarchyCheck->getInheritedFields(currentClass, inheritedFields);
+  auto field = inheritedFields[identifier->getName()];
+  return field;
 }
 
 /*
@@ -135,37 +143,64 @@ This implementation idea is from the online notes
 My understanding is that: given a qualified name a.b.c.d
 We only need to check the prefix during name disambiguation stage
 If `a` is neither a local variable or a field contained in the current class
-Then check `a.b`, `a.b.c`, `a.b.c.d` => Can it be resolved to a type in the global environment?
-To record this info, can we store a pointer in the AST node to a Decl? (Did we have Decl objects for inherited methods/fields?)
-I believe the rest is deferred to type checking stage (static / non-static fields, etc)
+Then check `a.b`, `a.b.c`, `a.b.c.d` => Can it be resolved to a type in the
+global environment? To record this info, can we store a pointer in the AST node
+to a Decl? (Did we have Decl objects for inherited methods/fields?) I believe
+the rest is deferred to type checking stage (static / non-static fields, etc)
 The env manager can be used for local scopes?
 We need to keep track of current class/interface as well
-(Can we have a context manager for all scopes, using env manager and global symbol table maybe?)
-(It seems that name disambiguation isn't a lot of work?)
+(Can we have a context manager for all scopes, using env manager and global
+symbol table maybe?) (It seems that name disambiguation isn't a lot of work?)
 (Maybe we can just have a type checker that includes name disambiguation?)
 */
-std::shared_ptr<ExprName> NameDisambiguator::disambiguate(
-  std::shared_ptr<parsetree::ast::QualifiedIdentifier> qualifiedIdentifiers) {
-  std::vector<std::string> &identifiers =
-      qualifiedIdentifiers->getIdentifiers();
-  // 1. If local variable a_1 is in scope, we use it
-  if (envManager->inScope(identifiers[0])) {
-    // TODO: a_2, ..., a_n must be non-static fields/methods
-  }
 
-  // 2. If field a_1 is contained in the current class, we use it
-  // TODO: Keep track of the current class? Contain set of current class?
-  if (isContained(identifiers[0])) {
-    // TODO: a_2, ..., a_n must be non-static fields/methods
-  }
-
-  // 3. If a_1.(...).a_k is a type in the global environment
-  std::vector<std::string> ids;
-  for (int i = 0; i < identifiers.size(); ++i) {
-    ids.push_back(identifiers[i]);
-    if (typeLinker->resolveImport(ids)) {
-      // TODO: a_{k+1} must be a static field and the rest must be non-static fields/methods
+void NameDisambiguator::disambiguate(
+    std::shared_ptr<parsetree::ast::Expr> expr) {
+  std::vector<std::shared_ptr<parsetree::ast::MemberName>> memberNames;
+  for (auto exprNode : expr->getExprNodes()) {
+    if (auto memberName =
+            std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNode)) {
+      memberNames.push_back(memberName);
     }
+  }
+  // 1. If local variable a_1 is in scope, we use it
+  auto localDecl = findInScope(memberNames[0]);
+  if (localDecl != nullptr) {
+    expr->setResolveDecl(localDecl);
+    return;
+  }
+  // 2. If field a_1 is contained in the current class, we use it
+  auto fieldDecl = findInContainSet(memberNames[0]);
+  if (fieldDecl != nullptr) {
+    expr->setResolveDecl(fieldDecl);
+    return;
+  }
+  // 3. If a_1.(...).a_k is a type in the global environment
+  std::vector<std::string> identifiers;
+  Package::packageChild typeDecl;
+  for (int i = 0; i < memberNames.size(); ++i) {
+    identifiers.push_back(memberNames[i]->getName());
+    try {
+      typeDecl = typeLinker->resolveImport(identifiers);
+      if (typeDecl != nullptr) {
+        expr->setResolveDecl(typeDecl);
+      }
+    } catch (const std::runtime_error &err) {
+      std::cerr << "Runtime error: " << err.what() << std::endl;
+    }
+  }
+  if (typeDecl == nullptr) {
+    throw std::runtime_error("Failed to disambiguate");
+  }
+}
+
+// TODO: Method invocation
+void NameDisambiguator::resolveExpr(
+    std::shared_ptr<parsetree::ast::Expr> node) {
+  auto last = node->getLastExprNode();
+  if (auto fieldAccess =
+          std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(last)) {
+    disambiguate(node);
   }
 }
 
@@ -173,48 +208,28 @@ void NameDisambiguator::resolveAST(
     std::shared_ptr<parsetree::ast::AstNode> node) {
   if (!node)
     throw std::runtime_error("Node is null when resolving AST");
-  // Q: Is CompilationUnit the same as ProgramDecl?
-  if (auto cu =
-          std::dynamic_pointer_cast<parsetree::ast::CompilationUnit>(node))
-    this->beginProgram(cu);
-  // Q: Class/Interface?
-  if (auto ctx = std::dynamic_pointer_cast<parsetree::ast::DeclContext>(node))
-    this->beginContext(ctx);
-  if (auto classDecl =
-          std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node))
-    currentClass = classDecl;
-
-  if (auto field = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
-    isStaticContext = field->getModifiers().isStatic();
-    if (field->hasInit()) {
-      isInstFieldInitializer = !field->getModifiers().isStatic();
-      fieldScope = field->init()->scope();
-    }
-  } else if (auto method =
-                 std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
-    isStaticContext = method->getModifiers().isStatic();
+  if (auto programDecl =
+          std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(node)) {
+    beginProgram(programDecl);
   }
-
-  if (auto decl = std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(node)) {
-    if (auto init = decl->getInit()) {
-      evaluate(init);
-    }
-  } else if (auto stmt =
-                 std::dynamic_pointer_cast<parsetree::ast::Stmt>(node)) {
-    for (auto expr : stmt->getExprs()) {
-      if (!expr)
-        continue;
-      evaluate(expr);
-    }
+  if (auto codeBody =
+          std::dynamic_pointer_cast<parsetree::ast::CodeBody>(node)) {
+    beginContext(codeBody);
   }
-
-  if (std::dynamic_pointer_cast<parsetree::ast::DeclStmt>(node))
-    return;
-
-  for (auto child : node->getChildren() | std::views::filter([](auto c) {
-                      return c != nullptr;
-                    })) {
+  if (auto expr = std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
+    resolveExpr(expr);
+  }
+  auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node);
+  if (block) {
+    enterScope();
+  }
+  for (auto child : node->getChildren()) {
+    if
+      !(child) { continue; }
     resolveAST(child);
+  }
+  if (block) {
+    leaveScope();
   }
 }
 
