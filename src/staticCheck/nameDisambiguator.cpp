@@ -109,8 +109,8 @@ Import: search in type linker context
 // A: seems so yeah
 
 // TODO: Decl obj for field?
-std::shared_ptr<parsetree::ast::Decl> NameDisambiguator::findInContainSet(const std::string &name) {
-  std::cout << "findInContainSet: " << name << std::endl;
+std::shared_ptr<parsetree::ast::Decl> NameDisambiguator::findInSuperClasses(const std::string &name) {
+  std::cout << "findInSuperClasses: " << name << std::endl;
   auto currentClass =
       std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(currentContext);
   if (!currentClass) {
@@ -149,7 +149,7 @@ void NameDisambiguator::disambiguate(
   }
 
   // 2. Field a_1 is contained in the current class
-  auto fieldDecl = findInContainSet(memberNames[0]->getName());
+  auto fieldDecl = findInSuperClasses(memberNames[0]->getName());
   if (fieldDecl != nullptr) {
     std::cout << "Found " << fieldDecl->getName() << std::endl;
     memberNames[0]->setResolvedDecl(fieldDecl);

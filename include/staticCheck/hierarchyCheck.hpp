@@ -408,14 +408,18 @@ class HierarchyCheck {
   void getInheritedFields(
       std::shared_ptr<parsetree::ast::Decl> astNode,
       std::unordered_map<
-          std::string, std::shared_ptr<parsetree::ast::FieldDecl>> &fieldMap) {
+          std::string, std::shared_ptr<parsetree::ast::FieldDecl>> &fieldMap,
+      bool isCurrentClass) {
     auto classDecl =
         std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
     // An interface cannot have fields
     if (!classDecl)
       return;
     for (auto &superClass : sanitizedSuperClasses(classDecl)) {
-      getInheritedFields(superClass, fieldMap);
+      getInheritedFields(superClass, fieldMap, false);
+    }
+    if (isCurrentClass) {
+      return;
     }
     for (auto &field : classDecl->getFields()) {
       if (!field)
@@ -1132,7 +1136,7 @@ public:
     std::shared_ptr<parsetree::ast::Decl> astNode) {
     std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>>
       fields;
-    getInheritedFields(astNode, fields);
+    getInheritedFields(astNode, fields, true);
     return fields;
 }
 };

@@ -38,7 +38,7 @@ private:
   void leaveScope();
   void addToScope(std::string name, std::shared_ptr<parsetree::ast::Decl> decl);
   std::shared_ptr<parsetree::ast::Decl> findInScopes(const std::string &name);
-  std::shared_ptr<parsetree::ast::Decl> findInContainSet(const std::string &name);
+  std::shared_ptr<parsetree::ast::Decl> findInSuperClasses(const std::string &name);
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<TypeLinker> typeLinker;
