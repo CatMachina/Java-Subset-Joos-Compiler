@@ -132,6 +132,12 @@ Import: search in type linker context
 void NameDisambiguator::disambiguate(
     std::shared_ptr<parsetree::ast::Expr> expr,
     std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames) {
+  if (memberNames.empty()) {
+    return;
+  }
+  if (memberNames[0]->getName() == "length") {
+    return;
+  }
   // 1. Local variable a_1 is in scope
   std::cout << memberNames.size() << " identifiers: ";
   for (auto memberName : memberNames) {
@@ -140,11 +146,40 @@ void NameDisambiguator::disambiguate(
   std::cout << std::endl;
   auto localDecl = findInScopes(memberNames[0]->getName());
   if (localDecl != nullptr) {
-    expr->setResolvedDecl(localDecl);
+    memberNames[0]->setResolvedDecl(localDecl);
     return;
   }
 
-  throw std::runtime_error("Failed to disambiguate");
+  // 3. If a_1.(...).a_k is a type in the global environment
+  // maybe this?
+  auto &context = typeLinker->getContext(currentProgram);
+  bool foundType = false;
+  for (auto memberName : memberNames) {
+    Package::packageChild import =
+        context.find(memberName->getName()) != context.end()
+            ? context[memberName->getName()]
+            : nullptr;
+    // Package
+    if (std::holds_alternative<std::shared_ptr<Package>>(import)) {
+      continue;
+    }
+    // Class/Interface
+    if (std::holds_alternative<std::shared_ptr<Decl>>(import)) {
+      auto decl = std::get<std::shared_ptr<Decl>>(import);
+      if (!decl) {
+        throw std::runtime_error("Ambiguous import-on-demand conflict");
+      }
+      memberName->setResolvedDecl(decl->getAstNode());
+      foundType = true;
+      break;
+    }
+    throw std::runtime_error("Failed to disambiguate. No import for " +
+                             memberName->getName());
+  }
+  if (!foundType) {
+    throw std::runtime_error(
+        "Failed to disambiguate. No prefix can be resolved");
+  }
 
   // 2. Field a_1 is contained in the current class
   // auto fieldDecl = findInContext(currentContext, memberNames[0]);
@@ -194,65 +229,39 @@ void NameDisambiguator::disambiguate(
   //   memberName->setResolvedDecl(decl);
   //   return;
   // }
-
-  // // 3. If a_1.(...).a_k is a type in the global environment
-  // // maybe this?
-  // auto &context = typeLinker->getContext(currentProgram);
-  // auto import = context.find(expr->getName()) != context.end()
-  //                   ? context[expr->getName()]
-  //                   : nullptr;
-  // if (!import) {
-  //   throw std::runtime_error("No import for " + expr->getName());
-  // }
-  // if (auto decl = std::get_if<std::shared_ptr<parsetree::ast::Decl>>(import))
-  // {
-  //   if (!decl) {
-  //     throw std::runtime_error("Ambiguous import-on-demand conflict");
-  //   }
-  //   // data->reclassify(ExprName::Type::TypeName, decl);
-  //   expr->setResolvedDecl(decl);
-  // } else if (auto pkg = std::get_if<std::shared_ptr<Package>>(import)) {
-  //   // this is a package name...
-  //   // data->reclassify(ExprName::Type::PackageName, pkg);
-  // }
-
-  // TODO: Method invocation: done, we skip method for disambiguation
-  // void NameDisambiguator::resolveExprNode(
-  //     std::shared_ptr<parsetree::ast::ExprNode> node) {
-  //   auto name = std::dynamic_pointer_cast<parsetree::ast::MemberName>(node);
-  //   if (!name)
-  //     return; // currently only member name need disambiguation
-  //   if (auto method =
-  //           std::dynamic_pointer_cast<parsetree::ast::MethodName>(name)) {
-  //     return; // method invocation don't need disambiguation
-  //   }
-  //   disambiguate(name);
-  // }
 }
 
 void NameDisambiguator::resolveExpr(
     std::shared_ptr<parsetree::ast::Expr> expr) {
-  // auto last = expr->getLastExprNode();
-  // auto fieldAccess =
-  // std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(last); auto
-  // methodInvocation =
-  // std::dynamic_pointer_cast<parsetree::ast::MethodInvocation>(last); if
-  // (fieldAccess == nullptr && methodInvocation == nullptr) {
-  //   return;
-  // }
+  expr->print(std::cout);
+  std::cout << std::endl;
   auto exprNodes = expr->getExprNodes();
   int i = 0;
   while (i < exprNodes.size()) {
     if (auto memberName = std::dynamic_pointer_cast<parsetree::ast::MemberName>(
             exprNodes[i])) {
       std::vector<std::shared_ptr<parsetree::ast::MemberName>> memberNames;
+      // Find longest contiguous subarray of memberNames
       while (i < exprNodes.size()) {
+        auto fieldAccess =
+            std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
+                exprNodes[i]);
         auto memberName =
             std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNodes[i]);
-        if (!memberName)
+        if (!memberName && !fieldAccess) {
           break;
-        memberNames.push_back(memberName);
+        }
+        if (memberName) {
+          memberNames.push_back(memberName);
+        }
         i++;
+      }
+      // The expression is a.b.c.d() => we know d is a method
+      // Still need to disambiguate a.b.c
+      if (auto methodName =
+              std::dynamic_pointer_cast<parsetree::ast::MethodName>(
+                  memberNames.back())) {
+        memberNames.pop_back();
       }
       disambiguate(expr, memberNames);
     }

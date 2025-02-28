@@ -142,11 +142,11 @@ int main(int argc, char **argv) {
     }
 
     // environment (symbol table) building + type linking
-    static_check::TypeLinker linker{astManager};
+    auto typeLinker = std::make_shared<static_check::TypeLinker>(astManager);
     std::shared_ptr<static_check::Package> rootPackage =
-        linker.getRootPackage();
+      typeLinker->getRootPackage();
     rootPackage->printStructure();
-    linker.resolve();
+    typeLinker->resolve();
 
     // hierarchy checking
     static_check::HierarchyCheck hierarchyChecker{rootPackage};
@@ -158,8 +158,8 @@ int main(int argc, char **argv) {
     std::cout << "Passed hierarchy check\n";
 
     // name disambiguation
-    static_check::NameDisambiguator nameDisambiguator{astManager};
-    nameDisambiguator.resolve();
+    auto nameDisambiguator = std::make_shared<static_check::NameDisambiguator>(astManager, typeLinker);
+    nameDisambiguator->resolve();
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

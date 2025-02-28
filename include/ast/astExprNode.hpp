@@ -30,16 +30,23 @@ class MemberName : public ExprNode {
 public:
   MemberName(std::string_view name) : name{name} {}
 
+  std::string getName() const { return name; }
+
+  std::shared_ptr<parsetree::ast::Decl> getResolvedDecl() {
+    return resolvedDecl;
+  }
+  void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
+    this->resolvedDecl = resolvedDecl;
+  }
+
   std::ostream &print(std::ostream &os) const override {
     os << "(Member name: " << name << ")";
     return os;
   }
 
-  // Getters
-  std::string getName() const { return name; }
-
 private:
   std::string name;
+  std::shared_ptr<Decl> resolvedDecl;
 };
 
 class MethodName : public MemberName {
@@ -89,6 +96,11 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(type));
     return children;
   }
+};
+
+class Separator : public ExprNode {
+public:
+  std::ostream &print(std::ostream &os) const { return os << " (|) "; }
 };
 
 // Operators /////////////////////////////////////////////////////////////

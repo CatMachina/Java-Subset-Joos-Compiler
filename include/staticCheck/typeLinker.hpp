@@ -9,7 +9,7 @@ namespace static_check {
 class TypeLinker {
 public:
   TypeLinker(std::shared_ptr<parsetree::ast::ASTManager> astManager)
-      : astManager(std::move(astManager)) {
+      : astManager(astManager) {
     rootPackage = std::make_unique<Package>();
     // add the default package
     rootPackage->addPackage(DEFAULT_PACKAGE_NAME);

@@ -1,17 +1,20 @@
 #pragma once
 
 #include "ast/ast.hpp"
+#include "staticCheck/typeLinker.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 
 namespace static_check {
 
 class NameDisambiguator {
 public:
-  NameDisambiguator(std::shared_ptr<parsetree::ast::ASTManager> astManager)
-      : astManager(std::move(astManager)) {}
+  NameDisambiguator(std::shared_ptr<parsetree::ast::ASTManager> astManager,
+                    std::shared_ptr<TypeLinker> typeLinker)
+      : astManager(astManager), typeLinker(typeLinker) {}
 
   void resolve();
 
@@ -34,8 +37,8 @@ private:
   void addToScope(std::string name, std::shared_ptr<parsetree::ast::Decl> decl);
   std::shared_ptr<parsetree::ast::Decl> findInScopes(std::string name);
 
-  // All ASTs
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
+  std::shared_ptr<TypeLinker> typeLinker;
 
   // AST traversal helpers
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> node);

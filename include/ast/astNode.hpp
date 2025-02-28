@@ -69,8 +69,6 @@ class Expr : public AstNode {
   // TODO: We use vector for now
   std::vector<std::shared_ptr<ExprNode>> exprNodes;
 
-  std::shared_ptr<parsetree::ast::Decl> resolvedDecl;
-
 public:
   Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes)
       : exprNodes{exprNodes} {}
@@ -80,13 +78,7 @@ public:
   std::vector<std::shared_ptr<ExprNode>> getExprNodes() const {
     return exprNodes;
   }
-  
-  void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
-      this->resolvedDecl = resolvedDecl;
-  }
-  
-  std::shared_ptr<parsetree::ast::Decl> getResolvedDecl() { return resolvedDecl; }
-    
+
   const std::shared_ptr<ExprNode> getLastExprNode() const {
     if (exprNodes.empty()) {
       throw std::runtime_error("Empty expression");
@@ -378,25 +370,6 @@ public:
 
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
-};
-
-class Param : public AstNode {
-  std::shared_ptr<Type> type;
-  std::string name;
-
-public:
-  Param(std::shared_ptr<Type> type, std::string name)
-      : type{type}, name{name} {}
-
-  // Getters
-  std::shared_ptr<Type> getType() const { return type; }
-  const std::string &getName() const { return name; }
-
-  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::vector<std::shared_ptr<AstNode>> children;
-    children.push_back(std::dynamic_pointer_cast<AstNode>(type));
-    return children;
-  }
 };
 
 class MethodDecl : public Decl {
