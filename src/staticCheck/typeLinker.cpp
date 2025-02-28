@@ -295,9 +295,9 @@ void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
   unresolvedType->setResolvedDecl(std::get<std::shared_ptr<Decl>>(currentType));
 }
 
-Package::packageChild
-TypeLinker::resolveSimpleName(const std::string &simpleName,
-  std::shared_ptr<parsetree::ast::ProgramDecl> program) {
+Package::packageChild TypeLinker::resolveSimpleName(
+    const std::string &simpleName,
+    std::shared_ptr<parsetree::ast::ProgramDecl> program) {
   if (!program) {
     program = currentProgram;
   }
@@ -306,9 +306,9 @@ TypeLinker::resolveSimpleName(const std::string &simpleName,
                                                    : nullptr;
 }
 
-Package::packageChild
-TypeLinker::resolveQualifiedName(const std::vector<std::string> &identifiers,
-  std::shared_ptr<parsetree::ast::ProgramDecl> program) {
+Package::packageChild TypeLinker::resolveQualifiedName(
+    const std::vector<std::string> &identifiers,
+    std::shared_ptr<parsetree::ast::ProgramDecl> program) {
   if (identifiers.empty()) {
     return nullptr;
   }
@@ -326,7 +326,7 @@ TypeLinker::resolveQualifiedName(const std::vector<std::string> &identifiers,
       }
       first = false;
       continue;
-    } 
+    }
     // interior nodes in the tree should not be decl
     if (std::holds_alternative<std::shared_ptr<Decl>>(current)) {
       throw std::runtime_error(

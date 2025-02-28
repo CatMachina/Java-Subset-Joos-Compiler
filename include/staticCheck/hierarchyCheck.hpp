@@ -407,8 +407,8 @@ class HierarchyCheck {
 
   void getInheritedFields(
       std::shared_ptr<parsetree::ast::Decl> astNode,
-      std::unordered_map<
-          std::string, std::shared_ptr<parsetree::ast::FieldDecl>> &fieldMap,
+      std::unordered_map<std::string,
+                         std::shared_ptr<parsetree::ast::FieldDecl>> &fieldMap,
       bool isCurrentClass) {
     auto classDecl =
         std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
@@ -1132,13 +1132,13 @@ public:
   }
 
   // Wrapper
-  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>> getInheritedFields(
-    std::shared_ptr<parsetree::ast::Decl> astNode) {
+  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>>
+  getInheritedFields(std::shared_ptr<parsetree::ast::Decl> astNode) {
     std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>>
-      fields;
+        fields;
     getInheritedFields(astNode, fields, true);
     return fields;
-}
+  }
 };
 
 } // namespace static_check

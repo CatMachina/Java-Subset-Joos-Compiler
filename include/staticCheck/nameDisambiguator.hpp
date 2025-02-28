@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ast/ast.hpp"
-#include "staticCheck/typeLinker.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
+#include "staticCheck/typeLinker.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -16,7 +16,8 @@ public:
   NameDisambiguator(std::shared_ptr<parsetree::ast::ASTManager> astManager,
                     std::shared_ptr<TypeLinker> typeLinker,
                     std::shared_ptr<HierarchyCheck> hierarchyChecker)
-      : astManager(astManager), typeLinker(typeLinker), hierarchyChecker(hierarchyChecker) {}
+      : astManager(astManager), typeLinker(typeLinker),
+        hierarchyChecker(hierarchyChecker) {}
 
   void resolve();
 
@@ -38,7 +39,8 @@ private:
   void leaveScope();
   void addToScope(std::string name, std::shared_ptr<parsetree::ast::Decl> decl);
   std::shared_ptr<parsetree::ast::Decl> findInScopes(const std::string &name);
-  std::shared_ptr<parsetree::ast::Decl> findInSuperClasses(const std::string &name);
+  std::shared_ptr<parsetree::ast::Decl>
+  findInSuperClasses(const std::string &name);
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<TypeLinker> typeLinker;

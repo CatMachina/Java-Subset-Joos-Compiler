@@ -32,11 +32,13 @@ public:
 
   void resolveType(std::shared_ptr<parsetree::ast::Type> type);
 
-  Package::packageChild resolveSimpleName(const std::string &simpleName,
-    std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
+  Package::packageChild resolveSimpleName(
+      const std::string &simpleName,
+      std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
 
-  Package::packageChild resolveQualifiedName(const std::vector<std::string> &identifiers,
-  std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
+  Package::packageChild resolveQualifiedName(
+      const std::vector<std::string> &identifiers,
+      std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
 
   std::unordered_map<std::string, Package::packageChild> &
   getContext(std::shared_ptr<parsetree::ast::ProgramDecl> node) {

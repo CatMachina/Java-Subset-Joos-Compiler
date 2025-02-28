@@ -109,7 +109,8 @@ Import: search in type linker context
 // A: seems so yeah
 
 // TODO: Decl obj for field?
-std::shared_ptr<parsetree::ast::Decl> NameDisambiguator::findInSuperClasses(const std::string &name) {
+std::shared_ptr<parsetree::ast::Decl>
+NameDisambiguator::findInSuperClasses(const std::string &name) {
   std::cout << "findInSuperClasses: " << name << std::endl;
   auto currentClass =
       std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(currentContext);
@@ -161,7 +162,8 @@ void NameDisambiguator::disambiguate(
   std::vector<std::string> identifiers;
   for (auto memberName : memberNames) {
     identifiers.push_back(memberName->getName());
-    Package::packageChild resolved = typeLinker->resolveQualifiedName(identifiers, currentProgram);
+    Package::packageChild resolved =
+        typeLinker->resolveQualifiedName(identifiers, currentProgram);
     if (std::holds_alternative<std::shared_ptr<Package>>(resolved)) {
       continue;
     }
@@ -175,7 +177,7 @@ void NameDisambiguator::disambiguate(
       break;
     }
     throw std::runtime_error("Failed to disambiguate. No import for " +
-      memberName->getName());
+                             memberName->getName());
   }
 
   if (!foundType) {

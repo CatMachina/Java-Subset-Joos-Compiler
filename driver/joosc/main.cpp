@@ -15,8 +15,8 @@
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
-#include "staticCheck/typeLinker.hpp"
 #include "staticCheck/nameDisambiguator.hpp"
+#include "staticCheck/typeLinker.hpp"
 
 #include <memory>
 
@@ -144,12 +144,13 @@ int main(int argc, char **argv) {
     // environment (symbol table) building + type linking
     auto typeLinker = std::make_shared<static_check::TypeLinker>(astManager);
     std::shared_ptr<static_check::Package> rootPackage =
-      typeLinker->getRootPackage();
+        typeLinker->getRootPackage();
     rootPackage->printStructure();
     typeLinker->resolve();
 
     // hierarchy checking
-    auto hierarchyChecker = std::make_shared<static_check::HierarchyCheck>(rootPackage);
+    auto hierarchyChecker =
+        std::make_shared<static_check::HierarchyCheck>(rootPackage);
     std::cout << "Starting hierarchy check\n";
     if (!hierarchyChecker->check()) {
       std::cout << "Did not pass hierarchy check\n";
@@ -158,7 +159,8 @@ int main(int argc, char **argv) {
     std::cout << "Passed hierarchy check\n";
 
     // name disambiguation
-    auto nameDisambiguator = std::make_shared<static_check::NameDisambiguator>(astManager, typeLinker, hierarchyChecker);
+    auto nameDisambiguator = std::make_shared<static_check::NameDisambiguator>(
+        astManager, typeLinker, hierarchyChecker);
     nameDisambiguator->resolve();
 
     return EXIT_SUCCESS;
