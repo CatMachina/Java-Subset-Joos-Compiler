@@ -1,76 +1,45 @@
 #pragma once
 
 #include "ast/ast.hpp"
-#include "staticCheck/envManager.hpp"
 #include <memory>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace static_check {
 
-// Q: Do we need this?
-// I am thinking about decorating AST nodes (storing pointers to Decl objects)
-// Like how we did type linking
-// Or are we having a new implementation?
-class ExprName {
-public:
-  enum class Type {
-    PackageName,
-    TypeName,
-    ExpressionName,
-    MethodName,
-    FieldName,
-    SingleAmbiguousName
-  }
-
-  ExprName(Type type,
-           std::shared_ptr<parsetree::ast::MemberName> node) : type(type),
-      node(node) {}
-
-  void reclassify(Type type, std::shared_ptr<parsetree::ast::MemberName> node) {
-    this->type = type;
-    this->node = node;
-  }
-
-  // Getters
-  std::shared_ptr<parsetree::ast::MemberName> getNode() { return node; }
-  Type getType() { return type; }
-
-private:
-  Type type;
-  std::shared_ptr<parsetree::ast::MemberName> node;
-};
-
 class NameDisambiguator {
 public:
-  NameDisambiguator(std::unique_ptr<parsetree::ast::ASTManager> astManager)
+  NameDisambiguator(std::shared_ptr<parsetree::ast::ASTManager> astManager)
       : astManager(std::move(astManager)) {}
 
-  std::shared_ptr<ExprName>
-  disambiguate(std::shared_ptr<parsetree::ast::MemberName> node);
+  void resolve();
 
-  void resolve() {
-    for (auto ast : astManager->getASTs()) {
-      // Q: resolveAST?
-      resolveAST(ast);
-    }
-  }
+  void disambiguate(
+    std::shared_ptr<parsetree::ast::Expr> expr,
+    std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames
+  );
 
 private:
-  void resolveAST(std::shared_ptr<parsetree::ast::AstNode> node);
-
-  void beginProgram(std::shared_ptr<parsetree::ast::ProgramDecl> programDecl) {
-    currentProgram = programDecl;
-  }
-  void beginContext(std::shared_ptr<parsetree::ast::CodeBody> codeBody) {
-    currentContext = codeBody;
-  }
-
-  std::unique_ptr<parsetree::ast::ASTManager> astManager;
-  // hard to reuse envManager? this is my bad of not implementing it nicely
-  // std::unique_ptr<EnvManager> envManager;
-  // Q: Can we reuse it for local scopes?
-
+  // For scoping
   std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
+  std::vector<std::unordered_map<std::string, std::shared_ptr<parsetree::ast::Decl>>> scopes;
+
+  void enterProgram(std::shared_ptr<parsetree::ast::ProgramDecl> programDecl);
+  void enterContext(std::shared_ptr<parsetree::ast::CodeBody> context);
+  void enterScope();
+  void leaveScope();
+  void addToScope(std::string name, std::shared_ptr<parsetree::ast::Decl> decl);
+  std::shared_ptr<parsetree::ast::Decl> findInScopes(std::string name);
+
+  // All ASTs
+  std::shared_ptr<parsetree::ast::ASTManager> astManager;
+
+  // AST traversal helpers
+  void resolveAST(std::shared_ptr<parsetree::ast::AstNode> node);
+  void resolveExpr(std::shared_ptr<parsetree::ast::Expr> expr);
+  void resolveVarDecl(std::shared_ptr<parsetree::ast::VarDecl> decl);
 };
 
 } // namespace static_check

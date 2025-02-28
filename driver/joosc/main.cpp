@@ -16,7 +16,7 @@
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/typeLinker.hpp"
-// #include "staticCheck/nameDisambiguation.hpp"
+#include "staticCheck/nameDisambiguator.hpp"
 
 #include <memory>
 
@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     }
 
     source::SourceManager sm = source::SourceManager();
-    auto astManager = std::make_unique<parsetree::ast::ASTManager>();
+    auto astManager = std::make_shared<parsetree::ast::ASTManager>();
 
     // First pass: AST construction
     for (int file_number = 1; file_number < argc; ++file_number) {
@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
     }
 
     // environment (symbol table) building + type linking
-    static_check::TypeLinker linker{std::move(astManager)};
+    static_check::TypeLinker linker{astManager};
     std::shared_ptr<static_check::Package> rootPackage =
         linker.getRootPackage();
     rootPackage->printStructure();
@@ -157,7 +157,9 @@ int main(int argc, char **argv) {
     }
     std::cout << "Passed hierarchy check\n";
 
-    // TODO: name disambiguation
+    // name disambiguation
+    static_check::NameDisambiguator nameDisambiguator{astManager};
+    nameDisambiguator.resolve();
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

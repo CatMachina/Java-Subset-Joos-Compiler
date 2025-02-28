@@ -16,7 +16,6 @@ namespace parsetree::ast {
 
 // Base class for all AST nodes //////////////////////////////////////////////
 
-class QualifiedIdentifier;
 class ReferenceType;
 class ExprOp;
 class ExprNode;
@@ -70,6 +69,8 @@ class Expr : public AstNode {
   // TODO: We use vector for now
   std::vector<std::shared_ptr<ExprNode>> exprNodes;
 
+  std::shared_ptr<parsetree::ast::Decl> resolvedDecl;
+
 public:
   Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes)
       : exprNodes{exprNodes} {}
@@ -79,7 +80,13 @@ public:
   std::vector<std::shared_ptr<ExprNode>> getExprNodes() const {
     return exprNodes;
   }
-
+  
+  void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
+      this->resolvedDecl = resolvedDecl;
+  }
+  
+  std::shared_ptr<parsetree::ast::Decl> getResolvedDecl() { return resolvedDecl; }
+    
   const std::shared_ptr<ExprNode> getLastExprNode() const {
     if (exprNodes.empty()) {
       throw std::runtime_error("Empty expression");
@@ -119,7 +126,7 @@ public:
 
   bool isResolved() const override { return resolvedDecl != nullptr; }
 
-  void setResolveDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
+  void setResolvedDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
     if (isResolved() && resolvedDecl != this->resolvedDecl) {
       throw std::runtime_error("Decl already resolved");
     }
@@ -606,38 +613,6 @@ public:
 class NullStmt : public Stmt {};
 
 // Types /////////////////////////////////////////////////////////////
-
-class QualifiedIdentifier : public ExprNode {
-  std::vector<std::string> identifiers;
-
-public:
-  const std::vector<std::string> &getIdentifiers() const {
-    return identifiers;
-  };
-
-  void addIdentifier(std::string identifier) {
-    identifiers.emplace_back(identifier);
-  }
-
-  [[nodiscard]] std::string toString() const {
-    if (identifiers.empty())
-      return "";
-
-    std::string result;
-    for (const auto &identifier : identifiers) {
-      result += identifier + '.';
-    }
-    result.pop_back();
-    return result;
-  }
-
-  std::ostream &print(std::ostream &os) const { return os << toString(); }
-
-  friend std::ostream &
-  operator<<(std::ostream &os, const QualifiedIdentifier &qualifiedIdentifier) {
-    return os << qualifiedIdentifier.toString();
-  }
-};
 
 class BasicType : public Type, public ExprNode {
 public:

@@ -8,7 +8,7 @@ namespace static_check {
 
 class TypeLinker {
 public:
-  TypeLinker(std::unique_ptr<parsetree::ast::ASTManager> astManager)
+  TypeLinker(std::shared_ptr<parsetree::ast::ASTManager> astManager)
       : astManager(std::move(astManager)) {
     rootPackage = std::make_unique<Package>();
     // add the default package
@@ -49,7 +49,7 @@ private:
   // Second pass recursive helper
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> ast);
 
-  std::unique_ptr<parsetree::ast::ASTManager> astManager;
+  std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<Package> rootPackage; // no decl
   // std::unordered_map<std::string, Package::packageChild>
   //     context; // for each AST

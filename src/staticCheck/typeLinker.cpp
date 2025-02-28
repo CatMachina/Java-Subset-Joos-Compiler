@@ -296,7 +296,7 @@ void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
   if (!std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
     throw std::runtime_error("resolved type should be decl");
   }
-  unresolvedType->setResolveDecl(std::get<std::shared_ptr<Decl>>(currentType));
+  unresolvedType->setResolvedDecl(std::get<std::shared_ptr<Decl>>(currentType));
 }
 
 /*
