@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 ASSIGNMENT_ARG=$1
-ASSIGNMENT=${ASSIGNMENT_ARG:="a2"}
+ASSIGNMENT=${ASSIGNMENT_ARG:="a3"}
 TEST_DIR="/u/cs444/pub/assignment_testcases/$ASSIGNMENT"
 STDLIB="/u/cs444/pub/stdlib/2.0"
 
@@ -22,7 +22,8 @@ pushd $BUILD_DIR
 }
 popd
 
-DRIVER="$ROOT_DIR/$DRIVER_NAME"
+# This script builds joosc in $BUILD_DIR, not $ROOT_DIR
+DRIVER="$BUILD_DIR/$DRIVER_NAME"
 echo "TEST_DIR: $TEST_DIR"
 
 NUM_PASSED=0
