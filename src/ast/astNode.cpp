@@ -318,7 +318,7 @@ std::ostream &ProgramDecl::print(std::ostream &os) const {
 }
 
 std::ostream &ClassDecl::print(std::ostream &os) const {
-  os << "ProgramDecl {}\n";
+  os << "ClassDecl {}\n";
   return os;
 }
 

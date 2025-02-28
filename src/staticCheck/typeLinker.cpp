@@ -90,11 +90,8 @@ void TypeLinker::resolve() {
 
 void TypeLinker::initContext(
     std::shared_ptr<parsetree::ast::ProgramDecl> node) {
-  // clear the current context and single type imports
-  // context.clear();
   auto &context = contextMap[node];
   currentProgram = node;
-  // singleTypeImports.clear();
   auto packageAstNode =
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
           node->getPackage());
@@ -206,7 +203,6 @@ void TypeLinker::initContext(
                                decl->getName());
     }
 
-    // singleTypeImports[typeName] = Package::packageChild{decl};
     context[typeName] = Package::packageChild{decl};
   }
 
@@ -241,20 +237,20 @@ TypeLinker::resolveImport(const std::vector<std::string> &identifiers) {
   if (identifiers.size() == 0) {
     return rootPackage->children[DEFAULT_PACKAGE_NAME];
   }
-  Package::packageChild currentPkg = rootPackage;
+  Package::packageChild current = rootPackage;
   for (auto &id : identifiers) {
-    if (std::holds_alternative<std::shared_ptr<Decl>>(currentPkg)) {
+    if (std::holds_alternative<std::shared_ptr<Decl>>(current)) {
       throw std::runtime_error("internal node should not be decl");
     }
-    auto pkg = std::get<std::shared_ptr<Package>>(currentPkg);
+    auto pkg = std::get<std::shared_ptr<Package>>(current);
     if (pkg->children.find(id) == pkg->children.end()) {
       throw std::runtime_error("Could not resolve " + id +
                                " since this is not found");
     }
-    currentPkg = pkg->children.at(id);
+    current = pkg->children.at(id);
   }
-  // return the leaf nodes
-  return currentPkg;
+  // return the leaf node
+  return current;
 }
 
 void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
@@ -299,19 +295,51 @@ void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
   unresolvedType->setResolvedDecl(std::get<std::shared_ptr<Decl>>(currentType));
 }
 
-/*
-Simple names have no . in their names.
-We traverse the namespaces in the following priority order:
-  1. Enclosing class/interface
-  2. Single-type imports (e.g. import a.b.c)
-  3. Type in same package
-  4. Import-on-demand package (e.g. import a.b.*)
-*/
 Package::packageChild
-TypeLinker::resolveSimpleName(const std::string &simpleName) {
-  auto &context = contextMap[currentProgram];
+TypeLinker::resolveSimpleName(const std::string &simpleName,
+  std::shared_ptr<parsetree::ast::ProgramDecl> program) {
+  if (!program) {
+    program = currentProgram;
+  }
+  auto &context = contextMap[program];
   return context.find(simpleName) != context.end() ? context[simpleName]
                                                    : nullptr;
+}
+
+Package::packageChild
+TypeLinker::resolveQualifiedName(const std::vector<std::string> &identifiers,
+  std::shared_ptr<parsetree::ast::ProgramDecl> program) {
+  if (identifiers.empty()) {
+    return nullptr;
+  }
+  if (!program) {
+    program = currentProgram;
+  }
+  auto &context = contextMap[program];
+  Package::packageChild current;
+  bool first = true;
+  for (auto &id : identifiers) {
+    if (first) {
+      current = resolveSimpleName(id, program);
+      if (std::holds_alternative<std::nullptr_t>(current)) {
+        throw std::runtime_error("Could not resolve type at " + id);
+      }
+      first = false;
+      continue;
+    } 
+    // interior nodes in the tree should not be decl
+    if (std::holds_alternative<std::shared_ptr<Decl>>(current)) {
+      throw std::runtime_error(
+          "resolving package should not be decl when resolving type");
+    }
+    auto pkg = std::get<std::shared_ptr<Package>>(current);
+    if (pkg->children.find(id) == pkg->children.end()) {
+      // not found
+      return nullptr;
+    }
+    current = pkg->children.at(id);
+  }
+  return current;
 }
 
 } // namespace static_check

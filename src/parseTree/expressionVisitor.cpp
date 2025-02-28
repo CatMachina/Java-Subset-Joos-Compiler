@@ -178,12 +178,13 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
 
   if (node->num_children() == 2) {
+    // qualified name
     auto qualifiedId = visitQualifiedIdentifierInExpr(node->child_at(0), true);
     ops.insert(ops.end(), qualifiedId.begin(), qualifiedId.end());
 
     insertSeparator(ops);
 
-    // Args
+    // args
     std::vector<std::shared_ptr<ast::ExprNode>> args;
     visitArgumentList(node->child_at(1), args);
     ops.insert(ops.end(), std::make_move_iterator(args.begin()),
@@ -194,15 +195,18 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
     return ops;
   }
   if (node->num_children() == 3) {
+    // primary
     auto exprNodes = visitExpression(node->child_at(0))->getExprNodes();
     ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
                std::make_move_iterator(exprNodes.end()));
 
+    // id
     auto id =
-        std::make_shared<ast::MemberName>(visitIdentifier(node->child_at(1)));
+        std::make_shared<ast::MethodName>(visitIdentifier(node->child_at(1)));
     ops.push_back(id);
-    ops.push_back(std::make_shared<ast::FieldAccess>());
+    // ops.push_back(std::make_shared<ast::FieldAccess>());
 
+    // args
     std::vector<std::shared_ptr<ast::ExprNode>> args;
     visitArgumentList(node->child_at(2), args);
     ops.insert(ops.end(), std::make_move_iterator(args.begin()),
@@ -244,12 +248,14 @@ ParseTreeVisitor::visitFieldAccess(const NodePtr &node) {
   check_node_type(node, NodeType::FieldAccess);
   check_num_children(node, 2, 2);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
+  // primary
   auto left = visitExpression(node->child_at(0))->getExprNodes();
   ops.insert(ops.end(), std::make_move_iterator(left.begin()),
              std::make_move_iterator(left.end()));
+  // ID
   ops.push_back(
       std::make_shared<ast::MemberName>(visitIdentifier(node->child_at(1))));
-  ops.push_back(std::make_shared<ast::FieldAccess>());
+  // ops.push_back(std::make_shared<ast::FieldAccess>());
   return ops;
 }
 
@@ -380,7 +386,7 @@ ParseTreeVisitor::visitQualifiedIdentifierInExpr(const NodePtr &node,
     ops = visitQualifiedIdentifierInExpr(node->child_at(0));
     ops.push_back(isMethod ? std::make_shared<ast::MethodName>(identifier)
                            : std::make_shared<ast::MemberName>(identifier));
-    ops.push_back(std::make_shared<ast::FieldAccess>());
+    // ops.push_back(std::make_shared<ast::FieldAccess>());
   }
   return ops;
 }

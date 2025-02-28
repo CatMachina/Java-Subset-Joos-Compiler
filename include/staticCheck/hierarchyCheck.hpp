@@ -1126,6 +1126,15 @@ public:
     // Traverse tree and validate each node
     return traverseTree(rootPackage);
   }
+
+  // Wrapper
+  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>> getInheritedFields(
+    std::shared_ptr<parsetree::ast::Decl> astNode) {
+    std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>>
+      fields;
+    getInheritedFields(astNode, fields);
+    return fields;
+}
 };
 
 } // namespace static_check

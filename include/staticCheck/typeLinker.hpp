@@ -10,7 +10,7 @@ class TypeLinker {
 public:
   TypeLinker(std::shared_ptr<parsetree::ast::ASTManager> astManager)
       : astManager(astManager) {
-    rootPackage = std::make_unique<Package>();
+    rootPackage = std::make_shared<Package>();
     // add the default package
     rootPackage->addPackage(DEFAULT_PACKAGE_NAME);
     buildSymbolTable();
@@ -32,7 +32,11 @@ public:
 
   void resolveType(std::shared_ptr<parsetree::ast::Type> type);
 
-  Package::packageChild resolveSimpleName(const std::string &simpleName);
+  Package::packageChild resolveSimpleName(const std::string &simpleName,
+    std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
+
+  Package::packageChild resolveQualifiedName(const std::vector<std::string> &identifiers,
+  std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
 
   std::unordered_map<std::string, Package::packageChild> &
   getContext(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
@@ -51,8 +55,6 @@ private:
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<Package> rootPackage; // no decl
-  // std::unordered_map<std::string, Package::packageChild>
-  //     context; // for each AST
   std::unordered_map<std::shared_ptr<parsetree::ast::ProgramDecl>,
                      std::unordered_map<std::string, Package::packageChild>>
       contextMap;

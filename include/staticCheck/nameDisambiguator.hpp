@@ -2,6 +2,7 @@
 
 #include "ast/ast.hpp"
 #include "staticCheck/typeLinker.hpp"
+#include "staticCheck/hierarchyCheck.hpp"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -13,8 +14,9 @@ namespace static_check {
 class NameDisambiguator {
 public:
   NameDisambiguator(std::shared_ptr<parsetree::ast::ASTManager> astManager,
-                    std::shared_ptr<TypeLinker> typeLinker)
-      : astManager(astManager), typeLinker(typeLinker) {}
+                    std::shared_ptr<TypeLinker> typeLinker,
+                    std::shared_ptr<HierarchyCheck> hierarchyChecker)
+      : astManager(astManager), typeLinker(typeLinker), hierarchyChecker(hierarchyChecker) {}
 
   void resolve();
 
@@ -35,10 +37,12 @@ private:
   void enterScope();
   void leaveScope();
   void addToScope(std::string name, std::shared_ptr<parsetree::ast::Decl> decl);
-  std::shared_ptr<parsetree::ast::Decl> findInScopes(std::string name);
+  std::shared_ptr<parsetree::ast::Decl> findInScopes(const std::string &name);
+  std::shared_ptr<parsetree::ast::Decl> findInContainSet(const std::string &name);
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<TypeLinker> typeLinker;
+  std::shared_ptr<HierarchyCheck> hierarchyChecker;
 
   // AST traversal helpers
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> node);

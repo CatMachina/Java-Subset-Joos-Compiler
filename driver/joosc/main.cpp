@@ -149,16 +149,16 @@ int main(int argc, char **argv) {
     typeLinker->resolve();
 
     // hierarchy checking
-    static_check::HierarchyCheck hierarchyChecker{rootPackage};
+    auto hierarchyChecker = std::make_shared<static_check::HierarchyCheck>(rootPackage);
     std::cout << "Starting hierarchy check\n";
-    if (!hierarchyChecker.check()) {
+    if (!hierarchyChecker->check()) {
       std::cout << "Did not pass hierarchy check\n";
       return EXIT_ERROR;
     }
     std::cout << "Passed hierarchy check\n";
 
     // name disambiguation
-    auto nameDisambiguator = std::make_shared<static_check::NameDisambiguator>(astManager, typeLinker);
+    auto nameDisambiguator = std::make_shared<static_check::NameDisambiguator>(astManager, typeLinker, hierarchyChecker);
     nameDisambiguator->resolve();
 
     return EXIT_SUCCESS;

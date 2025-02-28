@@ -109,25 +109,21 @@ Import: search in type linker context
 // A: seems so yeah
 
 // TODO: Decl obj for field?
-// std::shared_ptr<Decl> NameDisambiguator::findInContainSet(
-//     std::shared_ptr<parsetree::ast::MemberName> identifier) {
-//   auto currentClass =
-//       std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(currentContext);
-//   if (!currentClass)
-//     throw std::runtime_error("Current class not exist");
-//   auto declaredFields = currentClass->getFields();
-//   for (auto field : declaredFields) {
-//     if (field->getName() == identifier->getName()) {
-//       return field;
-//     }
-//   }
-//   // Check inherited fields
-//   std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>>
-//       inheritedFields;
-//   hierarchyCheck->getInheritedFields(currentClass, inheritedFields);
-//   auto field = inheritedFields[identifier->getName()];
-//   return field;
-// }
+std::shared_ptr<parsetree::ast::Decl> NameDisambiguator::findInContainSet(const std::string &name) {
+  std::cout << "findInContainSet: " << name << std::endl;
+  auto currentClass =
+      std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(currentContext);
+  if (!currentClass) {
+    throw std::runtime_error("Current class not exist");
+  }
+  // Check inherited fields
+  auto inheritedFields = hierarchyChecker->getInheritedFields(currentClass);
+  auto it = inheritedFields.find(name);
+  if (it != inheritedFields.end()) {
+    return it->second;
+  }
+  return nullptr;
+}
 
 void NameDisambiguator::disambiguate(
     std::shared_ptr<parsetree::ast::Expr> expr,
@@ -138,6 +134,7 @@ void NameDisambiguator::disambiguate(
   if (memberNames[0]->getName() == "length") {
     return;
   }
+
   // 1. Local variable a_1 is in scope
   std::cout << memberNames.size() << " identifiers: ";
   for (auto memberName : memberNames) {
@@ -146,26 +143,30 @@ void NameDisambiguator::disambiguate(
   std::cout << std::endl;
   auto localDecl = findInScopes(memberNames[0]->getName());
   if (localDecl != nullptr) {
+    std::cout << "Found " << localDecl->getName() << std::endl;
     memberNames[0]->setResolvedDecl(localDecl);
     return;
   }
 
-  // 3. If a_1.(...).a_k is a type in the global environment
-  // maybe this?
-  auto &context = typeLinker->getContext(currentProgram);
+  // 2. Field a_1 is contained in the current class
+  auto fieldDecl = findInContainSet(memberNames[0]->getName());
+  if (fieldDecl != nullptr) {
+    std::cout << "Found " << fieldDecl->getName() << std::endl;
+    memberNames[0]->setResolvedDecl(fieldDecl);
+    return;
+  }
+
+  // 3. a_1.(...).a_k is a type in the global environment
   bool foundType = false;
+  std::vector<std::string> identifiers;
   for (auto memberName : memberNames) {
-    Package::packageChild import =
-        context.find(memberName->getName()) != context.end()
-            ? context[memberName->getName()]
-            : nullptr;
-    // Package
-    if (std::holds_alternative<std::shared_ptr<Package>>(import)) {
+    identifiers.push_back(memberName->getName());
+    Package::packageChild resolved = typeLinker->resolveQualifiedName(identifiers, currentProgram);
+    if (std::holds_alternative<std::shared_ptr<Package>>(resolved)) {
       continue;
     }
-    // Class/Interface
-    if (std::holds_alternative<std::shared_ptr<Decl>>(import)) {
-      auto decl = std::get<std::shared_ptr<Decl>>(import);
+    if (std::holds_alternative<std::shared_ptr<Decl>>(resolved)) {
+      auto decl = std::get<std::shared_ptr<Decl>>(resolved);
       if (!decl) {
         throw std::runtime_error("Ambiguous import-on-demand conflict");
       }
@@ -174,61 +175,13 @@ void NameDisambiguator::disambiguate(
       break;
     }
     throw std::runtime_error("Failed to disambiguate. No import for " +
-                             memberName->getName());
+      memberName->getName());
   }
+
   if (!foundType) {
     throw std::runtime_error(
         "Failed to disambiguate. No prefix can be resolved");
   }
-
-  // 2. Field a_1 is contained in the current class
-  // auto fieldDecl = findInContext(currentContext, memberNames[0]);
-  // if (fieldDecl != nullptr) {
-  //   expr->setResolvedDecl(fieldDecl);
-  //   return;
-  // }
-
-  // 3. a_1.(...).a_k is a type in the global environment
-  // std::vector<std::string> identifiers;
-  // Package::packageChild typeDecl;
-  // for (int i = 0; i < memberNames.size(); ++i) {
-  //   identifiers.push_back(memberNames[i]->getName());
-  //   try {
-  //     typeDecl = typeLinker->resolveImport(identifiers);
-  //     if (typeDecl != nullptr) {
-  //       expr->setResolvedDecl(typeDecl);
-  //     }
-  //   } catch (const std::runtime_error &err) {
-  //     std::cerr << "Runtime error: " << err.what() << std::endl;
-  //   }
-  // }
-  // if (typeDecl == nullptr) {}
-
-  /*
-  Edward:
-  we can just check all MemberNames instead? not Expr, or MethodName
-  and step 1 and step 2 can just be combined and use reclassifyDecl instead?
-  */
-
-  /*
-  Angel: Looks like step 1 isn't checked?
-  */
-
-  // // This is step 1
-  // // If local variable a_1 is in scope, we use it
-  // auto decl = findInScopes(memberName->getName());
-  // if (decl != nullptr) {
-  //   memberName->setResolvedDecl(decl);
-  //   return;
-  // }
-
-  // // This is step 2
-  // // If field a_1 is contained in the current class, we use it
-  // auto decl = findInContext(currentContext, memberName);
-  // if (decl != nullptr) {
-  //   memberName->setResolvedDecl(decl);
-  //   return;
-  // }
 }
 
 void NameDisambiguator::resolveExpr(
@@ -243,17 +196,15 @@ void NameDisambiguator::resolveExpr(
       std::vector<std::shared_ptr<parsetree::ast::MemberName>> memberNames;
       // Find longest contiguous subarray of memberNames
       while (i < exprNodes.size()) {
-        auto fieldAccess =
-            std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
-                exprNodes[i]);
+        // auto fieldAccess =
+        //     std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
+        //         exprNodes[i]);
         auto memberName =
             std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNodes[i]);
-        if (!memberName && !fieldAccess) {
+        if (!memberName) {
           break;
         }
-        if (memberName) {
-          memberNames.push_back(memberName);
-        }
+        memberNames.push_back(memberName);
         i++;
       }
       // The expression is a.b.c.d() => we know d is a method
@@ -281,13 +232,12 @@ void NameDisambiguator::addToScope(std::string name,
 }
 
 std::shared_ptr<parsetree::ast::Decl>
-NameDisambiguator::findInScopes(std::string name) {
+NameDisambiguator::findInScopes(const std::string &name) {
   std::cout << "findInScopes: " << name << std::endl;
   for (auto it = scopes.rbegin(); it != scopes.rend(); ++it) {
     std::cout << "Scope size = " << it->size() << std::endl;
     auto result = it->find(name);
     if (result != it->end()) {
-      std::cout << "Found " << result->second->getName() << std::endl;
       return result->second;
     }
   }
