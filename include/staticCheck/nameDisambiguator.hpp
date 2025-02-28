@@ -16,15 +16,16 @@ public:
   void resolve();
 
   void disambiguate(
-    std::shared_ptr<parsetree::ast::Expr> expr,
-    std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames
-  );
+      std::shared_ptr<parsetree::ast::Expr> expr,
+      std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames);
 
 private:
   // For scoping
   std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
-  std::vector<std::unordered_map<std::string, std::shared_ptr<parsetree::ast::Decl>>> scopes;
+  std::vector<
+      std::unordered_map<std::string, std::shared_ptr<parsetree::ast::Decl>>>
+      scopes;
 
   void enterProgram(std::shared_ptr<parsetree::ast::ProgramDecl> programDecl);
   void enterContext(std::shared_ptr<parsetree::ast::CodeBody> context);
