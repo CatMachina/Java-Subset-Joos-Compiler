@@ -57,11 +57,6 @@ AstBinOp ParseTreeVisitor::getBinOpType(const std::shared_ptr<Operator> &node) {
   return result->second;
 }
 
-// void ParseTreeVisitor::insertSeparator(
-//     std::vector<std::shared_ptr<ast::ExprNode>> &exprNodes) {
-//   exprNodes.push_back(std::make_shared<ast::Separator>());
-// }
-
 // All Expression visitors
 std::shared_ptr<ast::Expr>
 ParseTreeVisitor::visitExpression(const NodePtr &node) {
@@ -156,8 +151,7 @@ ParseTreeVisitor::visitAssignment(const NodePtr &node) {
   check_num_children(node, 3, 3);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
 
-  // FIXME: I reversed the lvalue and the initializer to make it easier for name
-  // disambiguation.
+  // Note: lvalue before initializer, for name disambiguation
 
   auto initializer = visitExpression(node->child_at(2))->getExprNodes();
   ops.insert(ops.end(), std::make_move_iterator(initializer.begin()),
@@ -177,45 +171,34 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
   check_node_type(node, NodeType::MethodInvocation);
   check_num_children(node, 2, 3);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
+  std::vector<std::shared_ptr<ast::ExprNode>> args;
 
   if (node->num_children() == 2) {
-    // args
-    std::vector<std::shared_ptr<ast::ExprNode>> args;
+    // Note: args before method name, for name disambiguation
     visitArgumentList(node->child_at(1), args);
     ops.insert(ops.end(), std::make_move_iterator(args.begin()),
                std::make_move_iterator(args.end()));
 
-    // FIXME: hack for name disambiguation
-
     auto qualifiedName = visitQualifiedIdentifierInExpr(node->child_at(0));
     ops.push_back(qualifiedName);
-
-    ops.push_back(std::make_shared<ast::MethodInvocation>(args.size() + 1));
-    return ops;
-  }
-  if (node->num_children() == 3) {
-    auto primaryExpr = visitExpression(node->child_at(0))->getExprNodes();
-    ops.insert(ops.end(), std::make_move_iterator(primaryExpr.begin()),
-               std::make_move_iterator(primaryExpr.end()));
-
-    // args
-    std::vector<std::shared_ptr<ast::ExprNode>> args;
+  } else {
+    // Note: args before method name, for name disambiguation
     visitArgumentList(node->child_at(2), args);
     ops.insert(ops.end(), std::make_move_iterator(args.begin()),
                std::make_move_iterator(args.end()));
 
-    // FIXME: hack for name disambiguation
+    auto primaryExpr = visitExpression(node->child_at(0))->getExprNodes();
+    ops.insert(ops.end(), std::make_move_iterator(primaryExpr.begin()),
+               std::make_move_iterator(primaryExpr.end()));
+
     auto id = visitIdentifier(node->child_at(1));
     auto qualifiedName = std::make_shared<ast::QualifiedName>();
     qualifiedName->add(id);
     ops.push_back(qualifiedName);
-
-    ops.push_back(std::make_shared<ast::MethodInvocation>(args.size() + 1));
-    return ops;
   }
 
-  throw std::runtime_error(
-      "Unexpected number of children in method invocation node");
+  ops.push_back(std::make_shared<ast::MethodInvocation>(args.size() + 1));
+  return ops;
 }
 
 std::vector<std::shared_ptr<ast::ExprNode>>
@@ -247,7 +230,6 @@ ParseTreeVisitor::visitFieldAccess(const NodePtr &node) {
   ops.insert(ops.end(), std::make_move_iterator(primaryExpr.begin()),
              std::make_move_iterator(primaryExpr.end()));
 
-  // id
   auto id = visitIdentifier(node->child_at(1));
   auto qualifiedName = std::make_shared<ast::QualifiedName>();
   qualifiedName->add(id);

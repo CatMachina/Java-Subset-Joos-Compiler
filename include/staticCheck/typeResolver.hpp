@@ -70,6 +70,11 @@ private:
            const std::shared_ptr<parsetree::ast::Type> &type,
            const std::shared_ptr<parsetree::ast::Type> &value) const;
 
+  std::shared_ptr<parsetree::ast::Type>
+  evalAssignment(const std::shared_ptr<parsetree::ast::Assignment> &op,
+                 const std::shared_ptr<parsetree::ast::Type> &lhs,
+                 const std::shared_ptr<parsetree::ast::Type> &rhs) const;
+
   std::shared_ptr<parsetree::ast::Type> popStack() {
     if (op_stack.empty()) {
       throw std::runtime_error("Popping an empty stack!");

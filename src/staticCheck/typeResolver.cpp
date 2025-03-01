@@ -389,10 +389,12 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
     } else if (auto method =
                    std::dynamic_pointer_cast<parsetree::ast::MethodInvocation>(
                        node)) {
+      // Note: reverse order
+      // Q: What happens if there are 3 children (primaryExpr, id, arg)?
+      auto method_name = popStack();
       std::vector<std::shared_ptr<parsetree::ast::Type>> args(method->nargs() -
                                                               1);
       std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
-      auto method_name = popStack();
       op_stack.push_back(evalMethodInvocation(method, method_name, args));
     } else if (auto newObj =
                    std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
@@ -419,281 +421,286 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
       auto value = popStack();
       auto type = popStack();
       op_stack.push_back(evalCast(cast, type, value));
+    } else if (auto assignment =
+                   std::dynamic_pointer_cast<parsetree::ast::Assignment>(
+                       node)) {
+      auto lhs = popStack();
+      auto rhs = popStack();
+      op_stack.push_back(evalAssignment(cast, lhs, rhs));
     }
-  }
-  if (op_stack.size() != 1) {
-    throw std::runtime_error("Stack not empty after evaluation!");
-  }
-  return popStack();
-}
-
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluate(
-    const std::shared_ptr<parsetree::ast::Expr> &node) const {
-  return evaluateList(node->getExprNodes());
-}
-
-void TypeResolver::resolveAST(
-    const std::shared_ptr<parsetree::ast::AST> &node) {
-  // only check Expr
-  if (auto decl = std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(node)) {
-    if (auto init = decl->getInitializer()) {
-      std::cout << "resolving initializer for variable: " << decl->toString()
-                << std::endl;
-      evaluate(init);
+    if (op_stack.size() != 1) {
+      throw std::runtime_error("Stack not empty after evaluation!");
     }
-  } else if (auto stmt =
-                 std::dynamic_pointer_cast<parsetree::ast::Stmt>(node)) {
-    for (auto expr : stmt->getExprs()) {
-      if (!expr)
-        continue;
-      std::cout << "resolving expression: ";
-      expr->print(std::cout);
-      std::cout << std::endl;
-      evaluate(expr);
-    }
-  }
-}
-
-/////////////////////////////////////
-// Evals of each op
-////////////////////////////////////
-
-std::shared_ptr<parsetree::ast::Type>
-TypeResolver::mapValue(ExprValue &node) const {
-  if (!node.isDeclResolved())
-    throw std::runtime_error("ExprValue is not resolved");
-
-  if (auto method = std::dynamic_pointer_cast<MethodDecl>(node.decl())) {
-    auto ty = std::make_shared<MethodType>(method);
-    if (method->isConstructor()) {
-      ty->setReturnType(envManager.BuildReferenceType(
-          std::dynamic_pointer_cast<Decl>(method->parent())));
-    }
-    return ty;
+    return popStack();
   }
 
-  if (!node.isTypeResolved())
-    throw std::runtime_error("ExprValue type is not resolved");
-  return node.type();
-}
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluate(
+      const std::shared_ptr<parsetree::ast::Expr> &node) const {
+    return evaluateList(node->getExprNodes());
+  }
 
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalBinOp(
-    BinOp &op, const std::shared_ptr<parsetree::ast::Type> &lhs,
-    const std::shared_ptr<parsetree::ast::Type> &rhs) const {
-  if (op.resultType())
-    return op.resultType();
+  void TypeResolver::resolveAST(
+      const std::shared_ptr<parsetree::ast::AST> &node) {
+    // only check Expr
+    if (auto decl =
+            std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(node)) {
+      if (auto init = decl->getInitializer()) {
+        std::cout << "resolving initializer for variable: " << decl->toString()
+                  << std::endl;
+        evaluate(init);
+      }
+    } else if (auto stmt =
+                   std::dynamic_pointer_cast<parsetree::ast::Stmt>(node)) {
+      for (auto expr : stmt->getExprs()) {
+        if (!expr)
+          continue;
+        std::cout << "resolving expression: ";
+        expr->print(std::cout);
+        std::cout << std::endl;
+        evaluate(expr);
+      }
+    }
+  }
 
-  switch (op.opType()) {
-  case BinOp::OpType::Assignment:
+  /////////////////////////////////////
+  // Evals of each op
+  ////////////////////////////////////
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(ExprValue & node)
+      const {
+    if (!node.isDeclResolved())
+      throw std::runtime_error("ExprValue is not resolved");
+
+    if (auto method = std::dynamic_pointer_cast<MethodDecl>(node.decl())) {
+      auto ty = std::make_shared<MethodType>(method);
+      if (method->isConstructor()) {
+        ty->setReturnType(envManager.BuildReferenceType(
+            std::dynamic_pointer_cast<Decl>(method->parent())));
+      }
+      return ty;
+    }
+
+    if (!node.isTypeResolved())
+      throw std::runtime_error("ExprValue type is not resolved");
+    return node.type();
+  }
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalBinOp(
+      BinOp & op, const std::shared_ptr<parsetree::ast::Type> &lhs,
+      const std::shared_ptr<parsetree::ast::Type> &rhs) const {
+    if (op.resultType())
+      return op.resultType();
+
+    switch (op.opType()) {
+    // Angel: I think Assignment has its own ExprOp, not BinOp?
+    // I added a case in evaluateList and evalAssignment() for now
+    case BinOp::OpType::Assignment:
+      if (isAssignableTo(lhs, rhs)) {
+        return op.resolveResultType(lhs);
+      }
+      throw std::runtime_error("assignment is not valid");
+
+    case BinOp::OpType::GreaterThan:
+    case BinOp::OpType::GreaterThanOrEqual:
+    case BinOp::OpType::LessThan:
+    case BinOp::OpType::LessThanOrEqual:
+      if (lhs->isNumeric() && rhs->isNumeric()) {
+        return op.resolveResultType(
+            envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
+      }
+      throw std::runtime_error("comparison operands are non-numeric");
+
+    case BinOp::OpType::Equal:
+    case BinOp::OpType::NotEqual: {
+      if ((lhs->isNumeric() && rhs->isNumeric()) ||
+          (lhs->isBoolean() && rhs->isBoolean())) {
+        return op.resolveResultType(
+            envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
+      }
+
+      auto lhsType = std::dynamic_pointer_cast<ast::ReferenceType>(lhs);
+      auto rhsType = std::dynamic_pointer_cast<ast::ReferenceType>(rhs);
+
+      if ((lhs->isNull() || lhsType) && (rhs->isNull() || rhsType) &&
+          (isValidCast(lhs, rhs) || isValidCast(rhs, lhs))) {
+        return op.resolveResultType(
+            envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
+      }
+      throw std::runtime_error("operands are not of the same type");
+    }
+
+    case BinOp::OpType::Add:
+      if (isTypeString(lhs) || isTypeString(rhs)) {
+        return op.resolveResultType(
+            envManager.BuildBuiltInType(ast::BuiltInType::Kind::String));
+      }
+      if (lhs->isNumeric() && rhs->isNumeric()) {
+        return op.resolveResultType(
+            envManager.BuildBuiltInType(ast::BuiltInType::Kind::Int));
+      }
+      throw std::runtime_error("invalid types for arithmetic operation");
+
+    case BinOp::OpType::And:
+    case BinOp::OpType::Or:
+      if (lhs->isBoolean() && rhs->isBoolean()) {
+        return op.resolveResultType(
+            envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
+      }
+      throw std::runtime_error("logical operation requires boolean operands");
+
+    default:
+      throw std::runtime_error("Invalid binary operation");
+    }
+  }
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalUnOp(
+      UnOp & op, const std::shared_ptr<parsetree::ast::Type> &rhs) const {
+    if (auto result = op.resultType(); result) {
+      return result;
+    }
+
+    switch (op.opType()) {
+    case UnOp::OpType::Plus:
+    case UnOp::OpType::Minus:
+    case UnOp::OpType::BitwiseNot:
+      if (rhs->isNumeric()) {
+        return op.resolveResultType(
+            envManager.BuildBuiltInType(ast::BuiltInType::Kind::Int));
+      }
+      break;
+    case UnOp::OpType::Not:
+      if (rhs->isBoolean()) {
+        return op.resolveResultType(
+            envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
+      }
+      break;
+    default:
+      throw std::runtime_error("Invalid unary operation");
+    }
+
+    throw std::runtime_error("Invalid type for unary " +
+                             magic_enum::enum_name(op.opType()) + ", is type " +
+                             rhs->toString());
+  }
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
+      const std::shared_ptr<parsetree::ast::FieldAccess> &op,
+      const std::shared_ptr<parsetree::ast::Type> &lhs,
+      const std::shared_ptr<parsetree::ast::Type> &field) const {
+
+    if (auto result = op->resultType(); result) {
+      return result;
+    }
+    return op->resolveResultType(field);
+  }
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
+      const std::shared_ptr<parsetree::ast::MethodInvocation> &op,
+      const std::shared_ptr<parsetree::ast::Type> &method,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
+
+    if (auto result = op->resultType(); result) {
+      return result;
+    }
+
+    auto methodType = std::dynamic_pointer_cast<MethodType>(method);
+    if (!methodType) {
+      throw std::runtime_error("Not a method type");
+    }
+
+    const auto &methodParams = methodType->paramTypes();
+    if (methodParams.size() != args.size()) {
+      throw std::runtime_error("Method params and args size mismatch");
+    }
+
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (!isAssignableTo(methodParams[i],
+                          args[args.size() - 1 - i])) { // Reverse iteration
+        throw std::runtime_error("Invalid argument type for method call");
+      }
+    }
+
+    return op->resolveResultType(methodType->returnType());
+  }
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewObject(
+      const std::shared_ptr<parsetree::ast::ClassCreation> &op,
+      const std::shared_ptr<parsetree::ast::Type> &object,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
+
+    if (auto result = op->resultType(); result) {
+      return result;
+    }
+
+    auto constructor = std::dynamic_pointer_cast<MethodType>(object);
+    if (!constructor) {
+      throw std::runtime_error("Not a method type");
+    }
+
+    const auto &constructorParams = constructor->paramTypes();
+    if (constructorParams.size() != args.size()) {
+      throw std::runtime_error("Constructor params and args size mismatch");
+    }
+
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (!isAssignableTo(constructorParams[i], args[args.size() - 1 - i])) {
+        throw std::runtime_error("Invalid argument type for constructor call");
+      }
+    }
+
+    return op->resolveResultType(constructor->returnType());
+  }
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewArray(
+      const std::shared_ptr<parsetree::ast::ArrayCreation> &op,
+      const std::shared_ptr<parsetree::ast::Type> &type,
+      const std::shared_ptr<parsetree::ast::Type> &size) const {
+
+    if (auto result = op->resultType(); result) {
+      return result;
+    }
+
+    if (!size->isNumeric()) {
+      throw std::runtime_error("Invalid type for array size, non-numeric");
+    }
+
+    return op->resolveResultType(type);
+  }
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalArrayAccess(
+      const std::shared_ptr<parsetree::ast::ArrayAccess> &op,
+      const std::shared_ptr<parsetree::ast::Type> &array,
+      const std::shared_ptr<parsetree::ast::Type> &index) const {
+
+    if (auto result = op->resultType(); result) {
+      return result;
+    }
+
+    auto arrayType = std::dynamic_pointer_cast<ArrayType>(array);
+    if (!arrayType) {
+      throw std::runtime_error("Not an array type");
+    }
+
+    if (!index->isNumeric()) {
+      throw std::runtime_error("Invalid type for array index, non-numeric");
+    }
+
+    return op->resolveResultType(arrayType->getElementType());
+  }
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalCast(
+      const std::shared_ptr<parsetree::ast::Cast> &op,
+      const std::shared_ptr<parsetree::ast::Type> &type,
+      const std::shared_ptr<parsetree::ast::Type> &value) const {}
+
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evalAssignment(
+      const std::shared_ptr<parsetree::ast::Assignment> &op,
+      const std::shared_ptr<parsetree::ast::Type> &lhs,
+      const std::shared_ptr<parsetree::ast::Type> &rhs) const {
     if (isAssignableTo(lhs, rhs)) {
-      return op.resolveResultType(lhs);
+      return op->resolveResultType(lhs);
     }
     throw std::runtime_error("assignment is not valid");
-
-  case BinOp::OpType::GreaterThan:
-  case BinOp::OpType::GreaterThanOrEqual:
-  case BinOp::OpType::LessThan:
-  case BinOp::OpType::LessThanOrEqual:
-    if (lhs->isNumeric() && rhs->isNumeric()) {
-      return op.resolveResultType(
-          envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
-    }
-    throw std::runtime_error("comparison operands are non-numeric");
-
-  case BinOp::OpType::Equal:
-  case BinOp::OpType::NotEqual: {
-    if ((lhs->isNumeric() && rhs->isNumeric()) ||
-        (lhs->isBoolean() && rhs->isBoolean())) {
-      return op.resolveResultType(
-          envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
-    }
-
-    auto lhsType = std::dynamic_pointer_cast<ast::ReferenceType>(lhs);
-    auto rhsType = std::dynamic_pointer_cast<ast::ReferenceType>(rhs);
-
-    if ((lhs->isNull() || lhsType) && (rhs->isNull() || rhsType) &&
-        (isValidCast(lhs, rhs) || isValidCast(rhs, lhs))) {
-      return op.resolveResultType(
-          envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
-    }
-    throw std::runtime_error("operands are not of the same type");
   }
-
-  case BinOp::OpType::Add:
-    if (isTypeString(lhs) || isTypeString(rhs)) {
-      return op.resolveResultType(
-          envManager.BuildBuiltInType(ast::BuiltInType::Kind::String));
-    }
-    if (lhs->isNumeric() && rhs->isNumeric()) {
-      return op.resolveResultType(
-          envManager.BuildBuiltInType(ast::BuiltInType::Kind::Int));
-    }
-    throw std::runtime_error("invalid types for arithmetic operation");
-
-  case BinOp::OpType::And:
-  case BinOp::OpType::Or:
-    if (lhs->isBoolean() && rhs->isBoolean()) {
-      return op.resolveResultType(
-          envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
-    }
-    throw std::runtime_error("logical operation requires boolean operands");
-
-  default:
-    throw std::runtime_error("Invalid binary operation");
-  }
-}
-
-std::shared_ptr<parsetree::ast::Type>
-TypeResolver::evalUnOp(UnOp &op,
-                       const std::shared_ptr<parsetree::ast::Type> &rhs) const {
-  if (auto result = op.resultType(); result) {
-    return result;
-  }
-
-  switch (op.opType()) {
-  case UnOp::OpType::Plus:
-  case UnOp::OpType::Minus:
-  case UnOp::OpType::BitwiseNot:
-    if (rhs->isNumeric()) {
-      return op.resolveResultType(
-          envManager.BuildBuiltInType(ast::BuiltInType::Kind::Int));
-    }
-    break;
-  case UnOp::OpType::Not:
-    if (rhs->isBoolean()) {
-      return op.resolveResultType(
-          envManager.BuildBuiltInType(ast::BuiltInType::Kind::Boolean));
-    }
-    break;
-  default:
-    throw std::runtime_error("Invalid unary operation");
-  }
-
-  throw std::runtime_error("Invalid type for unary " +
-                           magic_enum::enum_name(op.opType()) + ", is type " +
-                           rhs->toString());
-}
-
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
-    const std::shared_ptr<parsetree::ast::FieldAccess> &op,
-    const std::shared_ptr<parsetree::ast::Type> &lhs,
-    const std::shared_ptr<parsetree::ast::Type> &field) const {
-
-  if (auto result = op->resultType(); result) {
-    return result;
-  }
-  return op->resolveResultType(field);
-}
-
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
-    const std::shared_ptr<parsetree::ast::MethodInvocation> &op,
-    const std::shared_ptr<parsetree::ast::Type> &method,
-    const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
-
-  if (auto result = op->resultType(); result) {
-    return result;
-  }
-
-  auto methodType = std::dynamic_pointer_cast<MethodType>(method);
-  if (!methodType) {
-    throw std::runtime_error("Not a method type");
-  }
-
-  const auto &methodParams = methodType->paramTypes();
-  if (methodParams.size() != args.size()) {
-    throw std::runtime_error("Method params and args size mismatch");
-  }
-
-  for (size_t i = 0; i < args.size(); ++i) {
-    if (!isAssignableTo(methodParams[i],
-                        args[args.size() - 1 - i])) { // Reverse iteration
-      throw std::runtime_error("Invalid argument type for method call");
-    }
-  }
-
-  return op->resolveResultType(methodType->returnType());
-}
-
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewObject(
-    const std::shared_ptr<parsetree::ast::ClassCreation> &op,
-    const std::shared_ptr<parsetree::ast::Type> &object,
-    const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
-
-  if (auto result = op->resultType(); result) {
-    return result;
-  }
-
-  auto constructor = std::dynamic_pointer_cast<MethodType>(object);
-  if (!constructor) {
-    throw std::runtime_error("Not a method type");
-  }
-
-  const auto &constructorParams = constructor->paramTypes();
-  if (constructorParams.size() != args.size()) {
-    throw std::runtime_error("Constructor params and args size mismatch");
-  }
-
-  for (size_t i = 0; i < args.size(); ++i) {
-    if (!isAssignableTo(constructorParams[i], args[args.size() - 1 - i])) {
-      throw std::runtime_error("Invalid argument type for constructor call");
-    }
-  }
-
-  return op->resolveResultType(constructor->returnType());
-}
-
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewArray(
-    const std::shared_ptr<parsetree::ast::ArrayCreation> &op,
-    const std::shared_ptr<parsetree::ast::Type> &type,
-    const std::shared_ptr<parsetree::ast::Type> &size) const {
-
-  if (auto result = op->resultType(); result) {
-    return result;
-  }
-
-  if (!size->isNumeric()) {
-    throw std::runtime_error("Invalid type for array size, non-numeric");
-  }
-
-  return op->resolveResultType(type);
-}
-
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalArrayAccess(
-    const std::shared_ptr<parsetree::ast::ArrayAccess> &op,
-    const std::shared_ptr<parsetree::ast::Type> &array,
-    const std::shared_ptr<parsetree::ast::Type> &index) const {
-
-  if (auto result = op->resultType(); result) {
-    return result;
-  }
-
-  auto arrayType = std::dynamic_pointer_cast<ArrayType>(array);
-  if (!arrayType) {
-    throw std::runtime_error("Not an array type");
-  }
-
-  if (!index->isNumeric()) {
-    throw std::runtime_error("Invalid type for array index, non-numeric");
-  }
-
-  return op->resolveResultType(arrayType->getElementType());
-}
-
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalCast(
-    const std::shared_ptr<parsetree::ast::Cast> &op,
-    const std::shared_ptr<parsetree::ast::Type> &type,
-    const std::shared_ptr<parsetree::ast::Type> &value) const {
-
-  if (auto result = op->resultType(); result) {
-    return result;
-  }
-
-  if (!isValidCast(value, type)) {
-    throw std::runtime_error("Invalid cast from " + value->toString() + " to " +
-                             type->toString());
-  }
-
-  return op->resolveResultType(type);
-}
 
 } // namespace static_check
