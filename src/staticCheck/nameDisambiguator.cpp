@@ -144,7 +144,8 @@ NameDisambiguator::findInSuperClasses(const std::string &name) {
   return nullptr;
 }
 
-bool NameDisambiguator::isVisible(bool isFieldInitializer, bool isAssignment) {
+bool NameDisambiguator::isLegalReference(bool isFieldInitializer,
+                                         bool isAssignment) {
   if (currentField || isFieldInitializer) {
     return isAssignment;
   }
@@ -188,7 +189,11 @@ void NameDisambiguator::disambiguate(
 
   // Search in the declared set of current class
   auto fieldDecl = findInCurrentClass(memberNames[0]->getName());
-  if (fieldDecl != nullptr && isVisible(isFieldInitializer, isAssignment)) {
+  if (fieldDecl != nullptr) {
+    if (!isLegalReference(isFieldInitializer, isAssignment)) {
+      throw std::runtime_error("Forward reference in a non-static field "
+                               "initializer is not allowed.");
+    }
     std::cout << "Found " << fieldDecl->getName() << std::endl;
     memberNames[0]->setResolvedDecl(fieldDecl);
     return;

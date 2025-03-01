@@ -55,7 +55,7 @@ private:
   void resolveExpr(std::shared_ptr<parsetree::ast::Expr> expr);
   void resolveVarDecl(std::shared_ptr<parsetree::ast::VarDecl> decl);
 
-  bool isVisible(bool isFieldInitialization, bool isAssignment);
+  bool isLegalReference(bool isFieldInitialization, bool isAssignment);
 };
 
 } // namespace static_check
