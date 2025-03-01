@@ -72,6 +72,11 @@ private:
            const std::shared_ptr<parsetree::ast::Type> &type,
            const std::shared_ptr<parsetree::ast::Type> &value) const;
 
+  std::shared_ptr<parsetree::ast::Type>
+  evalAssignment(const std::shared_ptr<parsetree::ast::Assignment> &op,
+                 const std::shared_ptr<parsetree::ast::Type> &lhs,
+                 const std::shared_ptr<parsetree::ast::Type> &rhs) const;
+
   bool isReferenceOrArrType(std::shared_ptr<parsetree::ast::Type> type) const;
 
   bool isTypeString(std::shared_ptr<parsetree::ast::Type> type) const;

@@ -402,10 +402,12 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
     } else if (auto method =
                    std::dynamic_pointer_cast<parsetree::ast::MethodInvocation>(
                        node)) {
+      // Note: reverse order
+      // Q: What happens if there are 3 children (primaryExpr, id, arg)?
+      auto method_name = popStack();
       std::vector<std::shared_ptr<parsetree::ast::Type>> args(method->nargs() -
                                                               1);
       std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
-      auto method_name = popStack();
       op_stack.push_back(evalMethodInvocation(method, method_name, args));
     } else if (auto newObj =
                    std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
@@ -432,76 +434,53 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
       auto value = popStack();
       auto type = popStack();
       op_stack.push_back(evalCast(cast, type, value));
+    } else if (auto assignment =
+                   std::dynamic_pointer_cast<parsetree::ast::Assignment>(
+                       node)) {
+      auto lhs = popStack();
+      auto rhs = popStack();
+      op_stack.push_back(evalAssignment(cast, lhs, rhs));
     }
-  }
-  if (op_stack.size() != 1) {
-    throw std::runtime_error("Stack not empty after evaluation!");
-  }
-  return popStack();
-}
-
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluate(
-    const std::shared_ptr<parsetree::ast::Expr> &node) const {
-  return evaluateList(node->getExprNodes());
-}
-
-void TypeResolver::resolveAST(
-    const std::shared_ptr<parsetree::ast::AST> &node) {
-  // only check Expr
-  if (auto decl = std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(node)) {
-    if (auto init = decl->getInitializer()) {
-      std::cout << "resolving initializer for variable: " << decl->toString()
-                << std::endl;
-      evaluate(init);
+    if (op_stack.size() != 1) {
+      throw std::runtime_error("Stack not empty after evaluation!");
     }
-  } else if (auto stmt =
-                 std::dynamic_pointer_cast<parsetree::ast::Stmt>(node)) {
-    for (auto expr : stmt->getExprs()) {
-      if (!expr)
-        continue;
-      std::cout << "resolving expression: ";
-      expr->print(std::cout);
-      std::cout << std::endl;
-      evaluate(expr);
-    }
-  }
-}
-
-/////////////////////////////////////
-// Evals of each op
-////////////////////////////////////
-
-std::shared_ptr<parsetree::ast::Type>
-TypeResolver::mapValue(ExprValue &node) const {
-  if (!node.isDeclResolved())
-    throw std::runtime_error("ExprValue is not resolved");
-
-  if (auto method = std::dynamic_pointer_cast<MethodDecl>(node.decl())) {
-    auto ty = std::make_shared<MethodType>(method);
-    if (method->isConstructor()) {
-      ty->setReturnType(envManager.BuildReferenceType(
-          std::dynamic_pointer_cast<Decl>(method->parent())));
-    }
-    return ty;
+    return popStack();
   }
 
-  if (!node.isTypeResolved())
-    throw std::runtime_error("ExprValue type is not resolved");
-  return node.type();
-}
+  std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluate(
+      const std::shared_ptr<parsetree::ast::Expr> &node) const {
+    return evaluateList(node->getExprNodes());
+  }
 
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalBinOp(
-    BinOp &op, const std::shared_ptr<parsetree::ast::Type> &lhs,
-    const std::shared_ptr<parsetree::ast::Type> &rhs) const {
-  if (op.resultType())
-    return op.resultType();
+  void TypeResolver::resolveAST(
+      const std::shared_ptr<parsetree::ast::AST> &node) {
+    // only check Expr
+    if (auto decl =
+            std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(node)) {
+      if (auto init = decl->getInitializer()) {
+        std::cout << "resolving initializer for variable: " << decl->toString()
+                  << std::endl;
+        evaluate(init);
+      }
+    } else if (auto stmt =
+                   std::dynamic_pointer_cast<parsetree::ast::Stmt>(node)) {
+      for (auto expr : stmt->getExprs()) {
+        if (!expr)
+          continue;
+        std::cout << "resolving expression: ";
+        expr->print(std::cout);
+        std::cout << std::endl;
+        evaluate(expr);
+      }
+    }
+  }
 
   switch (op.opType()) {
-  case parsetree::ast::BinOp::OpType::Assignment:
-    if (isAssignableTo(lhs, rhs)) {
-      return op.resolveResultType(lhs);
-    }
-    throw std::runtime_error("assignment is not valid");
+    // case parsetree::ast::BinOp::OpType::Assignment:
+    //   if (isAssignableTo(lhs, rhs)) {
+    //     return op->resolveResultType(lhs);
+    //   }
+    //   throw std::runtime_error("assignment is not valid");
 
   case parsetree::ast::BinOp::OpType::GreaterThan:
   case parsetree::ast::BinOp::OpType::GreaterThanOrEqual:
@@ -709,6 +688,16 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalCast(
   }
 
   return op->resolveResultType(type);
+}
+
+std::shared_ptr<parsetree::ast::Type> TypeResolver::evalAssignment(
+    const std::shared_ptr<parsetree::ast::Assignment> &op,
+    const std::shared_ptr<parsetree::ast::Type> &lhs,
+    const std::shared_ptr<parsetree::ast::Type> &rhs) const {
+  if (isAssignableTo(lhs, rhs)) {
+    return op->resolveResultType(lhs);
+  }
+  throw std::runtime_error("assignment is not valid");
 }
 
 } // namespace static_check
