@@ -108,6 +108,23 @@ Import: search in type linker context
 // Q: But 3,4,5,6 already implemented in type linking, right?
 // A: seems so yeah
 
+std::shared_ptr<parsetree::ast::Decl>
+NameDisambiguator::findInCurrentClass(const std::string &name) {
+  std::cout << "findInCurrentClass: " << name << std::endl;
+  auto currentClass =
+      std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(currentContext);
+  if (!currentClass) {
+    throw std::runtime_error("Current class does not exist");
+  }
+  for (const auto fieldDecl : currentClass->getFields()) {
+    if (fieldDecl->getName() == name) {
+      return fieldDecl;
+    }
+  }
+  // Not found
+  return nullptr;
+}
+
 // TODO: Decl obj for field?
 std::shared_ptr<parsetree::ast::Decl>
 NameDisambiguator::findInSuperClasses(const std::string &name) {
@@ -115,7 +132,7 @@ NameDisambiguator::findInSuperClasses(const std::string &name) {
   auto currentClass =
       std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(currentContext);
   if (!currentClass) {
-    throw std::runtime_error("Current class not exist");
+    throw std::runtime_error("Current class does not exist");
   }
   // Check inherited fields
   auto inheritedFields = hierarchyChecker->getInheritedFields(currentClass);
@@ -123,16 +140,34 @@ NameDisambiguator::findInSuperClasses(const std::string &name) {
   if (it != inheritedFields.end()) {
     return it->second;
   }
+  // Not found
   return nullptr;
 }
 
+bool NameDisambiguator::isVisible(bool isFieldInitializer, bool isAssignment) {
+  if (currentField || isFieldInitializer) {
+    return isAssignment;
+  }
+  return true;
+}
+
+/*
+JLS 8.3.2.3
+The initializer of a non-static field must not use (i.e., read) by simple name
+(i.e., without an explicit this) itself or a non-static field declared later in
+the same class.
+*/
 void NameDisambiguator::disambiguate(
-    std::shared_ptr<parsetree::ast::Expr> expr,
-    std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames) {
+    std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames,
+    bool isFieldInitializer, bool isAssignment) {
   if (memberNames.empty()) {
     return;
   }
   if (memberNames[0]->getName() == "length") {
+    return;
+  }
+  if (memberNames[0]->getName() == "this") {
+    memberNames[0]->setResolvedDecl(currentClass);
     return;
   }
 
@@ -150,7 +185,16 @@ void NameDisambiguator::disambiguate(
   }
 
   // 2. Field a_1 is contained in the current class
-  auto fieldDecl = findInSuperClasses(memberNames[0]->getName());
+
+  // Search in the declared set of current class
+  auto fieldDecl = findInCurrentClass(memberNames[0]->getName());
+  if (fieldDecl != nullptr && isVisible(isFieldInitializer, isAssignment)) {
+    std::cout << "Found " << fieldDecl->getName() << std::endl;
+    memberNames[0]->setResolvedDecl(fieldDecl);
+    return;
+  }
+  // Search in the inherit set of current class
+  fieldDecl = findInSuperClasses(memberNames[0]->getName());
   if (fieldDecl != nullptr) {
     std::cout << "Found " << fieldDecl->getName() << std::endl;
     memberNames[0]->setResolvedDecl(fieldDecl);
@@ -196,11 +240,8 @@ void NameDisambiguator::resolveExpr(
     if (auto memberName = std::dynamic_pointer_cast<parsetree::ast::MemberName>(
             exprNodes[i])) {
       std::vector<std::shared_ptr<parsetree::ast::MemberName>> memberNames;
-      // Find longest contiguous subarray of memberNames
+      // Find the longest contiguous subarray of memberNames
       while (i < exprNodes.size()) {
-        // auto fieldAccess =
-        //     std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
-        //         exprNodes[i]);
         auto memberName =
             std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNodes[i]);
         if (!memberName) {
@@ -209,14 +250,39 @@ void NameDisambiguator::resolveExpr(
         memberNames.push_back(memberName);
         i++;
       }
-      // The expression is a.b.c.d() => we know d is a method
+      // If expression is a.b.c.d(), then we know d is a method
       // Still need to disambiguate a.b.c
       if (auto methodName =
               std::dynamic_pointer_cast<parsetree::ast::MethodName>(
                   memberNames.back())) {
         memberNames.pop_back();
       }
-      disambiguate(expr, memberNames);
+      // Checks to see if this expr represents a field initialization
+      bool isFieldInitializer = false;
+      auto lastAssignmentNode =
+          std::dynamic_pointer_cast<parsetree::ast::Assignment>(
+              expr->getLastExprNode());
+      if (lastAssignmentNode) {
+        auto secondLastName =
+            std::dynamic_pointer_cast<parsetree::ast::MemberName>(
+                expr->getExprNodes()[expr->getExprNodes().size() - 2]);
+        if (secondLastName) {
+          auto localDecl = findInScopes(secondLastName->getName());
+          auto fieldDecl = findInCurrentClass(secondLastName->getName());
+          if (!localDecl && fieldDecl) {
+            isFieldInitializer = true;
+          }
+        }
+      }
+      // Does the name represent the direct LHS of an assignment?
+      bool isAssignment = false;
+      if (i < exprNodes.size()) {
+        if (auto assignment =
+                std::dynamic_pointer_cast<parsetree::ast::Assignment>(
+                    exprNodes[i]))
+          isAssignment = true;
+      }
+      disambiguate(memberNames, isFieldInitializer, isAssignment);
     }
     i++;
   }
@@ -283,10 +349,11 @@ void NameDisambiguator::resolveAST(
     enterContext(codeBody);
   }
 
+  auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node);
   auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node);
   auto interfaceDecl =
       std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(node);
-  auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node);
+  auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node);
 
   if (classDecl)
     std::cout << "Class: " << classDecl->getName() << std::endl;
@@ -295,6 +362,10 @@ void NameDisambiguator::resolveAST(
 
   if (classDecl || interfaceDecl || block)
     enterScope();
+  if (classDecl)
+    currentClass = classDecl;
+  if (fieldDecl)
+    currentField = fieldDecl;
 
   if (auto expr = std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
     resolveExpr(expr);
@@ -306,19 +377,14 @@ void NameDisambiguator::resolveAST(
     }
   }
 
-  // TODO: Forbid forward declaration
-  /*
-  The initializer for a non-static field must not refer by simple name to
-  itself or a non-static field declared later in the same class, except as the
-  direct left-hand side of an assignment.
-  */
-
   auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(node);
   if (varDecl)
     resolveVarDecl(varDecl);
 
   if (classDecl || interfaceDecl || block)
     leaveScope();
+  if (fieldDecl)
+    currentField = fieldDecl;
 }
 
 void NameDisambiguator::resolve() {

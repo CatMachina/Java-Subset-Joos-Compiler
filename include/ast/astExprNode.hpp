@@ -72,8 +72,10 @@ public:
   }
 };
 
-class ThisNode : public ExprNode {
+class ThisNode : public MemberName {
 public:
+  ThisNode() : MemberName{"this"} {}
+
   std::ostream &print(std::ostream &os) const override {
     os << "(This)";
     return os;

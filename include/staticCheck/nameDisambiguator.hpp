@@ -22,13 +22,15 @@ public:
   void resolve();
 
   void disambiguate(
-      std::shared_ptr<parsetree::ast::Expr> expr,
-      std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames);
+      std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames,
+      bool isFieldInitializer = false, bool isAssignment = false);
 
 private:
   // For scoping
   std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
+  std::shared_ptr<parsetree::ast::ClassDecl> currentClass;
+  std::shared_ptr<parsetree::ast::FieldDecl> currentField;
   std::vector<
       std::unordered_map<std::string, std::shared_ptr<parsetree::ast::Decl>>>
       scopes;
@@ -40,6 +42,8 @@ private:
   void addToScope(std::string name, std::shared_ptr<parsetree::ast::Decl> decl);
   std::shared_ptr<parsetree::ast::Decl> findInScopes(const std::string &name);
   std::shared_ptr<parsetree::ast::Decl>
+  findInCurrentClass(const std::string &name);
+  std::shared_ptr<parsetree::ast::Decl>
   findInSuperClasses(const std::string &name);
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
@@ -50,6 +54,8 @@ private:
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> node);
   void resolveExpr(std::shared_ptr<parsetree::ast::Expr> expr);
   void resolveVarDecl(std::shared_ptr<parsetree::ast::VarDecl> decl);
+
+  bool isVisible(bool isFieldInitialization, bool isAssignment);
 };
 
 } // namespace static_check

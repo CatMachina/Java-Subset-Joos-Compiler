@@ -156,15 +156,18 @@ ParseTreeVisitor::visitAssignment(const NodePtr &node) {
   check_num_children(node, 3, 3);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
 
-  auto lvalue = visitExpression(node->child_at(0))->getExprNodes();
-  ops.insert(ops.end(), std::make_move_iterator(lvalue.begin()),
-             std::make_move_iterator(lvalue.end()));
-
-  insertSeparator(ops);
+  // FIXME: I reversed the lvalue and the initializer to make it easier for name
+  // disambiguation.
 
   auto exprNodes = visitExpression(node->child_at(2))->getExprNodes();
   ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
              std::make_move_iterator(exprNodes.end()));
+
+  insertSeparator(ops);
+
+  auto lvalue = visitExpression(node->child_at(0))->getExprNodes();
+  ops.insert(ops.end(), std::make_move_iterator(lvalue.begin()),
+             std::make_move_iterator(lvalue.end()));
 
   ops.push_back(std::make_shared<ast::Assignment>());
 
