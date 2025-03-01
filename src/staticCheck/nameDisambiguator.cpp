@@ -4,109 +4,7 @@ namespace static_check {
 
 //////////////////// Helpers ////////////////////
 
-// std::shared_ptr<parsetree::ast::Decl>
-// lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> context,
-//                 std::string name) {
-//   if (!context) {
-//     return nullptr;
-//   }
-
-//   // Q: I didn't really understand this function here...
-//   auto matchesCondition = [name, this](const
-//   std::shared_ptr<parsetree::ast::Decl>& decl) {
-//     auto typedDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(decl); if
-//     (!typedDecl) return false;
-
-//     // Check if it's visible in the current scope
-//     bool scopeVisible = !this->lscope_ ||
-//     this->lscope_->canView(typedDecl->scope());
-
-//     // Additional access check for fields
-//     bool canAccess = true;
-//     if (auto fieldDecl =
-//     std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
-//       canAccess = isAccessible(fieldDecl->getModifiers(),
-//       fieldDecl->getParent());
-//     }
-
-//     return (decl->getName() == name) && scopeVisible && canAccess;
-//   };
-
-//   // Step 2: Is it a field contained the current class?
-
-//   auto classDecl =
-//   std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(context);
-//   // Check contain(C), where C is the current class.
-//   // Note: contain(C) is the union of inherit(C) and declare(C)
-//   if (classDecl) {
-//     // Check inherit(C)
-//     std::shared_ptr<parsetree::ast::Decl> foundDecl = nullptr;
-//     std::unordered_map<std::string,
-//     std::shared_ptr<parsetree::ast::FieldDecl>> inheritedFields;
-//     heirarchyCheck->getInheritedFields(classDecl, inheritedFields);
-
-//     for (const auto& tuple : inheritedFields) {
-//       auto name = tuple.first;
-//       auto fieldDecl = tuple.second;
-//       if (matchesCondition(fieldDecl)) {
-//         if (foundDecl) return nullptr; // Ambiguous case
-//         foundDecl = fieldDecl;
-//       }
-//     }
-//     if (foundDecl) return foundDecl;
-
-//     // Check declare(C)
-//     for (const auto& fieldDecl : classDecl->getFields()) {
-//       if (matchesCondition(fieldDecl)) return fieldDecl;
-//     }
-//   }
-
-//   return nullptr;
-// }
-
-// std::shared_ptr<parsetree::ast::Decl>
-// NameDisambiguator::findInContext(std::shared_ptr<parsetree::ast::CodeBody>
-// ctx,
-//                                   std::shared_ptr<MemberName> node) {
-//   if (auto decl = lookupNamedDecl(currentContext, node->getName())) {
-//     if (auto varDecl =
-//             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl)) {
-//       // data->reclassify(ExprName::Type::ExpressionName, varDecl);
-//       return varDecl;
-//     } else if (auto fieldDecl =
-//                    std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl))
-//                    {
-//       // data->reclassify(ExprName::Type::ExpressionName, fieldDecl);
-//       return fieldDecl;
-//     }
-//   }
-//   if (auto ctxDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(ctx)) {
-//     if (auto parentCtx = std::dynamic_pointer_cast<parsetree::ast::CodeBody>(
-//             ctxDecl->getParent())) {
-//       return findInContext(parentCtx, node);
-//     }
-//   }
-//   return false;
-// }
-/*
-JLS 6.5.2:
-1. local variable decl, param decl, or field decl → ExpressionName.
-2. local or member types (eg. local class) → TypeName.
-3. in top-level class/interface in the same compilation unit or
-single-type-import declaration → TypeName.
-4. types in the same package (other compilation units) → TypeName.
-5. type-import-on-demand in same compilation unit: Exactly one match →
-TypeName, else → Compile-time error
-6. none of the above, assume it's a package name → PackageName.
-
-May be we can split it into reclassify Decl and reclassify import?
-Decl: Search in this context, if not found, search parent context
-Import: search in type linker context
-*/
-
-// Q: But 3,4,5,6 already implemented in type linking, right?
-// A: seems so yeah
+// TODO: Decl obj for field?
 
 std::shared_ptr<parsetree::ast::Decl>
 NameDisambiguator::findInCurrentClass(const std::string &name) {
@@ -125,7 +23,6 @@ NameDisambiguator::findInCurrentClass(const std::string &name) {
   return nullptr;
 }
 
-// TODO: Decl obj for field?
 std::shared_ptr<parsetree::ast::Decl>
 NameDisambiguator::findInSuperClasses(const std::string &name) {
   std::cout << "findInSuperClasses: " << name << std::endl;
@@ -145,9 +42,9 @@ NameDisambiguator::findInSuperClasses(const std::string &name) {
 }
 
 bool NameDisambiguator::isLegalReference(bool isFieldInitializer,
-                                         bool isAssignment) {
+                                         bool isAssignmentNext) {
   if (currentField || isFieldInitializer) {
-    return isAssignment;
+    return isAssignmentNext;
   }
   return true;
 }
@@ -159,60 +56,55 @@ The initializer of a non-static field must not use (i.e., read) by simple name
 the same class.
 */
 void NameDisambiguator::disambiguate(
-    std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames,
-    bool isFieldInitializer, bool isAssignment) {
-  if (memberNames.empty()) {
+    std::shared_ptr<parsetree::ast::QualifiedName> qualifiedName,
+    bool isFieldInitializer, bool isAssignmentNext) {
+  if (qualifiedName->size() == 0) {
     return;
   }
-  if (memberNames[0]->getName() == "length") {
+  if (qualifiedName->getName(0) == "length") {
     return;
   }
-  if (memberNames[0]->getName() == "this") {
-    memberNames[0]->setResolvedDecl(currentClass);
+  if (qualifiedName->getName(0) == "this") {
+    qualifiedName->get(0)->setResolvedDecl(currentClass);
     return;
   }
 
   // 1. Local variable a_1 is in scope
-  std::cout << memberNames.size() << " identifiers: ";
-  for (auto memberName : memberNames) {
-    std::cout << memberName->getName() << ", ";
-  }
-  std::cout << std::endl;
-  auto localDecl = findInScopes(memberNames[0]->getName());
+  auto localDecl = findInScopes(qualifiedName->getName(0));
   if (localDecl != nullptr) {
     std::cout << "Found " << localDecl->getName() << std::endl;
-    memberNames[0]->setResolvedDecl(localDecl);
+    qualifiedName->get(0)->setResolvedDecl(localDecl);
     return;
   }
 
   // 2. Field a_1 is contained in the current class
 
   // Search in the declared set of current class
-  auto fieldDecl = findInCurrentClass(memberNames[0]->getName());
+  auto fieldDecl = findInCurrentClass(qualifiedName->getName(0));
   if (fieldDecl != nullptr) {
-    if (!isLegalReference(isFieldInitializer, isAssignment)) {
+    if (!isLegalReference(isFieldInitializer, isAssignmentNext)) {
       throw std::runtime_error("Forward reference in a non-static field "
                                "initializer is not allowed.");
     }
     std::cout << "Found " << fieldDecl->getName() << std::endl;
-    memberNames[0]->setResolvedDecl(fieldDecl);
+    qualifiedName->get(0)->setResolvedDecl(fieldDecl);
     return;
   }
   // Search in the inherit set of current class
-  fieldDecl = findInSuperClasses(memberNames[0]->getName());
+  fieldDecl = findInSuperClasses(qualifiedName->getName(0));
   if (fieldDecl != nullptr) {
     std::cout << "Found " << fieldDecl->getName() << std::endl;
-    memberNames[0]->setResolvedDecl(fieldDecl);
+    qualifiedName->get(0)->setResolvedDecl(fieldDecl);
     return;
   }
 
   // 3. a_1.(...).a_k is a type in the global environment
   bool foundType = false;
-  std::vector<std::string> identifiers;
-  for (auto memberName : memberNames) {
-    identifiers.push_back(memberName->getName());
+  std::vector<std::string> prefix;
+  for (int i = 0; i < qualifiedName->size(); ++i) {
+    prefix.push_back(qualifiedName->getName(i));
     Package::packageChild resolved =
-        typeLinker->resolveQualifiedName(identifiers, currentProgram);
+        typeLinker->resolveQualifiedName(prefix, currentProgram);
     if (std::holds_alternative<std::shared_ptr<Package>>(resolved)) {
       continue;
     }
@@ -221,12 +113,12 @@ void NameDisambiguator::disambiguate(
       if (!decl) {
         throw std::runtime_error("Ambiguous import-on-demand conflict");
       }
-      memberName->setResolvedDecl(decl->getAstNode());
+      qualifiedName->get(i)->setResolvedDecl(decl->getAstNode());
       foundType = true;
       break;
     }
     throw std::runtime_error("Failed to disambiguate. No import for " +
-                             memberName->getName());
+                             qualifiedName->getName(i));
   }
 
   if (!foundType) {
@@ -240,69 +132,64 @@ void NameDisambiguator::resolveExpr(
   expr->print(std::cout);
   std::cout << std::endl;
   auto exprNodes = expr->getExprNodes();
-  int i = 0;
-  while (i < exprNodes.size()) {
-    if (auto memberName = std::dynamic_pointer_cast<parsetree::ast::MemberName>(
-            exprNodes[i])) {
-      std::vector<std::shared_ptr<parsetree::ast::MemberName>> memberNames;
-      // Find the longest contiguous subarray of memberNames
-      while (i < exprNodes.size()) {
-        auto memberName =
-            std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNodes[i]);
-        if (!memberName) {
-          break;
-        }
-        memberNames.push_back(memberName);
-        i++;
-      }
-      // If the expression is a.b.c.d(), then we know d is a method
-      // Still need to disambiguate a.b.c
-      if (auto methodName =
-              std::dynamic_pointer_cast<parsetree::ast::MethodName>(
-                  memberNames.back())) {
-        memberNames.pop_back();
-      }
-      // If the next node is a FieldAccess, then we disambiguate a.b.c
-      bool isFieldAccess = false;
-      if (i < exprNodes.size()) {
-        if (i < exprNodes.size()) {
-          if (auto fieldAccess =
-                  std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
-                      exprNodes[i]))
-            isFieldAccess = true;
-        }
-      }
-      if (isFieldAccess) {
-        memberNames.pop_back();
-      }
-      // Check to see if this expr represents a field initializer
-      bool isFieldInitializer = false;
-      auto lastAssignmentNode =
-          std::dynamic_pointer_cast<parsetree::ast::Assignment>(
-              expr->getLastExprNode());
-      if (lastAssignmentNode) {
-        auto secondLastName =
-            std::dynamic_pointer_cast<parsetree::ast::MemberName>(
-                expr->getExprNodes()[expr->getExprNodes().size() - 2]);
-        if (secondLastName) {
-          auto localDecl = findInScopes(secondLastName->getName());
-          auto fieldDecl = findInCurrentClass(secondLastName->getName());
-          if (!localDecl && fieldDecl) {
-            isFieldInitializer = true;
-          }
-        }
-      }
-      // Check to see if the name represents the direct LHS of an assignment
-      bool isAssignment = false;
-      if (i < exprNodes.size()) {
-        if (auto assignment =
-                std::dynamic_pointer_cast<parsetree::ast::Assignment>(
-                    exprNodes[i]))
-          isAssignment = true;
-      }
-      disambiguate(memberNames, isFieldInitializer, isAssignment);
+  for (int i = 0; i < exprNodes.size(); ++i) {
+    auto qualifiedName =
+        std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(exprNodes[i]);
+    if (!qualifiedName) {
+      continue;
     }
-    i++;
+    // Check to see if this entire expr represents a field initializer
+    bool isFieldInitializer = false;
+    auto lastAssignmentNode =
+        std::dynamic_pointer_cast<parsetree::ast::Assignment>(
+            expr->getLastExprNode());
+    if (lastAssignmentNode) {
+      auto secondLastQualifiedName =
+          std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(
+              expr->getExprNodes()[expr->getExprNodes().size() - 2]);
+      if (secondLastQualifiedName) {
+        auto lastComponent = secondLastQualifiedName->getLastName();
+        auto localDecl = findInScopes(lastComponent);
+        auto fieldDecl = findInCurrentClass(lastComponent);
+        if (!localDecl && fieldDecl) {
+          isFieldInitializer = true;
+        }
+      }
+    }
+    // Check to see if the name represents the direct LHS of an assignment
+    bool isAssignmentNext = false;
+    if (i < exprNodes.size() - 1) {
+      if (auto assignment =
+              std::dynamic_pointer_cast<parsetree::ast::Assignment>(
+                  exprNodes[i + 1]))
+        isAssignmentNext = true;
+    }
+    // If the next ExprOp is a FieldAccess or MethodInvocation, then we pop the
+    // last component
+    bool isFieldAccessNext = false;
+    bool isMethodInvocationNext = false;
+    if (i < exprNodes.size() - 1) {
+      if (auto fieldAccess =
+              std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
+                  exprNodes[i + 1])) {
+        isFieldAccessNext = true;
+      }
+      if (auto methodInvocation =
+              std::dynamic_pointer_cast<parsetree::ast::MethodInvocation>(
+                  exprNodes[i + 1])) {
+        isMethodInvocationNext = true;
+      }
+    }
+    if (isFieldAccessNext || isMethodInvocationNext) {
+      std::shared_ptr<parsetree::ast::QualifiedName> tmpQualifiedName =
+          std::make_shared<parsetree::ast::QualifiedName>();
+      for (int j = 0; j < qualifiedName->size() - 1; ++j) {
+        tmpQualifiedName->add(qualifiedName->get(j));
+      }
+      disambiguate(tmpQualifiedName, isFieldInitializer, isAssignmentNext);
+    } else {
+      disambiguate(qualifiedName, isFieldInitializer, isAssignmentNext);
+    }
   }
 }
 

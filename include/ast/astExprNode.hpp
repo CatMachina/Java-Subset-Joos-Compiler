@@ -26,9 +26,9 @@ private:
   std::string value;
 };
 
-class MemberName : public ExprNode {
+class SimpleName {
 public:
-  MemberName(std::string_view name) : name{name} {}
+  SimpleName(std::string name) : name{name} {}
 
   std::string getName() const { return name; }
 
@@ -39,24 +39,41 @@ public:
     this->resolvedDecl = resolvedDecl;
   }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(Member name: " << name << ")";
-    return os;
-  }
-
 private:
   std::string name;
   std::shared_ptr<Decl> resolvedDecl;
 };
 
-class MethodName : public MemberName {
+class QualifiedName : public ExprNode {
 public:
-  MethodName(std::string_view name) : MemberName{name} {}
+  QualifiedName(){};
+
+  int size() { return simpleNames.size(); }
+
+  std::shared_ptr<SimpleName> get(int index) { return simpleNames[index]; }
+  std::string getName(int index) { return simpleNames[index]->getName(); }
+
+  std::shared_ptr<SimpleName> getLast() { return simpleNames[size() - 1]; }
+  std::string getLastName() { return simpleNames[size() - 1]->getName(); }
+
+  void add(std::string name) {
+    simpleNames.push_back(std::make_shared<SimpleName>(name));
+  }
+  void add(std::shared_ptr<SimpleName> simpleName) {
+    simpleNames.push_back(simpleName);
+  }
 
   std::ostream &print(std::ostream &os) const override {
-    os << "(Method name: " << getName() << ")";
+    os << "(QualifiedName: ";
+    for (const auto &simpleName : simpleNames) {
+      os << simpleName->getName() << " ";
+    }
+    os << ")";
     return os;
   }
+
+private:
+  std::vector<std::shared_ptr<SimpleName>> simpleNames;
 };
 
 class UnresolvedTypeExpr : public ExprNode, public UnresolvedType {
@@ -68,16 +85,6 @@ public:
       os << id << ".";
     }
     os << ")";
-    return os;
-  }
-};
-
-class ThisNode : public MemberName {
-public:
-  ThisNode() : MemberName{"this"} {}
-
-  std::ostream &print(std::ostream &os) const override {
-    os << "(This)";
     return os;
   }
 };
@@ -177,26 +184,20 @@ public:
 };
 
 class MethodInvocation : public ExprOp {
-  std::vector<std::shared_ptr<ast::ExprNode>> qualifiedIdentifier;
 
 public:
-  MethodInvocation(int num_args,
-                   std::vector<std::shared_ptr<ast::ExprNode>> &qid)
-      : ExprOp(num_args), qualifiedIdentifier{qid} {}
-  std::vector<std::shared_ptr<ast::ExprNode>> &getQualifiedIdentifier() {
-    return qualifiedIdentifier;
-  }
+  MethodInvocation(int num_args) : ExprOp(num_args) {}
 
   std::ostream &print(std::ostream &os) const override {
     os << "(MethodInvocation: ";
-    for (const auto &qid : qualifiedIdentifier) {
-      if (!qid) {
-        os << "null";
-      } else {
-        qid->print(os);
-      }
-      os << " ";
-    }
+    // for (const auto &qid : qualifiedIdentifier) {
+    //   if (!qid) {
+    //     os << "null";
+    //   } else {
+    //     qid->print(os);
+    //   }
+    //   os << " ";
+    // }
     os << ")";
     return os;
   }
