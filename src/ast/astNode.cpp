@@ -257,28 +257,29 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
     if (!methodToCheck) {
       continue;
     }
-    auto qid = methodToCheck->getQualifiedIdentifier();
-    if (qid.empty()) {
-      // TODO: This is the primary DOT ID case. Need to check whether the
-      // primary (i.e. expr) is a this() or super() method invocation.
-      continue;
-    }
-    for (const auto &expr : qid) {
-      auto memberName = std::dynamic_pointer_cast<MemberName>(expr);
-      if (!memberName) {
-        continue; // will it happen?
-      }
-      auto id = memberName->getName();
-      if (id == "this") {
-        throw std::runtime_error("A method or constructor must not contain "
-                                 "explicit this() calls for method " +
-                                 getName());
-      } else if (id == "super") {
-        throw std::runtime_error("A method or constructor must not contain "
-                                 "explicit super() calls for method " +
-                                 getName());
-      }
-    }
+    // TODO
+    // auto qid = methodToCheck->getQualifiedIdentifier();
+    // if (qid.empty()) {
+    //   // TODO: This is the primary DOT ID case. Need to check whether the
+    //   // primary (i.e. expr) is a this() or super() method invocation.
+    //   continue;
+    // }
+    // for (const auto &expr : qid) {
+    //   auto memberName = std::dynamic_pointer_cast<MemberName>(expr);
+    //   if (!memberName) {
+    //     continue; // will it happen?
+    //   }
+    //   auto id = memberName->getName();
+    //   if (id == "this") {
+    //     throw std::runtime_error("A method or constructor must not contain "
+    //                              "explicit this() calls for method " +
+    //                              getName());
+    //   } else if (id == "super") {
+    //     throw std::runtime_error("A method or constructor must not contain "
+    //                              "explicit super() calls for method " +
+    //                              getName());
+    //   }
+    // }
   }
 }
 

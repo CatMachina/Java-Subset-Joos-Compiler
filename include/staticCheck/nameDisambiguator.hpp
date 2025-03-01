@@ -21,9 +21,9 @@ public:
 
   void resolve();
 
-  void disambiguate(
-      std::vector<std::shared_ptr<parsetree::ast::MemberName>> &memberNames,
-      bool isFieldInitializer = false, bool isAssignment = false);
+  void
+  disambiguate(std::shared_ptr<parsetree::ast::QualifiedName> qualifiedName,
+               bool isFieldInitializer = false, bool isAssignmentNext = false);
 
 private:
   // For scoping
@@ -55,7 +55,7 @@ private:
   void resolveExpr(std::shared_ptr<parsetree::ast::Expr> expr);
   void resolveVarDecl(std::shared_ptr<parsetree::ast::VarDecl> decl);
 
-  bool isLegalReference(bool isFieldInitialization, bool isAssignment);
+  bool isLegalReference(bool isFieldInitialization, bool isAssignmentNext);
 };
 
 } // namespace static_check
