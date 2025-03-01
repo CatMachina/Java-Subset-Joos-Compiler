@@ -255,14 +255,27 @@ void NameDisambiguator::resolveExpr(
         memberNames.push_back(memberName);
         i++;
       }
-      // If expression is a.b.c.d(), then we know d is a method
+      // If the expression is a.b.c.d(), then we know d is a method
       // Still need to disambiguate a.b.c
       if (auto methodName =
               std::dynamic_pointer_cast<parsetree::ast::MethodName>(
                   memberNames.back())) {
         memberNames.pop_back();
       }
-      // Checks to see if this expr represents a field initialization
+      // If the next node is a FieldAccess, then we disambiguate a.b.c
+      bool isFieldAccess = false;
+      if (i < exprNodes.size()) {
+        if (i < exprNodes.size()) {
+          if (auto fieldAccess =
+                  std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
+                      exprNodes[i]))
+            isFieldAccess = true;
+        }
+      }
+      if (isFieldAccess) {
+        memberNames.pop_back();
+      }
+      // Check to see if this expr represents a field initializer
       bool isFieldInitializer = false;
       auto lastAssignmentNode =
           std::dynamic_pointer_cast<parsetree::ast::Assignment>(
@@ -279,7 +292,7 @@ void NameDisambiguator::resolveExpr(
           }
         }
       }
-      // Does the name represent the direct LHS of an assignment?
+      // Check to see if the name represents the direct LHS of an assignment
       bool isAssignment = false;
       if (i < exprNodes.size()) {
         if (auto assignment =

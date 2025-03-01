@@ -258,7 +258,8 @@ ParseTreeVisitor::visitFieldAccess(const NodePtr &node) {
   // ID
   ops.push_back(
       std::make_shared<ast::MemberName>(visitIdentifier(node->child_at(1))));
-  // ops.push_back(std::make_shared<ast::FieldAccess>());
+
+  ops.push_back(std::make_shared<ast::FieldAccess>());
   return ops;
 }
 
