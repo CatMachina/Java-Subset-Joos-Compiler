@@ -1,4 +1,5 @@
 #include "staticCheck/typeResolver.hpp"
+#include "staticCheck/environment.hpp"
 
 namespace static_check {
 
@@ -16,6 +17,115 @@ bool TypeResolver::isTypeString(
   if (auto refType =
           std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type)) {
     return refType->decl() == String; // get the java lang String decl!
+  }
+  return false;
+}
+
+// Taken from HierarchyCheck
+bool isClass(std::shared_ptr<parsetree::ast::AstNode> decl)
+{
+  return !!dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl);
+}
+
+// Taken from HierarchyCheck
+bool isInterface(std::shared_ptr<parsetree::ast::AstNode> decl)
+{
+  return !!dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
+}
+
+bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> child, std::shared_ptr<parsetree::ast::AstNode> super) {
+  if (!child || !super)
+  {
+    // std::cout << "Either child or super is a nullptr."
+    return false;
+  }
+  if (!isClass(child)) {
+    // std::cout << "Child class is not a class!\n";
+    return false;
+  }
+  if (!isClass(super)) {
+    // std::cout << "Super class is not a class!\n";
+    return false;
+  }
+  auto childDecl = dynamic_pointer_cast<parsetree::ast::ClassDecl>(child);
+  auto superDecl = dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
+  for (auto &superClass : childDecl->getSuperClasses())
+  {
+    if (!superClass || !superClass->getResolvedDecl() || !superClass->getResolvedDecl()->getAstNode())
+      continue;
+
+    // Cast to class
+    auto superClassDecl =
+        dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+            superClass->getResolvedDecl()->getAstNode());
+
+    if (superClassDecl == superDecl)
+      return true;
+        
+    if(isSuperClass(dynamic_pointer_cast<parsetree::ast::AstNode>(superClassDecl), super))
+      return true;
+  }
+  return false;
+}
+
+bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child, std::shared_ptr<parsetree::ast::AstNode> interface) {
+  if (!child || !interface) {
+    // std::cout << "Either child or super interface is a nullptr."
+    return false;
+  }
+  if (!isClass(child) && !isInterface(child)) {
+    // std::cout << "Child is not a class or interface!\n";
+    return false;
+  }
+  if (!isInterface(interface)) {
+    // std::cout << "Super interface is not an interface!\n";
+    return false;
+  }
+  auto interfaceDecl = dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(interface);
+  if(isClass(child)) {
+    auto childDecl = dynamic_pointer_cast<parsetree::ast::ClassDecl>(child);
+    for (auto &superInterface : childDecl->getInterfaces()) {
+      if (!superInterface || !superInterface->getResolvedDecl() || !superInterface->getResolvedDecl()->getAstNode())
+        continue;
+      // Cast to class
+      auto superInterfaceDecl =
+          dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+              superInterface->getResolvedDecl()->getAstNode());
+  
+      if (superInterfaceDecl == interface)
+        return true;
+      if (isSuperInterface(dynamic_pointer_cast<parsetree::ast::AstNode>(superInterfaceDecl), interface))
+        return true;
+    }
+    for (auto &superClass : childDecl->getSuperClasses())
+    {
+      if (!superClass || !superClass->getResolvedDecl() || !superClass->getResolvedDecl()->getAstNode())
+        continue;
+  
+      // Cast to class
+      auto superClassDecl =
+          dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+              superClass->getResolvedDecl()->getAstNode());
+          
+      if(isSuperInterface(dynamic_pointer_cast<parsetree::ast::AstNode>(superClassDecl), interface))
+        return true;
+    }
+  } else {
+    auto childDecl = dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(child);
+    for (auto &superInterface : childDecl->getInterfaces())
+    {
+      if (!superInterface || !superInterface->getResolvedDecl() || !superInterface->getResolvedDecl()->getAstNode())
+        continue;
+      // Cast to interface
+      auto superInterfaceDecl =
+          dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+              superInterface->getResolvedDecl()->getAstNode());
+
+      if (superInterfaceDecl == interface)
+        return true;
+      if (isSuperInterface(dynamic_pointer_cast<parsetree::ast::AstNode>(superInterfaceDecl), interface))
+        return true;
+    }
   }
   return false;
 }
