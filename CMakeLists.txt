@@ -69,6 +69,7 @@ add_library(CompilerLib
     "src/staticCheck/envManager.cpp"
     "src/staticCheck/typeLinker.cpp"
     "src/staticCheck/nameDisambiguator.cpp"
+    "src/staticCheck/typeResolver.cpp"
 )
 target_include_directories(
     CompilerLib

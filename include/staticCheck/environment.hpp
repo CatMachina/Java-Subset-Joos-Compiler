@@ -91,47 +91,26 @@ public:
 };
 
 // class Class : public Decl {
-//   std::string name;
-//   std::unordered_set<std::shared_ptr<Method>> methods;
-//   std::unordered_set<std::shared_ptr<Field>> fields;
-//   std::unordered_set<std::shared_ptr<Class>> superclasses;
-//   std::unordered_set<std::shared_ptr<Interface>> extendedInterfaces;
-//   std::unordered_set<std::string> modifiers;
-
 // public:
-//   explicit Class(std::string name) : name{name} {}
-
-//   void addMethod(std::shared_ptr<Method> method) { methods.insert(method); }
-//   void addField(std::shared_ptr<Field> field) { fields.insert(field); }
-//   void addSuperclass(std::shared_ptr<Class> superclass) {
-//     superclasses.insert(superclass);
+//   explicit Class(std::shared_ptr<parsetree::ast::ClassDecl> cls) : Decl{cls}
+//   {} void printDecl(int depth = 0) const override {
+//     for (int i = 0; i < depth; ++i)
+//       std::cout << "  ";
+//     std::cout << "(Class: " << getAstNode()->getName() << ")"
+//               << "\n";
 //   }
-//   void addExtendedInterface(std::shared_ptr<Interface> interface) {
-//     extendedInterfaces.insert(interface);
-//   }
-//   void addModifier(const std::string &modifier) { modifiers.insert(modifier);
-//   }
-
-//   const std::string &getName() const { return name; }
 // };
 
 // class Interface : public Decl {
-//   std::string name;
-//   std::unordered_set<std::shared_ptr<Method>> methods;
-//   std::unordered_set<std::shared_ptr<Interface>> extendedInterfaces;
-//   std::unordered_set<std::string> modifiers;
-
 // public:
-//   explicit Interface(std::string name) : name{name} {}
-
-//   void addMethod(std::shared_ptr<Method> method) { methods.insert(method); }
-//   void addExtendedInterface(std::shared_ptr<Interface> interface) {
-//     extendedInterfaces.insert(interface);
+//   explicit Interface(std::shared_ptr<parsetree::ast::InterfaceDecl> itf)
+//       : Decl{itf} {}
+//   void printDecl(int depth = 0) const override {
+//     for (int i = 0; i < depth; ++i)
+//       std::cout << "  ";
+//     std::cout << "(Interface: " << getAstNode()->getName() << ")"
+//               << "\n";
 //   }
-//   void addModifier(const std::string &modifier) { modifiers.insert(modifier);
-//   }
-
-//   const std::string &getName() const { return name; }
 // };
 
 // class Method : public Decl {

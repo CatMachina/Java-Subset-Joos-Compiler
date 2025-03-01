@@ -20,6 +20,8 @@ public:
 
   void initContext(std::shared_ptr<parsetree::ast::ProgramDecl> node);
 
+  void populateJavaLang();
+
   ////////////////////// Resolvers ////////////////////
   // Second pass
   void resolve();

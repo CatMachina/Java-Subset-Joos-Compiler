@@ -148,6 +148,7 @@ int main(int argc, char **argv) {
         typeLinker->getRootPackage();
     rootPackage->printStructure();
     typeLinker->resolve();
+    typeLinker->populateJavaLang();
 
     // hierarchy checking
     auto hierarchyChecker =

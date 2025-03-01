@@ -50,6 +50,7 @@ public:
   ~Type() override = default;
   [[nodiscard]] virtual std::string toString() const = 0;
   [[nodiscard]] virtual bool isResolved() const = 0;
+  [[nodiscard]] virtual bool isString() const { return false; };
 
   std::ostream &print(std::ostream &os) const { return os << toString(); }
 };
@@ -589,7 +590,7 @@ class NullStmt : public Stmt {};
 
 class BasicType : public Type, public ExprNode {
 public:
-  enum class Type { Int, Boolean, Short, Char, Void, Byte };
+  enum class Type { Int, Boolean, Short, Char, Void, Byte, String };
 
   BasicType(Type type) : type_{type} {}
   BasicType(parsetree::BasicType::Type type) {
@@ -620,6 +621,7 @@ public:
   }
 
   bool isResolved() const override { return true; }
+  bool isString() const override { return type_ == Type::String; }
 
   std::ostream &print(std::ostream &os) const override {
     os << "(BasicType " << magic_enum::enum_name(type_) << ")";

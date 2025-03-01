@@ -2,14 +2,16 @@
 
 #include "ast/ast.hpp"
 #include "staticCheck/envManager.hpp"
+#include "staticCheck/environment.hpp"
 #include <memory>
+#include <stack>
 #include <vector>
 
 namespace static_check {
 
 class TypeResolver {
 public:
-  TypeResolver(std::shared_ptr<ast::ASTManager> astManager,
+  TypeResolver(std::shared_ptr<parsetree::ast::ASTManager> astManager,
                std::shared_ptr<EnvManager> envManager)
       : astManager(astManager), envManager(envManager) {}
   std::shared_ptr<parsetree::ast::Type>
@@ -69,6 +71,10 @@ private:
   evalCast(const std::shared_ptr<parsetree::ast::Cast> &op,
            const std::shared_ptr<parsetree::ast::Type> &type,
            const std::shared_ptr<parsetree::ast::Type> &value) const;
+
+  bool isReferenceOrArrType(std::shared_ptr<parsetree::ast::Type> type) const;
+
+  bool isTypeString(std::shared_ptr<parsetree::ast::Type> type) const;
 
   std::shared_ptr<parsetree::ast::Type> popStack() {
     if (op_stack.empty()) {
