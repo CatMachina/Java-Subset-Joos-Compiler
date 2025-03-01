@@ -1,5 +1,4 @@
 #include "staticCheck/typeResolver.hpp"
-#include "staticCheck/environment.hpp"
 
 namespace static_check {
 
@@ -433,6 +432,28 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluate(
   return evaluateList(node->getExprNodes());
 }
 
+void TypeResolver::resolveAST(
+    const std::shared_ptr<parsetree::ast::AST> &node) {
+  // only check Expr
+  if (auto decl = std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(node)) {
+    if (auto init = decl->getInitializer()) {
+      std::cout << "resolving initializer for variable: " << decl->toString()
+                << std::endl;
+      evaluate(init);
+    }
+  } else if (auto stmt =
+                 std::dynamic_pointer_cast<parsetree::ast::Stmt>(node)) {
+    for (auto expr : stmt->getExprs()) {
+      if (!expr)
+        continue;
+      std::cout << "resolving expression: ";
+      expr->print(std::cout);
+      std::cout << std::endl;
+      evaluate(expr);
+    }
+  }
+}
+
 /////////////////////////////////////
 // Evals of each op
 ////////////////////////////////////
@@ -591,6 +612,88 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
   }
 
   return op->resolveResultType(methodType->returnType());
+}
+
+std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewObject(
+    const std::shared_ptr<parsetree::ast::ClassCreation> &op,
+    const std::shared_ptr<parsetree::ast::Type> &object,
+    const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
+
+  if (auto result = op->resultType(); result) {
+    return result;
+  }
+
+  auto constructor = std::dynamic_pointer_cast<MethodType>(object);
+  if (!constructor) {
+    throw std::runtime_error("Not a method type");
+  }
+
+  const auto &constructorParams = constructor->paramTypes();
+  if (constructorParams.size() != args.size()) {
+    throw std::runtime_error("Constructor params and args size mismatch");
+  }
+
+  for (size_t i = 0; i < args.size(); ++i) {
+    if (!isAssignableTo(constructorParams[i], args[args.size() - 1 - i])) {
+      throw std::runtime_error("Invalid argument type for constructor call");
+    }
+  }
+
+  return op->resolveResultType(constructor->returnType());
+}
+
+std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewArray(
+    const std::shared_ptr<parsetree::ast::ArrayCreation> &op,
+    const std::shared_ptr<parsetree::ast::Type> &type,
+    const std::shared_ptr<parsetree::ast::Type> &size) const {
+
+  if (auto result = op->resultType(); result) {
+    return result;
+  }
+
+  if (!size->isNumeric()) {
+    throw std::runtime_error("Invalid type for array size, non-numeric");
+  }
+
+  return op->resolveResultType(type);
+}
+
+std::shared_ptr<parsetree::ast::Type> TypeResolver::evalArrayAccess(
+    const std::shared_ptr<parsetree::ast::ArrayAccess> &op,
+    const std::shared_ptr<parsetree::ast::Type> &array,
+    const std::shared_ptr<parsetree::ast::Type> &index) const {
+
+  if (auto result = op->resultType(); result) {
+    return result;
+  }
+
+  auto arrayType = std::dynamic_pointer_cast<ArrayType>(array);
+  if (!arrayType) {
+    throw std::runtime_error("Not an array type");
+  }
+
+  if (!index->isNumeric()) {
+    throw std::runtime_error("Invalid type for array index, non-numeric");
+  }
+
+  return op->resolveResultType(arrayType->getElementType());
+}
+
+std::shared_ptr<parsetree::ast::Type> TypeResolver::evalCast(
+    const std::shared_ptr<parsetree::ast::Cast> &op,
+    const std::shared_ptr<parsetree::ast::Type> &type,
+    const std::shared_ptr<parsetree::ast::Type> &value) const {
+
+  if (auto result = op->resultType(); result) {
+    return result;
+  }
+
+  if (!isValidCast(value, type)) {
+    throw std::runtime_error("Invalid cast from " + value->toString() + " to " +
+                             type->toString());
+  }
+
+  return op->resolveResultType(type);
 }
 
 } // namespace static_check

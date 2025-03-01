@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast/ast.hpp"
+#include "staticCheck/envManager.hpp"
 #include <memory>
 #include <vector>
 
@@ -8,6 +9,9 @@ namespace static_check {
 
 class TypeResolver {
 public:
+  TypeResolver(std::shared_ptr<ast::ASTManager> astManager,
+               std::shared_ptr<EnvManager> envManager)
+      : astManager(astManager), envManager(envManager) {}
   std::shared_ptr<parsetree::ast::Type>
   evaluateList(const std::vector<parsetree::ast::ExprNode> &list) const;
 
@@ -19,6 +23,12 @@ public:
 
   bool isValidCast(const std::shared_ptr<parsetree::ast::Type> &exprType,
                    const std::shared_ptr<parsetree::ast::Type> &castType) const;
+
+  void resolve() {
+    for (auto ast : astManager->getASTs()) {
+      resolveAST(ast);
+    }
+  }
 
 private:
   std::shared_ptr<parsetree::ast::Type>
@@ -38,12 +48,12 @@ private:
   std::shared_ptr<parsetree::ast::Type> evalMethodInvocation(
       const std::shared_ptr<parsetree::ast::MethodInvocation> &op,
       const std::shared_ptr<parsetree::ast::Type> &method,
-      const std::vector<parsetree::ast::Type> &args) const;
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const;
 
-  std::shared_ptr<parsetree::ast::Type>
-  evalNewObject(const std::shared_ptr<parsetree::ast::ClassCreation> &op,
-                const std::shared_ptr<parsetree::ast::Type> &object,
-                const std::vector<parsetree::ast::Type> &args) const;
+  std::shared_ptr<parsetree::ast::Type> evalNewObject(
+      const std::shared_ptr<parsetree::ast::ClassCreation> &op,
+      const std::shared_ptr<parsetree::ast::Type> &object,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const;
 
   std::shared_ptr<parsetree::ast::Type>
   evalNewArray(const std::shared_ptr<parsetree::ast::ArrayCreation> &op,
@@ -69,9 +79,13 @@ private:
     return value;
   }
 
+  void resolveAST(std::shared_ptr<parsetree::ast::AstNode> node);
+
 private:
   std::stack<std::shared_ptr<parsetree::ast::Type>> op_stack;
   std::shared_ptr<parsetree::ast::ExprOp> current_op;
+  std::shared_ptr<EnvManager> envManager;
+  std::shared_ptr<parsetree::ast::ASTManager> astManager;
 };
 
 } // namespace static_check
