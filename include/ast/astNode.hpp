@@ -17,6 +17,7 @@ namespace parsetree::ast {
 // Base class for all AST nodes //////////////////////////////////////////////
 
 class ReferenceType;
+class Expr;
 class ExprOp;
 class ExprNode;
 class Modifiers;
@@ -54,6 +55,7 @@ public:
   [[nodiscard]] virtual bool isPrimitive() const { return false; };
   [[nodiscard]] virtual bool isNull() const { return false; };
   [[nodiscard]] virtual bool isNumeric() const { return false; }
+  [[nodiscard]] virtual bool isBoolean() const { return false; }
 
   std::ostream &print(std::ostream &os) const { return os << toString(); }
 };
@@ -438,6 +440,8 @@ public:
   }
 
   std::shared_ptr<Type> getReturnType() { return returnType; }
+
+  std::vector<std::shared_ptr<VarDecl>> &getParams() { return params; }
 };
 
 // Statements /////////////////////////////////////////////////////////////
@@ -630,6 +634,7 @@ public:
   bool isNumeric() const override {
     return type_ == Type::Int || type_ == Type::Char;
   }
+  bool isBoolean() const override { return type_ == Type::Boolean; }
 
   std::ostream &print(std::ostream &os) const override {
     os << "(BasicType " << magic_enum::enum_name(type_) << ")";
@@ -734,6 +739,30 @@ public:
 
   friend std::ostream &operator<<(std::ostream &os, const Modifiers &mod) {
     return os << mod.toString();
+  }
+};
+
+class MethodType : public Type {
+  std::shared_ptr<Type> returnType;
+  std::vector<std::shared_ptr<Type>> paramTypes;
+
+public:
+  MethodType(std::shared_ptr<MethodDecl> method)
+      : Type{}, returnType{method->getReturnType()}, paramTypes{} {
+    for (auto param : method->getParams()) {
+      paramTypes.push_back(param->getType());
+    }
+  }
+
+  bool isResolved() const override { return true; }
+  std::string toString() const override { return "MethodType"; }
+
+  void setReturnType(std::shared_ptr<Type> returnType) {
+    this->returnType = returnType;
+  }
+  std::shared_ptr<Type> getReturnType() const { return returnType; }
+  const std::vector<std::shared_ptr<Type>> &getParamTypes() const {
+    return paramTypes;
   }
 };
 

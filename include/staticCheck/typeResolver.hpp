@@ -18,7 +18,7 @@ public:
       const std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list);
 
   std::shared_ptr<parsetree::ast::Type>
-  evaluate(const std::shared_ptr<parsetree::ast::Expr> &node) const;
+  evaluate(const std::shared_ptr<parsetree::ast::Expr> &node);
 
   bool isAssignableTo(const std::shared_ptr<parsetree::ast::Type> &lhs,
                       const std::shared_ptr<parsetree::ast::Type> &rhs) const;
@@ -90,7 +90,7 @@ private:
     return value;
   }
 
-  void resolveAST(std::shared_ptr<parsetree::ast::AstNode> node);
+  void resolveAST(const std::shared_ptr<parsetree::ast::AstNode> &node);
 
 private:
   std::stack<std::shared_ptr<parsetree::ast::Type>> op_stack;

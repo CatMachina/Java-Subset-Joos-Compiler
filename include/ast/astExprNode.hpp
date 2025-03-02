@@ -138,6 +138,8 @@ public:
     return os;
   }
 
+  OpType getOp() const { return op; }
+
 private:
   OpType op;
 };
@@ -171,6 +173,8 @@ public:
     os << "(BinOp " << magic_enum::enum_name(op) << ")";
     return os;
   }
+
+  OpType getOp() const { return op; }
 
 private:
   OpType op;
