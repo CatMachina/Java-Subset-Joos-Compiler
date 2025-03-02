@@ -345,10 +345,19 @@ Package::packageChild TypeLinker::resolveQualifiedName(
 void TypeLinker::populateJavaLang() {
   auto javaPackage =
       std::get<std::shared_ptr<Package>>(rootPackage->children["java"]);
+  if (!javaPackage) {
+    throw std::runtime_error("Could not resolve java package");
+  }
   auto langPackage =
       std::get<std::shared_ptr<Package>>(javaPackage->children["lang"]);
+  if (!langPackage) {
+    throw std::runtime_error("Could not resolve lang package");
+  }
   auto ioPackage =
-      std::get<std::shared_ptr<Package>>(langPackage->children["io"]);
+      std::get<std::shared_ptr<Package>>(javaPackage->children["io"]);
+  if (!ioPackage) {
+    throw std::runtime_error("Could not resolve io package");
+  }
 
   auto getClassDecl =
       [](const auto &package,

@@ -138,7 +138,6 @@ int main(int argc, char **argv) {
         std::cerr << "File name: " << fileName << std::endl;
         return EXIT_ERROR;
       }
-
       astManager->addAST(ast);
     }
 
@@ -147,8 +146,11 @@ int main(int argc, char **argv) {
     std::shared_ptr<static_check::Package> rootPackage =
         typeLinker->getRootPackage();
     rootPackage->printStructure();
+    std::cout << "Starting type linking\n";
     typeLinker->resolve();
+    std::cout << "Populating java.lang\n";
     typeLinker->populateJavaLang();
+    std::cout << "Passed type linking\n";
 
     // hierarchy checking
     auto hierarchyChecker =
