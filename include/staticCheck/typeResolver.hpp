@@ -93,7 +93,7 @@ private:
   void resolveAST(const std::shared_ptr<parsetree::ast::AstNode> &node);
 
   std::shared_ptr<parsetree::ast::Type>
-  mapValue(const std::shared_ptr<parsetree::ast::ExprValue> &value) const;
+  mapValue(const std::shared_ptr<parsetree::ast::QualifiedName> &value) const;
 
 private:
   std::stack<std::shared_ptr<parsetree::ast::Type>> op_stack;

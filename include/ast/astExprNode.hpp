@@ -27,10 +27,10 @@ public:
 
   void resolveDeclAndType(std::shared_ptr<Decl> decl,
                           std::shared_ptr<Type> type) {
-    if (decl_)
+    if (decl_ && decl != decl_)
       throw std::runtime_error("Decl already resolved");
     decl_ = decl;
-    if (type_)
+    if (type_ && type != type_)
       throw std::runtime_error("Type already resolved");
     if (type && !type->isResolved())
       throw std::runtime_error("Type not resolved");

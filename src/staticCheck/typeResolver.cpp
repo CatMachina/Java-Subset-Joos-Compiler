@@ -384,22 +384,40 @@ bool TypeResolver::isValidCast(
 }
 
 std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
-    const std::shared_ptr<parsetree::ast::ExprValue> &value) const {
-  if (!value->isDeclResolved())
-    throw std::runtime_error("ExprValue at mapValue not resolved");
-  if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
-          value->getResolvedDecl())) {
-    auto type = std::make_shared<parsetree::ast::MethodType>(method);
-    if (method->isConstructor()) {
-      // need double check
-      // type->setReturnType(std::make_shared<parsetree::ast::ReferenceType>(method->getMethodBody()));
+    const std::shared_ptr<parsetree::ast::QualifiedName> &value) const {
+  for (int i = 0; i < value->size(); i++) {
+    auto simpleName = value->get(i);
+    std::cout << "mapValue: " << simpleName->getName() << std::endl;
+    if (!simpleName->isDeclResolved())
+      throw std::runtime_error("SimpleName at mapValue not resolved");
+    if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+            simpleName->getResolvedDecl())) {
+      // ToDo
+      if (method->isConstructor())
+        std::cout << "MapValue met MethodDecl Constructor" << std::endl;
+    } else if (!simpleName->isTypeResolved()) {
+      std::cout << "decl: " << simpleName->getResolvedDecl()->getName()
+                << std::endl;
+      throw std::runtime_error("SimpleName at mapValue not type resolved");
     }
-    return type;
-  } else {
-    if (!value->isTypeResolved())
-      throw std::runtime_error("ExprValue at mapValue not typeresolved");
-    return value->getType();
   }
+  return value->getLast()->getType();
+  // if (!value->isDeclResolved())
+  //   throw std::runtime_error("QualifiedName at mapValue not resolved");
+  // if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+  //         value->getResolvedDecl())) {
+  //   auto type = std::make_shared<parsetree::ast::MethodType>(method);
+  //   if (method->isConstructor()) {
+  //     // need double check
+  //     //
+  //     type->setReturnType(std::make_shared<parsetree::ast::ReferenceType>(method->getMethodBody()));
+  //   }
+  //   return type;
+  // } else {
+  //   if (!value->isTypeResolved())
+  //     throw std::runtime_error("ExprValue at mapValue not typeresolved");
+  //   return value->getType();
+  // }
 }
 
 ////////////////////////////////////////
@@ -413,9 +431,10 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
   while (!op_stack.empty())
     popStack();
 
+  std::cout << "Evaluating " << list.size() << " nodes\n";
   for (const auto &node : list) {
     if (auto value =
-            std::dynamic_pointer_cast<parsetree::ast::ExprValue>(node)) {
+            std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(node)) {
       op_stack.push(mapValue(value));
     } else if (auto unary =
                    std::dynamic_pointer_cast<parsetree::ast::UnOp>(node)) {
@@ -445,6 +464,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
     } else if (auto newObj =
                    std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
                        node)) {
+      std::cout << "ClassCreation\n";
       std::vector<std::shared_ptr<parsetree::ast::Type>> args(newObj->nargs() -
                                                               1);
       std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
@@ -483,14 +503,25 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
 
 std::shared_ptr<parsetree::ast::Type>
 TypeResolver::evaluate(const std::shared_ptr<parsetree::ast::Expr> &node) {
+  std::cout << "Evaluating ";
+  node->print(std::cout);
+  std::cout << std::endl;
   return evaluateList(node->getExprNodes());
 }
 
 void TypeResolver::resolveAST(
     const std::shared_ptr<parsetree::ast::AstNode> &node) {
+  if (!node)
+    throw std::runtime_error("Node is null when resolving AST");
   // only check Expr
   if (auto expr = std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
     evaluate(expr);
+  } else {
+    for (const auto &child : node->getChildren()) {
+      if (!child)
+        continue;
+      resolveAST(child);
+    }
   }
 }
 

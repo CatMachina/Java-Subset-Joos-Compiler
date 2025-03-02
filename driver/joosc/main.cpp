@@ -48,6 +48,8 @@ int main(int argc, char **argv) {
     source::SourceManager sm = source::SourceManager();
     auto astManager = std::make_shared<parsetree::ast::ASTManager>();
 
+    std::cout << "Starting compilation..." << std::endl;
+
     // First pass: AST construction
     for (int file_number = 1; file_number < argc; ++file_number) {
       // Extract file path and validate extension
@@ -139,7 +141,10 @@ int main(int argc, char **argv) {
         return EXIT_ERROR;
       }
       astManager->addAST(ast);
+      // std::cout << "Parsed " << fileName << std::endl;
     }
+
+    std::cout << "Passed AST constructions\n";
 
     // environment (symbol table) building + type linking
     auto typeLinker = std::make_shared<static_check::TypeLinker>(astManager);

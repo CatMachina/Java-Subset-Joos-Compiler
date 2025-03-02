@@ -90,16 +90,16 @@ public:
   }
 };
 
-// class Class : public Decl {
-// public:
-//   explicit Class(std::shared_ptr<parsetree::ast::ClassDecl> cls) : Decl{cls}
-//   {} void printDecl(int depth = 0) const override {
-//     for (int i = 0; i < depth; ++i)
-//       std::cout << "  ";
-//     std::cout << "(Class: " << getAstNode()->getName() << ")"
-//               << "\n";
-//   }
-// };
+class Class : public Decl {
+public:
+  explicit Class(std::shared_ptr<parsetree::ast::ClassDecl> cls) : Decl{cls} {}
+  void printDecl(int depth = 0) const override {
+    for (int i = 0; i < depth; ++i)
+      std::cout << "  ";
+    std::cout << "(Class: " << getAstNode()->getName() << ")"
+              << "\n";
+  }
+};
 
 // class Interface : public Decl {
 // public:

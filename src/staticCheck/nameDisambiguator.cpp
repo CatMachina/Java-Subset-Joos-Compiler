@@ -63,7 +63,10 @@ void NameDisambiguator::disambiguate(
     return;
   }
   if (qualifiedName->getName(0) == "this") {
-    qualifiedName->get(0)->setResolvedDecl(currentClass);
+    // qualifiedName->get(0)->setResolvedDecl(currentClass);
+    auto type = std::make_shared<parsetree::ast::ReferenceType>(currentClass);
+    type->setResolvedDecl(std::make_shared<Class>(currentClass));
+    qualifiedName->get(0)->resolveDeclAndType(currentClass, type);
     return;
   }
 
@@ -71,7 +74,17 @@ void NameDisambiguator::disambiguate(
   auto localDecl = findInScopes(qualifiedName->getName(0));
   if (localDecl != nullptr) {
     std::cout << "Found local decl: " << localDecl->getName() << std::endl;
-    qualifiedName->get(0)->setResolvedDecl(localDecl);
+    if (auto varDecl =
+            std::dynamic_pointer_cast<parsetree::ast::VarDecl>(localDecl)) {
+      qualifiedName->get(0)->resolveDeclAndType(localDecl, varDecl->getType());
+    } else if (auto methodDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+                       localDecl)) {
+      qualifiedName->get(0)->resolveDeclAndType(localDecl,
+                                                methodDecl->getReturnType());
+    } else {
+      qualifiedName->get(0)->setResolvedDecl(localDecl);
+    }
     return;
   }
 
@@ -86,7 +99,18 @@ void NameDisambiguator::disambiguate(
     }
     std::cout << "Found field in declare set: " << fieldDecl->getName()
               << std::endl;
-    qualifiedName->get(0)->setResolvedDecl(fieldDecl);
+    // qualifiedName->get(0)->setResolvedDecl(fieldDecl);
+    if (auto varDecl =
+            std::dynamic_pointer_cast<parsetree::ast::VarDecl>(fieldDecl)) {
+      qualifiedName->get(0)->resolveDeclAndType(fieldDecl, varDecl->getType());
+    } else if (auto methodDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+                       fieldDecl)) {
+      qualifiedName->get(0)->resolveDeclAndType(localDecl,
+                                                methodDecl->getReturnType());
+    } else {
+      qualifiedName->get(0)->setResolvedDecl(fieldDecl);
+    }
     return;
   }
   // Search in the inherit set of current class
@@ -94,7 +118,18 @@ void NameDisambiguator::disambiguate(
   if (fieldDecl != nullptr) {
     std::cout << "Found field in inherit set: " << fieldDecl->getName()
               << std::endl;
-    qualifiedName->get(0)->setResolvedDecl(fieldDecl);
+    // qualifiedName->get(0)->setResolvedDecl(fieldDecl);
+    if (auto varDecl =
+            std::dynamic_pointer_cast<parsetree::ast::VarDecl>(fieldDecl)) {
+      qualifiedName->get(0)->resolveDeclAndType(fieldDecl, varDecl->getType());
+    } else if (auto methodDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+                       fieldDecl)) {
+      qualifiedName->get(0)->resolveDeclAndType(localDecl,
+                                                methodDecl->getReturnType());
+    } else {
+      qualifiedName->get(0)->setResolvedDecl(fieldDecl);
+    }
     return;
   }
 
@@ -113,7 +148,18 @@ void NameDisambiguator::disambiguate(
       if (!decl) {
         throw std::runtime_error("Ambiguous import-on-demand conflict");
       }
-      qualifiedName->get(i)->setResolvedDecl(decl->getAstNode());
+      if (auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(
+              decl->getAstNode())) {
+        qualifiedName->get(i)->resolveDeclAndType(decl->getAstNode(),
+                                                  varDecl->getType());
+      } else if (auto methodDecl =
+                     std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+                         decl->getAstNode())) {
+        qualifiedName->get(0)->resolveDeclAndType(decl->getAstNode(),
+                                                  methodDecl->getReturnType());
+      } else {
+        qualifiedName->get(i)->setResolvedDecl(decl->getAstNode());
+      }
       foundType = true;
       break;
     }
