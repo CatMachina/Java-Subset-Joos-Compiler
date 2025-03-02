@@ -70,7 +70,7 @@ public:
 
   std::string getName() const { return name; }
 
-  // std::shared_ptr<parsetree::ast::Decl> getResolvedDecl() {
+  // std::shared_ptr<Decl> getResolvedDecl() {
   //   return resolvedDecl;
   // }
   // void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {

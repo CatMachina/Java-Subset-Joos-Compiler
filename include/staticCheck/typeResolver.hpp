@@ -44,13 +44,16 @@ private:
 
   std::shared_ptr<parsetree::ast::Type>
   evalFieldAccess(const std::shared_ptr<parsetree::ast::FieldAccess> &op,
-                  const std::shared_ptr<parsetree::ast::Type> &lhs,
-                  const std::shared_ptr<parsetree::ast::Type> &field) const;
+
+    const std::shared_ptr<parsetree::ast::Type> &field,
+                  const std::shared_ptr<parsetree::ast::Type> &lhs = nullptr) const;
+
 
   std::shared_ptr<parsetree::ast::Type> evalMethodInvocation(
       const std::shared_ptr<parsetree::ast::MethodInvocation> &op,
-      const std::shared_ptr<parsetree::ast::Type> &method,
-      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const;
+      const std::shared_ptr<parsetree::ast::QualifiedName &methodName,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args,
+      const std::shared_ptr<parsetree::ast::Type> &lhs = nullptr) const;
 
   std::shared_ptr<parsetree::ast::Type> evalNewObject(
       const std::shared_ptr<parsetree::ast::ClassCreation> &op,
