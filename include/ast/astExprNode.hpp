@@ -115,6 +115,9 @@ public:
 // Operators /////////////////////////////////////////////////////////////
 
 class ExprOp : public ExprNode {
+public:
+  int nargs() const { return num_args; }
+
 protected:
   ExprOp(int num_args) : num_args{num_args} {}
 

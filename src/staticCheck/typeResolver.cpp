@@ -139,6 +139,24 @@ bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
   return false;
 }
 
+bool isWiderThan(const std::shared_ptr<parsetree::ast::BasicType> &type,
+                 const std::shared_ptr<parsetree::ast::BasicType> &other) {
+  using Type = parsetree::ast::BasicType::Type;
+
+  Type otherType = other->getType();
+  Type typeType = type->getType();
+  switch (otherType) {
+  case Type::Char:
+    return typeType == Type::Int;
+  case Type::Short:
+    return typeType == Type::Int;
+  case Type::Byte:
+    return typeType == Type::Short || typeType == Type::Int;
+  default:
+    return false;
+  }
+}
+
 /**
  * Type Conversion Rules:
  *
@@ -179,31 +197,14 @@ bool TypeResolver::isAssignableTo(
   if (lhs == rhs)
     return true;
 
-  auto asBasicType = [](std::shared_ptr<parsetree::ast::Type> &t) {
-    return std::dynamic_pointer_cast<parsetree::ast::BasicType>(t);
-  };
-  auto asReferenceType = [](std::shared_ptr<parsetree::ast::Type> &t) {
-    return std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(t);
-  };
-  auto asArrayType = [](std::shared_ptr<parsetree::ast::Type> &t) {
-    return std::dynamic_pointer_cast<parsetree::ast::ArrayType>(t);
-  };
-  auto asClassDecl = [](std::shared_ptr<parsetree::ast::ReferenceType> &ref) {
-    return std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        ref->getResolvedDecl());
-  };
-  auto asInterfaceDecl =
-      [](std::shared_ptr<parsetree::ast::ReferenceType> &ref) {
-        return std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-            ref->getResolvedDecl());
-      };
-
-  auto leftPrimitive = asBasicType(lhs);
-  auto rightPrimitive = asBasicType(rhs);
-  auto leftRef = asReferenceType(lhs);
-  auto rightRef = asReferenceType(rhs);
-  auto leftArr = asArrayType(lhs);
-  auto rightArr = asArrayType(rhs);
+  auto leftPrimitive =
+      std::dynamic_pointer_cast<parsetree::ast::BasicType>(lhs);
+  auto rightPrimitive =
+      std::dynamic_pointer_cast<parsetree::ast::BasicType>(rhs);
+  auto leftRef = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(lhs);
+  auto rightRef = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(rhs);
+  auto leftArr = std::dynamic_pointer_cast<parsetree::ast::ArrayType>(lhs);
+  auto rightArr = std::dynamic_pointer_cast<parsetree::ast::ArrayType>(rhs);
 
   // Identity conversion: Java astManager->java_lang.String <-> primitive
   // astManager->java_lang.String
@@ -212,20 +213,20 @@ bool TypeResolver::isAssignableTo(
 
   // astManager->java_lang.String conversions
   if (rhs->isString() && leftRef) {
-    // TODO: need such API of isSuperClass and isSuperInterface
-    // astManager->java_lang.String is the javalang astManager->java_lang.String
-    // class
-    if (auto leftClass = asClassDecl(leftRef)) {
+    if (auto leftClass =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(leftRef)) {
       return isSuperClass(leftClass, astManager->java_lang.String);
     }
-    if (auto leftInterface = asInterfaceDecl(leftRef)) {
+    if (auto leftInterface =
+            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(leftRef)) {
       return isSuperInterface(leftInterface, astManager->java_lang.String);
     }
     return false;
   }
 
   if (lhs->isString() && rightRef) {
-    if (auto rightClass = asClassDecl(rightRef)) {
+    if (auto rightClass =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(rightRef)) {
       return isSuperClass(astManager->java_lang.String, rightClass);
     }
     return false;
@@ -243,22 +244,31 @@ bool TypeResolver::isAssignableTo(
 
   if (leftRef && rightRef) {
     // 3.2 Class assignability
-    if (auto rightClass = asClassDecl(rightRef)) {
-      if (auto leftClass = asClassDecl(leftRef)) {
+    if (auto rightClass =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(rightRef)) {
+      if (auto leftClass =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(leftRef)) {
         // TODO: need such API
         return isSuperClass(leftClass, rightClass);
       }
-      if (auto leftInterface = asInterfaceDecl(leftRef)) {
+      if (auto leftInterface =
+              std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                  leftRef)) {
         // TODO: need such API
         return isSuperInterface(leftInterface, rightClass);
       }
     }
     // 3.3 Interface assignability
-    if (auto rightInterface = asInterfaceDecl(rightRef)) {
-      if (auto leftClass = asClassDecl(leftRef)) {
+    if (auto rightInterface =
+            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                rightRef)) {
+      if (auto leftClass =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(leftRef)) {
         return leftClass == astManager->java_lang.Object;
       }
-      if (auto leftInterface = asInterfaceDecl(leftRef)) {
+      if (auto leftInterface =
+              std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                  leftRef)) {
         return isSuperInterface(leftInterface, rightInterface);
       }
     }
@@ -267,8 +277,10 @@ bool TypeResolver::isAssignableTo(
   // 3.4 Array assignment rules
   if (rightArr) {
     if (leftArr) {
-      auto leftElem = asReferenceType(leftArr->getElementType());
-      auto rightElem = asReferenceType(rightArr->getElementType());
+      auto leftElem = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+          leftArr->getElementType());
+      auto rightElem = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+          rightArr->getElementType());
       return leftElem && rightElem && isAssignableTo(leftElem, rightElem);
     }
 
@@ -299,26 +311,10 @@ bool TypeResolver::isValidCast(
     return true;
   }
 
-  // Helper lambdas for type casting
-  auto asReferenceType = [](const std::shared_ptr<parsetree::ast::Type> &t) {
-    return std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(t);
-  };
-  auto asArrayType = [](const std::shared_ptr<parsetree::ast::Type> &t) {
-    return std::dynamic_pointer_cast<parsetree::ast::ArrayType>(t);
-  };
-  auto asClassDecl =
-      [](const std::shared_ptr<parsetree::ast::ReferenceType> &ref) {
-        return std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-            ref->getResolvedDecl());
-      };
-  auto asInterfaceDecl =
-      [](const std::shared_ptr<parsetree::ast::ReferenceType> &ref) {
-        return std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-            ref->getResolvedDecl());
-      };
-
-  auto exprRef = asReferenceType(exprType);
-  auto castRef = asReferenceType(castType);
+  auto exprRef =
+      std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(exprType);
+  auto castRef =
+      std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(castType);
 
   // If expr is "null", it is assignable to any reference type
   if (exprType->isNull())
@@ -326,8 +322,8 @@ bool TypeResolver::isValidCast(
   if (castType->isNull())
     return static_cast<bool>(exprRef);
 
-  auto exprArr = asArrayType(exprType);
-  auto castArr = asArrayType(castType);
+  auto exprArr = std::dynamic_pointer_cast<parsetree::ast::ArrayType>(exprType);
+  auto castArr = std::dynamic_pointer_cast<parsetree::ast::ArrayType>(castType);
 
   // Primitive type casting: only numeric conversions are valid
   if (exprType->isPrimitive() && castType->isPrimitive()) {
@@ -340,16 +336,20 @@ bool TypeResolver::isValidCast(
     if (!castRef)
       return false;
 
-    auto leftInterface = asInterfaceDecl(exprRef);
-    auto rightInterface = asInterfaceDecl(castRef);
-    auto leftClass = asClassDecl(exprRef);
-    auto rightClass = asClassDecl(castRef);
+    auto leftInterface =
+        std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(exprRef);
+    auto rightInterface =
+        std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(castRef);
+    auto leftClass =
+        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(exprRef);
+    auto rightClass =
+        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(castRef);
 
     if (leftInterface && rightInterface)
       return true;
-    if (leftInterface && rightClass && !rightClass->modifiers().isFinal())
+    if (leftInterface && rightClass && !rightClass->getModifiers()->isFinal())
       return true;
-    if (rightInterface && leftClass && !leftClass->modifiers().isFinal())
+    if (rightInterface && leftClass && !leftClass->getModifiers()->isFinal())
       return true;
 
     return isAssignableTo(exprRef, castRef) || isAssignableTo(castRef, exprRef);
@@ -357,8 +357,10 @@ bool TypeResolver::isValidCast(
 
   if (exprArr) {
     if (castArr) {
-      auto leftElem = asReferenceType(exprArr->getElementType());
-      auto rightElem = asReferenceType(castArr->getElementType());
+      auto leftElem = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+          exprArr->getElementType());
+      auto rightElem = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+          castArr->getElementType());
       return leftElem && rightElem &&
              isValidCast(exprArr->getElementType(), castArr->getElementType());
     }
@@ -377,28 +379,29 @@ bool TypeResolver::isValidCast(
 // check if the format of exprNode vector and this is consistent
 // highly possible not
 std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
-    const std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list) const {
-  op_stack.clear();
+    const std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list) {
+  while (!op_stack.empty())
+    popStack();
 
   for (const auto &node : list) {
     if (auto value =
             std::dynamic_pointer_cast<parsetree::ast::ExprValue>(node)) {
-      op_stack.push_back(mapValue(value));
+      op_stack.push(mapValue(value));
     } else if (auto unary =
                    std::dynamic_pointer_cast<parsetree::ast::UnOp>(node)) {
       auto rhs = popStack();
-      op_stack.push_back(evalUnOp(unary, rhs));
+      op_stack.push(evalUnOp(unary, rhs));
     } else if (auto binary =
                    std::dynamic_pointer_cast<parsetree::ast::BinOp>(node)) {
       auto rhs = popStack();
       auto lhs = popStack();
-      op_stack.push_back(evalBinOp(binary, lhs, rhs));
+      op_stack.push(evalBinOp(binary, lhs, rhs));
     } else if (auto field =
                    std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
                        node)) {
       auto rhs = popStack();
       auto lhs = popStack();
-      op_stack.push_back(evalFieldAccess(field, lhs, rhs));
+      op_stack.push(evalFieldAccess(field, lhs, rhs));
     } else if (auto method =
                    std::dynamic_pointer_cast<parsetree::ast::MethodInvocation>(
                        node)) {
@@ -408,7 +411,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
       std::vector<std::shared_ptr<parsetree::ast::Type>> args(method->nargs() -
                                                               1);
       std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
-      op_stack.push_back(evalMethodInvocation(method, method_name, args));
+      op_stack.push(evalMethodInvocation(method, method_name, args));
     } else if (auto newObj =
                    std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
                        node)) {
@@ -416,129 +419,126 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
                                                               1);
       std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
       auto type = popStack();
-      op_stack.push_back(evalNewObject(newObj, type, args));
+      op_stack.push(evalNewObject(newObj, type, args));
     } else if (auto array =
                    std::dynamic_pointer_cast<parsetree::ast::ArrayCreation>(
                        node)) {
       auto size = popStack();
       auto type = popStack();
-      op_stack.push_back(evalNewArray(array, type, size));
+      op_stack.push(evalNewArray(array, type, size));
     } else if (auto access =
                    std::dynamic_pointer_cast<parsetree::ast::ArrayAccess>(
                        node)) {
       auto index = popStack();
       auto array = popStack();
-      op_stack.push_back(evalArrayAccess(access, array, index));
+      op_stack.push(evalArrayAccess(access, array, index));
     } else if (auto cast =
                    std::dynamic_pointer_cast<parsetree::ast::Cast>(node)) {
       auto value = popStack();
       auto type = popStack();
-      op_stack.push_back(evalCast(cast, type, value));
+      op_stack.push(evalCast(cast, type, value));
     } else if (auto assignment =
                    std::dynamic_pointer_cast<parsetree::ast::Assignment>(
                        node)) {
       auto lhs = popStack();
       auto rhs = popStack();
-      op_stack.push_back(evalAssignment(cast, lhs, rhs));
-    }
-    if (op_stack.size() != 1) {
-      throw std::runtime_error("Stack not empty after evaluation!");
-    }
-    return popStack();
-  }
-
-  std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluate(
-      const std::shared_ptr<parsetree::ast::Expr> &node) const {
-    return evaluateList(node->getExprNodes());
-  }
-
-  void TypeResolver::resolveAST(
-      const std::shared_ptr<parsetree::ast::AST> &node) {
-    // only check Expr
-    if (auto decl =
-            std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(node)) {
-      if (auto init = decl->getInitializer()) {
-        std::cout << "resolving initializer for variable: " << decl->toString()
-                  << std::endl;
-        evaluate(init);
-      }
-    } else if (auto stmt =
-                   std::dynamic_pointer_cast<parsetree::ast::Stmt>(node)) {
-      for (auto expr : stmt->getExprs()) {
-        if (!expr)
-          continue;
-        std::cout << "resolving expression: ";
-        expr->print(std::cout);
-        std::cout << std::endl;
-        evaluate(expr);
-      }
+      op_stack.push(evalAssignment(assignment, lhs, rhs));
     }
   }
-
-  switch (op.opType()) {
-    // case parsetree::ast::BinOp::OpType::Assignment:
-    //   if (isAssignableTo(lhs, rhs)) {
-    //     return op->resolveResultType(lhs);
-    //   }
-    //   throw std::runtime_error("assignment is not valid");
-
-  case parsetree::ast::BinOp::OpType::GreaterThan:
-  case parsetree::ast::BinOp::OpType::GreaterThanOrEqual:
-  case parsetree::ast::BinOp::OpType::LessThan:
-  case parsetree::ast::BinOp::OpType::LessThanOrEqual:
-    if (lhs->isNumeric() && rhs->isNumeric()) {
-      return op.resolveResultType(
-          envManager.BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
-    }
-    throw std::runtime_error("comparison operands are non-numeric");
-
-  case parsetree::ast::BinOp::OpType::Equal:
-  case parsetree::ast::BinOp::OpType::NotEqual: {
-    if ((lhs->isNumeric() && rhs->isNumeric()) ||
-        (lhs->isBoolean() && rhs->isBoolean())) {
-      return op.resolveResultType(
-          envManager.BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
-    }
-
-    auto lhsType =
-        std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(lhs);
-    auto rhsType =
-        std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(rhs);
-
-    if ((lhs->isNull() || lhsType) && (rhs->isNull() || rhsType) &&
-        (isValidCast(lhs, rhs) || isValidCast(rhs, lhs))) {
-      return op.resolveResultType(
-          envManager.BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
-    }
-    throw std::runtime_error("operands are not of the same type");
+  if (op_stack.size() != 1) {
+    throw std::runtime_error("Stack not empty after evaluation!");
   }
+  return popStack();
+}
 
-  case parsetree::ast::BinOp::OpType::Add:
-    if (isTypeString(lhs) || isTypeString(rhs)) {
-      return op.resolveResultType(
-          envManager.BuildBasicType(parsetree::ast::BasicType::Type::String));
-    }
-    if (lhs->isNumeric() && rhs->isNumeric()) {
-      return op.resolveResultType(
-          envManager.BuildBasicType(parsetree::ast::BasicType::Type::Int));
-    }
-    throw std::runtime_error("invalid types for arithmetic operation");
+std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluate(
+    const std::shared_ptr<parsetree::ast::Expr> &node) const {
+  return evaluateList(node->getExprNodes());
+}
 
-  case parsetree::ast::BinOp::OpType::And:
-  case parsetree::ast::BinOp::OpType::Or:
-    if (lhs->isBoolean() && rhs->isBoolean()) {
-      return op.resolveResultType(
-          envManager.BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
+void TypeResolver::resolveAST(
+    const std::shared_ptr<parsetree::ast::AstNode> &node) {
+  // only check Expr
+  if (auto decl = std::dynamic_pointer_cast<parsetree::ast::TypedDecl>(node)) {
+    if (auto init = decl->getInitializer()) {
+      std::cout << "resolving initializer for variable: " << decl->toString()
+                << std::endl;
+      evaluate(init);
     }
-    throw std::runtime_error("logical operation requires boolean operands");
-
-  default:
-    throw std::runtime_error("Invalid binary operation");
+  } else if (auto stmt =
+                 std::dynamic_pointer_cast<parsetree::ast::Stmt>(node)) {
+    for (auto expr : stmt->getExprs()) {
+      if (!expr)
+        continue;
+      std::cout << "resolving expression: ";
+      expr->print(std::cout);
+      std::cout << std::endl;
+      evaluate(expr);
+    }
   }
 }
 
+switch (op.opType()) {
+  // case parsetree::ast::BinOp::OpType::Assignment:
+  //   if (isAssignableTo(lhs, rhs)) {
+  //     return op->resolveResultType(lhs);
+  //   }
+  //   throw std::runtime_error("assignment is not valid");
+
+case parsetree::ast::BinOp::OpType::GreaterThan:
+case parsetree::ast::BinOp::OpType::GreaterThanOrEqual:
+case parsetree::ast::BinOp::OpType::LessThan:
+case parsetree::ast::BinOp::OpType::LessThanOrEqual:
+  if (lhs->isNumeric() && rhs->isNumeric()) {
+    return op.resolveResultType(
+        envManager.BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
+  }
+  throw std::runtime_error("comparison operands are non-numeric");
+
+case parsetree::ast::BinOp::OpType::Equal:
+case parsetree::ast::BinOp::OpType::NotEqual: {
+  if ((lhs->isNumeric() && rhs->isNumeric()) ||
+      (lhs->isBoolean() && rhs->isBoolean())) {
+    return op.resolveResultType(
+        envManager.BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
+  }
+
+  auto lhsType = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(lhs);
+  auto rhsType = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(rhs);
+
+  if ((lhs->isNull() || lhsType) && (rhs->isNull() || rhsType) &&
+      (isValidCast(lhs, rhs) || isValidCast(rhs, lhs))) {
+    return op.resolveResultType(
+        envManager.BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
+  }
+  throw std::runtime_error("operands are not of the same type");
+}
+
+case parsetree::ast::BinOp::OpType::Add:
+  if (isTypeString(lhs) || isTypeString(rhs)) {
+    return op.resolveResultType(
+        envManager.BuildBasicType(parsetree::ast::BasicType::Type::String));
+  }
+  if (lhs->isNumeric() && rhs->isNumeric()) {
+    return op.resolveResultType(
+        envManager.BuildBasicType(parsetree::ast::BasicType::Type::Int));
+  }
+  throw std::runtime_error("invalid types for arithmetic operation");
+
+case parsetree::ast::BinOp::OpType::And:
+case parsetree::ast::BinOp::OpType::Or:
+  if (lhs->isBoolean() && rhs->isBoolean()) {
+    return op.resolveResultType(
+        envManager.BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
+  }
+  throw std::runtime_error("logical operation requires boolean operands");
+
+default:
+  throw std::runtime_error("Invalid binary operation");
+}
+
 std::shared_ptr<parsetree::ast::Type>
-TypeResolver::evalUnOp(UnOp &op,
+TypeResolver::evalUnOp(parsetree::ast::UnOp &op,
                        const std::shared_ptr<parsetree::ast::Type> &rhs) const {
   if (auto result = op.resultType(); result) {
     return result;
@@ -661,7 +661,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalArrayAccess(
     return result;
   }
 
-  auto arrayType = std::dynamic_pointer_cast<ArrayType>(array);
+  auto arrayType = std::dynamic_pointer_cast<parsetree::ast::ArrayType>(array);
   if (!arrayType) {
     throw std::runtime_error("Not an array type");
   }

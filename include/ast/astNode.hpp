@@ -35,7 +35,7 @@ public:
   }
 };
 
-class Decl : public AstNode {
+class Decl : virtual public AstNode {
   std::string name;
 
 public:
@@ -43,7 +43,7 @@ public:
   [[nodiscard]] std::string getName() const noexcept { return name; }
 };
 
-class CodeBody : public AstNode {};
+class CodeBody : virtual public AstNode {};
 
 class Type : public AstNode {
 public:
@@ -51,6 +51,9 @@ public:
   [[nodiscard]] virtual std::string toString() const = 0;
   [[nodiscard]] virtual bool isResolved() const = 0;
   [[nodiscard]] virtual bool isString() const { return false; };
+  [[nodiscard]] virtual bool isPrimitive() const { return false; };
+  [[nodiscard]] virtual bool isNull() const { return false; };
+  [[nodiscard]] virtual bool isNumeric() const { return false; }
 
   std::ostream &print(std::ostream &os) const { return os << toString(); }
 };
@@ -221,7 +224,7 @@ public:
   }
 };
 
-class ClassDecl : public CodeBody, public Decl {
+class ClassDecl : virtual public CodeBody, virtual public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> superClasses;
   std::vector<std::shared_ptr<ReferenceType>> interfaces;
@@ -297,7 +300,7 @@ public:
   void clearSuperClasses() { superClasses.clear(); }
 };
 
-class InterfaceDecl : public CodeBody, public Decl {
+class InterfaceDecl : virtual public CodeBody, virtual public Decl {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> interfaces;
   std::vector<std::shared_ptr<Decl>> interfaceBodyDecls;
@@ -568,7 +571,7 @@ public:
   }
 };
 
-class DeclStmt : public Stmt {
+class DeclStmt : virtual public Stmt {
   std::shared_ptr<VarDecl> decl;
 
 public:
@@ -622,6 +625,11 @@ public:
 
   bool isResolved() const override { return true; }
   bool isString() const override { return type_ == Type::String; }
+  bool isPrimitive() const override { return type_ != Type::String; }
+  bool isNull() const override { return type_ == Type::Void; }
+  bool isNumeric() const override {
+    return type_ == Type::Int || type_ == Type::Char;
+  }
 
   std::ostream &print(std::ostream &os) const override {
     os << "(BasicType " << magic_enum::enum_name(type_) << ")";
@@ -642,6 +650,8 @@ public:
   }
 
   bool isResolved() const override { return elementType->isResolved(); }
+
+  std::shared_ptr<Type> getElementType() const { return elementType; }
 
   std::ostream &print(std::ostream &os) const override {
     os << "(ArrayType ";

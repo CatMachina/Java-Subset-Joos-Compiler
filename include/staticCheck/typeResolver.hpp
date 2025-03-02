@@ -14,8 +14,8 @@ public:
   TypeResolver(std::shared_ptr<parsetree::ast::ASTManager> astManager,
                std::shared_ptr<EnvManager> envManager)
       : astManager(astManager), envManager(envManager) {}
-  std::shared_ptr<parsetree::ast::Type>
-  evaluateList(const std::vector<parsetree::ast::ExprNode> &list) const;
+  std::shared_ptr<parsetree::ast::Type> evaluateList(
+      const std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list);
 
   std::shared_ptr<parsetree::ast::Type>
   evaluate(const std::shared_ptr<parsetree::ast::Expr> &node) const;
