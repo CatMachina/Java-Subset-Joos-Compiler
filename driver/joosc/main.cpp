@@ -166,8 +166,10 @@ int main(int argc, char **argv) {
     nameDisambiguator->resolve();
 
     // type resolution
+    std::shared_ptr<static_check::EnvManager> env =
+        std::make_shared<static_check::EnvManager>();
     auto typeResolver =
-        std::make_shared<static_check::TypeResolver>(astManager, envManager);
+        std::make_shared<static_check::TypeResolver>(astManager, env);
     typeResolver->resolve();
 
     return EXIT_SUCCESS;
