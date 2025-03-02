@@ -191,8 +191,7 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
                std::make_move_iterator(args.end()));
 
     auto primaryExpr = visitExpression(node->child_at(0))->getExprNodes();
-    // Cases where we need to merge qualified names
-    // 1. The expr is `this`
+    // if the expr is `this`, we need to merge qualified names
     bool primaryExprIsThis = false;
     if (primaryExpr.size() == 1) {
       auto qName = std::dynamic_pointer_cast<ast::QualifiedName>(

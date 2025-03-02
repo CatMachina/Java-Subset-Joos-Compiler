@@ -41,7 +41,6 @@ NameDisambiguator::findInSuperClasses(const std::string &name) {
 
 bool NameDisambiguator::isLegalReference(bool isFieldInitializer,
                                          bool nextIsAssignment) {
-  std::cout << (currentField != nullptr) << ", " << isFieldInitializer << ", " << nextIsAssignment << std::endl;
   if (currentField || isFieldInitializer) {
     return nextIsAssignment;
   }
@@ -294,7 +293,7 @@ void NameDisambiguator::resolveAST(
   if (classDecl || interfaceDecl || block)
     leaveScope();
   if (fieldDecl)
-    currentField = fieldDecl;
+    currentField = nullptr;
 }
 
 void NameDisambiguator::resolve() {
