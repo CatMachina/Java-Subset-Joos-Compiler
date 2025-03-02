@@ -65,8 +65,14 @@ public:
 
   std::ostream &print(std::ostream &os) const override {
     os << "(QualifiedName: ";
+    bool first = true;
     for (const auto &simpleName : simpleNames) {
-      os << simpleName->getName() << " ";
+      if (first) {
+        os << simpleName->getName();
+        first = false;
+      } else {
+        os << "." << simpleName->getName();
+      }
     }
     os << ")";
     return os;
@@ -191,23 +197,19 @@ public:
 };
 
 class MethodInvocation : public ExprOp {
-
 public:
-  MethodInvocation(int num_args) : ExprOp(num_args) {}
+  MethodInvocation(int num_args, bool needsDisambiguation = false)
+      : ExprOp(num_args), needsDisambiguation{needsDisambiguation} {}
+
+  bool getNeedsDisambiguation() const { return needsDisambiguation; }
 
   std::ostream &print(std::ostream &os) const override {
-    os << "(MethodInvocation: ";
-    // for (const auto &qid : qualifiedIdentifier) {
-    //   if (!qid) {
-    //     os << "null";
-    //   } else {
-    //     qid->print(os);
-    //   }
-    //   os << " ";
-    // }
-    os << ")";
+    os << "(MethodInvocation: " << nargs() - 1 << " args" << ")";
     return os;
   }
+
+private:
+  bool needsDisambiguation;
 };
 
 class ClassCreation : public ExprOp {
@@ -222,11 +224,10 @@ public:
 
 class FieldAccess : public ExprOp {
 public:
-  // Question: Why 1?
-  FieldAccess() : ExprOp(1) {}
+  FieldAccess(int num_args) : ExprOp(num_args) {}
 
   std::ostream &print(std::ostream &os) const override {
-    os << "(FieldAccess)";
+    os << "(FieldAccess " << nargs() << ")";
     return os;
   }
 };

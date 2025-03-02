@@ -172,6 +172,8 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
   check_num_children(node, 2, 3);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
   std::vector<std::shared_ptr<ast::ExprNode>> args;
+  auto qualifiedName = std::make_shared<ast::QualifiedName>();
+  auto needsDisambiguation = false;
 
   if (node->num_children() == 2) {
     // Note: args before method name, for name disambiguation
@@ -179,25 +181,40 @@ ParseTreeVisitor::visitMethodInvocation(const NodePtr &node) {
     ops.insert(ops.end(), std::make_move_iterator(args.begin()),
                std::make_move_iterator(args.end()));
 
-    auto qualifiedName = visitQualifiedIdentifierInExpr(node->child_at(0));
+    qualifiedName = visitQualifiedIdentifierInExpr(node->child_at(0));
     ops.push_back(qualifiedName);
-  } else {
+    needsDisambiguation = true;
+  } else if (node->num_children() == 3) {
     // Note: args before method name, for name disambiguation
     visitArgumentList(node->child_at(2), args);
     ops.insert(ops.end(), std::make_move_iterator(args.begin()),
                std::make_move_iterator(args.end()));
 
     auto primaryExpr = visitExpression(node->child_at(0))->getExprNodes();
-    ops.insert(ops.end(), std::make_move_iterator(primaryExpr.begin()),
-               std::make_move_iterator(primaryExpr.end()));
+    // Cases where we need to merge qualified names
+    // 1. The expr is `this`
+    bool primaryExprIsThis = false;
+    if (primaryExpr.size() == 1) {
+      auto qName = std::dynamic_pointer_cast<ast::QualifiedName>(
+          primaryExpr[primaryExpr.size() - 1]);
+      if (qName && qName->getName(0) == "this") {
+        primaryExprIsThis = true;
+        qualifiedName = qName;
+        needsDisambiguation = true;
+      }
+    }
+    if (!primaryExprIsThis) {
+      ops.insert(ops.end(), std::make_move_iterator(primaryExpr.begin()),
+                 std::make_move_iterator(primaryExpr.end()));
+    }
 
     auto id = visitIdentifier(node->child_at(1));
-    auto qualifiedName = std::make_shared<ast::QualifiedName>();
     qualifiedName->add(id);
     ops.push_back(qualifiedName);
   }
 
-  ops.push_back(std::make_shared<ast::MethodInvocation>(args.size() + 1));
+  ops.push_back(std::make_shared<ast::MethodInvocation>(args.size() + 1,
+                                                        needsDisambiguation));
   return ops;
 }
 
@@ -225,17 +242,45 @@ ParseTreeVisitor::visitFieldAccess(const NodePtr &node) {
   check_node_type(node, NodeType::FieldAccess);
   check_num_children(node, 2, 2);
   std::vector<std::shared_ptr<ast::ExprNode>> ops;
+  auto qualifiedName = std::make_shared<ast::QualifiedName>();
+  int num_args = 1;
 
   auto primaryExpr = visitExpression(node->child_at(0))->getExprNodes();
-  ops.insert(ops.end(), std::make_move_iterator(primaryExpr.begin()),
-             std::make_move_iterator(primaryExpr.end()));
+  // Cases where we need to merge qualified names
+  // 1. The expr is `this`
+  bool primaryExprIsThis = false;
+  if (primaryExpr.size() == 1) {
+    auto qName = std::dynamic_pointer_cast<ast::QualifiedName>(
+        primaryExpr[primaryExpr.size() - 1]);
+    if (qName && qName->getName(0) == "this") {
+      primaryExprIsThis = true;
+      qualifiedName = qName;
+    }
+  }
+  // 2. The expr is a field access
+  bool primaryExprIsFieldAccess = false;
+  if (primaryExpr.size() >= 2) {
+    auto lastFieldAccess = std::dynamic_pointer_cast<ast::FieldAccess>(
+        primaryExpr[primaryExpr.size() - 1]);
+    auto qName = std::dynamic_pointer_cast<ast::QualifiedName>(
+        primaryExpr[primaryExpr.size() - 2]);
+    if (lastFieldAccess && qName) {
+      primaryExprIsFieldAccess = true;
+      qualifiedName = qName;
+    }
+  }
+
+  if (!primaryExprIsThis && !primaryExprIsFieldAccess) {
+    ops.insert(ops.end(), std::make_move_iterator(primaryExpr.begin()),
+               std::make_move_iterator(primaryExpr.end()));
+    num_args = 2;
+  }
 
   auto id = visitIdentifier(node->child_at(1));
-  auto qualifiedName = std::make_shared<ast::QualifiedName>();
   qualifiedName->add(id);
   ops.push_back(qualifiedName);
 
-  ops.push_back(std::make_shared<ast::FieldAccess>());
+  ops.push_back(std::make_shared<ast::FieldAccess>(num_args));
   return ops;
 }
 
