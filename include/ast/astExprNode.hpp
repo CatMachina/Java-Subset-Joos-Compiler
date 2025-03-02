@@ -6,7 +6,43 @@ namespace parsetree::ast {
 
 // Expressions /////////////////////////////////////////////////////////////
 
-class Literal : public ExprNode {
+class ExprValue : public ExprNode {
+public:
+  explicit ExprValue() : decl_{nullptr}, type_{nullptr} {}
+
+  std::shared_ptr<Decl> getResolvedDecl() const { return decl_; }
+  std::shared_ptr<Type> getType() const { return type_; }
+
+  void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
+    this->decl_ = resolvedDecl;
+  }
+
+  virtual bool isDeclResolved() const { return decl_ != nullptr; }
+  bool isTypeResolved() const { return type_ != nullptr; }
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(ExprValue " << type_->toString() << ", " << decl_->getName() << ")";
+    return os;
+  }
+
+  void resolveDeclAndType(std::shared_ptr<Decl> decl,
+                          std::shared_ptr<Type> type) {
+    if (decl_)
+      throw std::runtime_error("Decl already resolved");
+    decl_ = decl;
+    if (type_)
+      throw std::runtime_error("Type already resolved");
+    if (type && !type->isResolved())
+      throw std::runtime_error("Type not resolved");
+    type_ = type;
+  }
+
+private:
+  std::shared_ptr<Decl> decl_;
+  std::shared_ptr<Type> type_;
+};
+
+class Literal : public ExprValue {
 public:
   enum class Type { Integer, Character, String, Boolean, Null };
 
@@ -17,6 +53,8 @@ public:
     return os;
   }
 
+  bool isDeclResolved() const override { return true; }
+
   // Getters
   Type getType() const { return type; }
   std::string getValue() const { return value; }
@@ -26,22 +64,22 @@ private:
   std::string value;
 };
 
-class SimpleName {
+class SimpleName : public ExprValue {
 public:
-  SimpleName(std::string name) : name{name} {}
+  SimpleName(std::string name) : ExprValue{}, name{name} {}
 
   std::string getName() const { return name; }
 
-  std::shared_ptr<parsetree::ast::Decl> getResolvedDecl() {
-    return resolvedDecl;
-  }
-  void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
-    this->resolvedDecl = resolvedDecl;
-  }
+  // std::shared_ptr<parsetree::ast::Decl> getResolvedDecl() {
+  //   return resolvedDecl;
+  // }
+  // void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
+  //   this->resolvedDecl = resolvedDecl;
+  // }
 
 private:
   std::string name;
-  std::shared_ptr<Decl> resolvedDecl;
+  // std::shared_ptr<Decl> resolvedDecl;
 };
 
 class QualifiedName : public ExprNode {
@@ -95,11 +133,11 @@ public:
   }
 };
 
-class TypeNode : public ExprNode {
+class TypeNode : public ExprValue {
   std::shared_ptr<Type> type;
 
 public:
-  TypeNode(std::shared_ptr<Type> type) : type{type} {};
+  TypeNode(std::shared_ptr<Type> type) : ExprValue{}, type{type} {};
 
   std::ostream &print(std::ostream &os) const {
     return os << "(Type: " << type->toString() << ")";
@@ -111,6 +149,8 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(type));
     return children;
   }
+
+  bool isDeclResolved() const override { return true; }
 };
 
 class Separator : public ExprNode {
@@ -124,11 +164,23 @@ class ExprOp : public ExprNode {
 public:
   int nargs() const { return num_args; }
 
+  std::shared_ptr<Type> resolveResultType(std::shared_ptr<Type> type) {
+    if (resultType)
+      throw std::runtime_error("Result type already resolved");
+    if (type && !type->isResolved())
+      throw std::runtime_error("Type not resolved");
+    resultType = type;
+    return type;
+  }
+
+  std::shared_ptr<Type> getResultType() const { return resultType; }
+
 protected:
   ExprOp(int num_args) : num_args{num_args} {}
 
 private:
   int num_args;
+  std::shared_ptr<Type> resultType;
 };
 
 // For AST
@@ -204,7 +256,8 @@ public:
   bool getNeedsDisambiguation() const { return needsDisambiguation; }
 
   std::ostream &print(std::ostream &os) const override {
-    os << "(MethodInvocation: " << nargs() - 1 << " args" << ")";
+    os << "(MethodInvocation: " << nargs() - 1 << " args"
+       << ")";
     return os;
   }
 

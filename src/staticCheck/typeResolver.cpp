@@ -383,6 +383,29 @@ bool TypeResolver::isValidCast(
                            " to " + castType->toString());
 }
 
+std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
+    const std::shared_ptr<parsetree::ast::ExprValue> &value) const {
+  if (!value->isDeclResolved())
+    throw std::runtime_error("ExprValue at mapValue not resolved");
+  if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+          value->getResolvedDecl())) {
+    auto type = std::make_shared<parsetree::ast::MethodType>(method);
+    if (method->isConstructor()) {
+      // need double check
+      // type->setReturnType(std::make_shared<parsetree::ast::ReferenceType>(method->getMethodBody()));
+    }
+    return type;
+  } else {
+    if (!value->isTypeResolved())
+      throw std::runtime_error("ExprValue at mapValue not typeresolved");
+    return value->getType();
+  }
+}
+
+////////////////////////////////////////
+// Main Logic
+////////////////////////////////////////
+
 // check if the format of exprNode vector and this is consistent
 // highly possible not
 std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
@@ -475,7 +498,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalBinOp(
     const std::shared_ptr<parsetree::ast::BinOp> &op,
     const std::shared_ptr<parsetree::ast::Type> &lhs,
     const std::shared_ptr<parsetree::ast::Type> &rhs) const {
-  if (auto result = op->resultType(); result) {
+  if (auto result = op->getResultType(); result) {
     return result;
   }
 
@@ -544,7 +567,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalBinOp(
 std::shared_ptr<parsetree::ast::Type>
 TypeResolver::evalUnOp(const std::shared_ptr<parsetree::ast::UnOp> &op,
                        const std::shared_ptr<parsetree::ast::Type> &rhs) const {
-  if (auto result = op->resultType(); result) {
+  if (auto result = op->getResultType(); result) {
     return result;
   }
 
@@ -577,7 +600,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
     const std::shared_ptr<parsetree::ast::Type> &lhs,
     const std::shared_ptr<parsetree::ast::Type> &field) const {
 
-  if (auto result = op->resultType(); result) {
+  if (auto result = op->getResultType(); result) {
     return result;
   }
   return op->resolveResultType(field);
@@ -588,7 +611,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
     const std::shared_ptr<parsetree::ast::Type> &method,
     const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
 
-  if (auto result = op->resultType(); result) {
+  if (auto result = op->getResultType(); result) {
     return result;
   }
 
@@ -618,7 +641,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewObject(
     const std::shared_ptr<parsetree::ast::Type> &object,
     const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
 
-  if (auto result = op->resultType(); result) {
+  if (auto result = op->getResultType(); result) {
     return result;
   }
 
@@ -647,7 +670,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewArray(
     const std::shared_ptr<parsetree::ast::Type> &type,
     const std::shared_ptr<parsetree::ast::Type> &size) const {
 
-  if (auto result = op->resultType(); result) {
+  if (auto result = op->getResultType(); result) {
     return result;
   }
 
@@ -663,7 +686,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalArrayAccess(
     const std::shared_ptr<parsetree::ast::Type> &array,
     const std::shared_ptr<parsetree::ast::Type> &index) const {
 
-  if (auto result = op->resultType(); result) {
+  if (auto result = op->getResultType(); result) {
     return result;
   }
 
@@ -684,7 +707,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalCast(
     const std::shared_ptr<parsetree::ast::Type> &type,
     const std::shared_ptr<parsetree::ast::Type> &value) const {
 
-  if (auto result = op->resultType(); result) {
+  if (auto result = op->getResultType(); result) {
     return result;
   }
 

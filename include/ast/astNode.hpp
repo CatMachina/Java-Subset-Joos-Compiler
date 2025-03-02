@@ -440,6 +440,7 @@ public:
   }
 
   std::shared_ptr<Type> getReturnType() { return returnType; }
+  std::shared_ptr<Block> getMethodBody() { return methodBody; }
 
   std::vector<std::shared_ptr<VarDecl>> &getParams() { return params; }
 };
