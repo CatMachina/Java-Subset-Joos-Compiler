@@ -66,7 +66,8 @@ private:
 
 class SimpleName : public ExprValue {
 public:
-  SimpleName(std::string name) : ExprValue{}, name{name} {}
+  SimpleName(std::string name) 
+    : ExprValue{}, name{name}, shouldBeStatic{false} {}
 
   std::string getName() const { return name; }
 
@@ -77,9 +78,15 @@ public:
   //   this->resolvedDecl = resolvedDecl;
   // }
 
+  bool getShouldBeStatic() const { return shouldBeStatic; }
+  void setShouldBeStatic() { shouldBeStatic = true; }
+  
+
 private:
   std::string name;
   // std::shared_ptr<Decl> resolvedDecl;
+
+  bool shouldBeStatic;
 };
 
 class QualifiedName : public ExprNode {

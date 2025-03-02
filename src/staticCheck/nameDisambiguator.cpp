@@ -77,12 +77,15 @@ void NameDisambiguator::disambiguate(
     if (auto varDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(localDecl)) {
       qualifiedName->get(0)->resolveDeclAndType(localDecl, varDecl->getType());
-    } else if (auto methodDecl =
-                   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
-                       localDecl)) {
-      qualifiedName->get(0)->resolveDeclAndType(localDecl,
-                                                methodDecl->getReturnType());
-    } else {
+    }
+    // Shouldn't be method decl
+    // else if (auto methodDecl =
+    //                std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+    //                    localDecl)) {
+    //   qualifiedName->get(0)->resolveDeclAndType(localDecl,
+    //                                             methodDecl->getReturnType());
+    // }
+    else {
       qualifiedName->get(0)->setResolvedDecl(localDecl);
     }
     return;
@@ -103,12 +106,15 @@ void NameDisambiguator::disambiguate(
     if (auto varDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(fieldDecl)) {
       qualifiedName->get(0)->resolveDeclAndType(fieldDecl, varDecl->getType());
-    } else if (auto methodDecl =
-                   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
-                       fieldDecl)) {
-      qualifiedName->get(0)->resolveDeclAndType(localDecl,
-                                                methodDecl->getReturnType());
-    } else {
+    }
+    // Shouldn't be method decl 
+    // else if (auto methodDecl =
+    //                std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+    //                    fieldDecl)) {
+    //   qualifiedName->get(0)->resolveDeclAndType(localDecl,
+    //                                             methodDecl->getReturnType());
+    // }
+    else {
       qualifiedName->get(0)->setResolvedDecl(fieldDecl);
     }
     return;
@@ -122,12 +128,15 @@ void NameDisambiguator::disambiguate(
     if (auto varDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(fieldDecl)) {
       qualifiedName->get(0)->resolveDeclAndType(fieldDecl, varDecl->getType());
-    } else if (auto methodDecl =
-                   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
-                       fieldDecl)) {
-      qualifiedName->get(0)->resolveDeclAndType(localDecl,
-                                                methodDecl->getReturnType());
-    } else {
+    }
+    // Shouldn't be method decl
+    // else if (auto methodDecl =
+    //                std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+    //                    fieldDecl)) {
+    //   qualifiedName->get(0)->resolveDeclAndType(localDecl,
+    //                                             methodDecl->getReturnType());
+    // }
+    else {
       qualifiedName->get(0)->setResolvedDecl(fieldDecl);
     }
     return;
@@ -148,17 +157,33 @@ void NameDisambiguator::disambiguate(
       if (!decl) {
         throw std::runtime_error("Ambiguous import-on-demand conflict");
       }
-      if (auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(
+      // Shouldn't be a var decl (?
+      // if (auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(
+      //         decl->getAstNode())) {
+      //   qualifiedName->get(i)->resolveDeclAndType(decl->getAstNode(),
+      //                                             varDecl->getType());
+      // }
+      // Shouldn't be a method decl
+      // else if (auto methodDecl =
+      //                std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+      //                    decl->getAstNode())) {
+      //   qualifiedName->get(0)->resolveDeclAndType(decl->getAstNode(),
+      //                                             methodDecl->getReturnType());
+      // }
+      if (auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
               decl->getAstNode())) {
         qualifiedName->get(i)->resolveDeclAndType(decl->getAstNode(),
-                                                  varDecl->getType());
-      } else if (auto methodDecl =
-                     std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
-                         decl->getAstNode())) {
-        qualifiedName->get(0)->resolveDeclAndType(decl->getAstNode(),
-                                                  methodDecl->getReturnType());
-      } else {
+                                                  classDecl->getObjectType());
+      } else if (auto interfaceDecl = std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                 decl->getAstNode())) {
+        qualifiedName->get(i)->resolveDeclAndType(decl->getAstNode(),
+                                                  interfaceDecl->getObjectType());
+      }
+      else {
         qualifiedName->get(i)->setResolvedDecl(decl->getAstNode());
+      }
+      if (i < qualifiedName->size() - 1) {
+        qualifiedName->get(i + 1)->setShouldBeStatic();
       }
       foundType = true;
       break;

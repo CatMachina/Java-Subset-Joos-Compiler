@@ -388,26 +388,30 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
   std::cout << "mapValue: ";
   value->print(std::cout);
 
-  Decl D = nullptr;
+  // FIXME: I am really mixing up decl and type in pseudocode... Hopefully it makes sense
+  Decl prevType = nullptr;
 
   for (int i = 0; i < qualifiedName->size(); ++i) {
     auto simpleName = qualifiedName->get(i);
     std::cout << simpleName->getName() << std::endl;
+    // Find the largest i where qualifiedName[i] is disambiguated
     auto decl = simpleName->getResolveDecl();
     if (decl) {
-      D = decl;
+      prevType = decl;
       continue;
     }
-    // TODO: Add shouldBeStatic API (in name disambiguation)
+    // Now we found our starting point
+
+    // TODO: Add getShouldBeStatic API (in name disambiguation)
     // static field
-    if (simpleName->shouldBeStatic() && D.contains(simpleName->getName())) {
-      auto fieldDecl = D.getField(simpleName->getName())
+    if (simpleName->getShouldBeStatic() && prevType.contains(simpleName->getName())) {
+      auto fieldDecl = prevType.getField(simpleName->getName())
       if (!fieldDecl->isStatic()) {
         throw std::runtime_error("Should be static but is actually declared as non-static: " << decl->getName())
       }
       // TODO: Check that all accesses of protected fields, methods and constructors are in a subtype of the type declaring the entity being accessed, or in the same package as that type.
       // Maybe something like
-      if (fieldDecl->isProtected() && isClassType(fieldDecl) && isSuperClass(D, fieldDecl->getType())) {
+      if (fieldDecl->isProtected() && isClassType(fieldDecl) && isSuperClass(prevType, fieldDecl->getType())) {
         // good
       } else {
         // bad
@@ -416,21 +420,21 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
         throw error
       }
       simpleName->setResolveDecl(fieldDecl);
-      D = decl;
+      prevType = decl;
     }
     // instance field
-    if (!simpleName->shouldBeStatic() && D.contains(simpleName->getName())) {
-      auto fieldDecl = D.getField(simpleName->getName())
+    if (!simpleName->getShouldBeStatic() && prevType.contains(simpleName->getName())) {
+      auto fieldDecl = prevType.getField(simpleName->getName())
       if (fieldDecl->isStatic()) {
         throw std::runtime_error("Should be non-static but is actually declared as static: " << decl->getName());
       }
       // TODO: protected field access
       simpleName->setResolveDecl(fieldDecl);
-      D = decl;
+      prevType = decl;
     }
   } // for loop
 
-  return D;
+  return prevType;
   
   // for (int i = 0; i < value->size(); i++) {
   //   auto simpleName = value->get(i);
@@ -734,35 +738,35 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
   // Case 2: (Type of LHS) (QualifiedName a.b.c.d) (FieldAccess 2)
   // LHS is already type resolved, continue checking field access
 
-  Decl D = lhs;
+  Decl prevType = lhs;
 
   for (int i = 0; i < qualifiedName->size(); ++i) {
     auto simpleName = qualifiedName->get(i);
     std::cout << simpleName->getName() << std::endl;
-    // TODO: shouldBeStatic API (in name disambiguation)
+    // TODO: getShouldBeStatic API (in name disambiguation)
     // static field
-    if (simpleName->shouldBeStatic() && D.contains(simpleName)) {
-      auto fieldDecl = D.getField(simpleName->getName())
+    if (simpleName->getShouldBeStatic() && prevType.contains(simpleName)) {
+      auto fieldDecl = prevType.getField(simpleName->getName())
       if (!fieldDecl->isStatic()) {
         throw std::runtime_error("Should be static but is actually declared as non-static: " << decl->getName())
       }
       // TODO: protected field access
       simpleName->setResolveDecl(fieldDecl);
-      D = decl;
+      prevType = decl;
     }
     // instance field
-    if (!simpleName->shouldBeStatic() && D.contains(simpleName)) {
-      auto fieldDecl = D.getField(simpleName->getName())
+    if (!simpleName->getShouldBeStatic() && prevType.contains(simpleName)) {
+      auto fieldDecl = prevType.getField(simpleName->getName())
       if (fieldDecl->isStatic()) {
         throw std::runtime_error("Should be non-static but is actually declared as static: " << decl->getName());
       }
       // TODO: protected field access
       simpleName->setResolveDecl(fieldDecl);
-      D = decl;
+      prevType = decl;
     }
   } // for loop
 
-  return D;
+  return prevType;
 
 }
 
@@ -777,19 +781,25 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
 
   // Case 1: (qualified_name LPAREN args RPAREN)
   // (QualifiedName a.b.c.m) (MethodInvocation needsAmbiguation=true)
-  // For a.b.c, this is just like field access
+  // For a.b.c, this is just like other qualified name
+
+  if (!lhs) {
+    prevType = mapValue(qualifiedName[0 : (n-1)]);
+  }
 
   // Case 2: (primary DOT ID LPAREN args RPAREN)
-  // (QualifiedName a.b.c) (FieldAccess 1) (QualifiedName d) (MethodInvocation needsAmbiguation=false)
-  //    => (Type of LHS) (QualifiedName d) (MethodInvocation)
-  // (The first two nodes should have been handled by evalFieldAccess)
+  // (QualifiedName a.b.c) (FieldAccess 1) (QualifiedName m) (MethodInvocation needsAmbiguation=false)
+  //    => (Type of LHS) (QualifiedName m) (MethodInvocation)
+  // a.b.c should have been handled by evalFieldAccess
   
-  Decl D = lhs ? lhs : mapValue(qualifiedName);
+  else {
+    prevType = lhs;
+  }
   
-  // Now we check for method m
+  // prevType is the starting type. Now we check for method m
   std::string m = qualifiedName->getLastName();
-  // is m contained in D?
-  auto methodDecl = D->findMethodDecl(m);
+  // is m contained in prevType?
+  auto methodDecl = prevType->findMethodDecl(m);
   if (methodDecl) {
     auto params = methodDecl->getParams();
     // Check args and params assignability...
@@ -797,6 +807,10 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
       // TODO
     }
   }
+  // TODO: static / non-static access
+  // TODO: protected access
+  // TODO: constructor check
+
   // If everything is good
   return methodDecl->getMethodReturnType();
 
