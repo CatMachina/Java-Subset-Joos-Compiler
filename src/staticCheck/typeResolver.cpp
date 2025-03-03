@@ -388,7 +388,8 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
   std::cout << "mapValue: ";
   value->print(std::cout);
 
-  // FIXME: I am really mixing up decl and type in pseudocode... Hopefully it makes sense
+  // FIXME: I am really mixing up decl and type in pseudocode... Hopefully it
+  // makes sense
   Decl prevType = nullptr;
 
   for (int i = 0; i < qualifiedName->size(); ++i) {
@@ -404,14 +405,19 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
 
     // TODO: Add getShouldBeStatic API (in name disambiguation)
     // static field
-    if (simpleName->getShouldBeStatic() && prevType.contains(simpleName->getName())) {
-      auto fieldDecl = prevType.getField(simpleName->getName())
-      if (!fieldDecl->isStatic()) {
-        throw std::runtime_error("Should be static but is actually declared as non-static: " << decl->getName())
+    if (simpleName->getShouldBeStatic() &&
+        prevType.contains(simpleName->getName())) {
+      auto fieldDecl =
+          prevType.getField(simpleName->getName()) if (!fieldDecl->isStatic()) {
+        throw std::runtime_error(
+            "Should be static but is actually declared as non-static: "
+            << decl->getName())
       }
-      // TODO: Check that all accesses of protected fields, methods and constructors are in a subtype of the type declaring the entity being accessed, or in the same package as that type.
-      // Maybe something like
-      if (fieldDecl->isProtected() && isClassType(fieldDecl) && isSuperClass(prevType, fieldDecl->getType())) {
+      // TODO: Check that all accesses of protected fields, methods and
+      // constructors are in a subtype of the type declaring the entity being
+      // accessed, or in the same package as that type. Maybe something like
+      if (fieldDecl->isProtected() && isClassType(fieldDecl) &&
+          isSuperClass(prevType, fieldDecl->getType())) {
         // good
       } else {
         // bad
@@ -423,10 +429,13 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
       prevType = decl;
     }
     // instance field
-    if (!simpleName->getShouldBeStatic() && prevType.contains(simpleName->getName())) {
-      auto fieldDecl = prevType.getField(simpleName->getName())
-      if (fieldDecl->isStatic()) {
-        throw std::runtime_error("Should be non-static but is actually declared as static: " << decl->getName());
+    if (!simpleName->getShouldBeStatic() &&
+        prevType.contains(simpleName->getName())) {
+      auto fieldDecl =
+          prevType.getField(simpleName->getName()) if (fieldDecl->isStatic()) {
+        throw std::runtime_error(
+            "Should be non-static but is actually declared as static: "
+            << decl->getName());
       }
       // TODO: protected field access
       simpleName->setResolveDecl(fieldDecl);
@@ -435,7 +444,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
   } // for loop
 
   return prevType;
-  
+
   // for (int i = 0; i < value->size(); i++) {
   //   auto simpleName = value->get(i);
   //   std::cout << "mapValue: " << simpleName->getName() << std::endl;
@@ -490,8 +499,11 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
       bool nextIsFieldAccess = false;
       bool nextIsMethodCall = false;
       if (i < list.size() - 1) {
-        auto fieldAccess = std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(list[i+1]);
-        auto methodCall = std::dynamic_pointer_cast<parsetree::ast::MethodInvocation>(list[i+1]);
+        auto fieldAccess =
+            std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(list[i + 1]);
+        auto methodCall =
+            std::dynamic_pointer_cast<parsetree::ast::MethodInvocation>(
+                list[i + 1]);
         if (fieldAccess)
           nextIsFieldAccess = true;
         if (methodCall)
@@ -539,16 +551,19 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
       auto methodName = popStack();
       // A better name might be hasNoLHS
       if (methodInvocation->getNeedsDisambiguation()) {
-        std::vector<std::shared_ptr<parsetree::ast::Type>> args(method->nargs() -
-                                                              1);
-        std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
+        std::vector<std::shared_ptr<parsetree::ast::Type>> args(
+            method->nargs() - 1);
+        std::generate(args.rbegin(), args.rend(),
+                      [this] { return popStack(); });
         op_stack.push(evalMethodInvocation(methodInvocation, methodName, args));
       } else {
         auto lhs = popStack();
-        std::vector<std::shared_ptr<parsetree::ast::Type>> args(method->nargs() -
-                                                              1);
-        std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
-        op_stack.push(evalMethodInvocation(methodInvocation, methodName, args, lhs));
+        std::vector<std::shared_ptr<parsetree::ast::Type>> args(
+            method->nargs() - 1);
+        std::generate(args.rbegin(), args.rend(),
+                      [this] { return popStack(); });
+        op_stack.push(
+            evalMethodInvocation(methodInvocation, methodName, args, lhs));
       }
     } else if (auto newObj =
                    std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
@@ -722,7 +737,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
   if (op->nargs() != 1 && op->nargs() != 2) {
     throw std::runtime_error("Field access expects 1 or 2 args");
   }
-  
+
   std::cout << "Evaluating Field Access: " << std::endl;
 
   if (auto result = op->getResultType(); result) {
@@ -731,7 +746,7 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
 
   // Case 1: (QualifiedName a.b.c.d) (FieldAccess 1)
   // Start type checking from a
-  
+
   if (op->nargs() == 1)
     return mapValue(qualifiedName);
 
@@ -746,19 +761,22 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
     // TODO: getShouldBeStatic API (in name disambiguation)
     // static field
     if (simpleName->getShouldBeStatic() && prevType.contains(simpleName)) {
-      auto fieldDecl = prevType.getField(simpleName->getName())
-      if (!fieldDecl->isStatic()) {
-        throw std::runtime_error("Should be static but is actually declared as non-static: " << decl->getName())
-      }
-      // TODO: protected field access
-      simpleName->setResolveDecl(fieldDecl);
+      auto fieldDecl =
+          prevType
+              .getField(simpleName->getName()) if (
+                  !fieldDecl->isStatic()){throw std::runtime_error(
+                  "Should be static but is actually declared as non-static: "
+                  << decl->getName())} // TODO: protected field access
+          simpleName->setResolveDecl(fieldDecl);
       prevType = decl;
     }
     // instance field
     if (!simpleName->getShouldBeStatic() && prevType.contains(simpleName)) {
-      auto fieldDecl = prevType.getField(simpleName->getName())
-      if (fieldDecl->isStatic()) {
-        throw std::runtime_error("Should be non-static but is actually declared as static: " << decl->getName());
+      auto fieldDecl =
+          prevType.getField(simpleName->getName()) if (fieldDecl->isStatic()) {
+        throw std::runtime_error(
+            "Should be non-static but is actually declared as static: "
+            << decl->getName());
       }
       // TODO: protected field access
       simpleName->setResolveDecl(fieldDecl);
@@ -767,7 +785,6 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
   } // for loop
 
   return prevType;
-
 }
 
 std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
@@ -784,18 +801,19 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
   // For a.b.c, this is just like other qualified name
 
   if (!lhs) {
-    prevType = mapValue(qualifiedName[0 : (n-1)]);
+    prevType = mapValue(qualifiedName [0:(n - 1)]);
   }
 
   // Case 2: (primary DOT ID LPAREN args RPAREN)
-  // (QualifiedName a.b.c) (FieldAccess 1) (QualifiedName m) (MethodInvocation needsAmbiguation=false)
+  // (QualifiedName a.b.c) (FieldAccess 1) (QualifiedName m) (MethodInvocation
+  // needsAmbiguation=false)
   //    => (Type of LHS) (QualifiedName m) (MethodInvocation)
   // a.b.c should have been handled by evalFieldAccess
-  
+
   else {
     prevType = lhs;
   }
-  
+
   // prevType is the starting type. Now we check for method m
   std::string m = qualifiedName->getLastName();
   // is m contained in prevType?

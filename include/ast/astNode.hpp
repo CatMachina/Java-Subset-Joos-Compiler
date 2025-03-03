@@ -27,6 +27,8 @@ class VarDecl;
 class StatementExpr;
 class Block;
 class UnresolvedType;
+class ScopeID;
+class CodeBody;
 
 class AstNode {
 public:
@@ -37,14 +39,38 @@ public:
 };
 
 class Decl : virtual public AstNode {
+protected:
   std::string name;
+  std::shared_ptr<CodeBody> parent;
 
 public:
-  explicit Decl(std::string name) : name{name} {}
+  explicit Decl(std::string name) : name{name}, parent{nullptr} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
+  [[nodiscard]] std::shared_ptr<CodeBody> getParent() const noexcept {
+    return parent;
+  }
+  virtual void setParent(std::shared_ptr<CodeBody> parent) {
+    if (this->parent)
+      throw std::runtime_error("parent already set!");
+    this->parent = parent;
+  }
 };
 
-class CodeBody : virtual public AstNode {};
+class CodeBody : virtual public AstNode {
+public:
+  std::vector<std::shared_ptr<Decl>> getDecls() const {
+    std::vector<std::shared_ptr<Decl>> declVector;
+    for (auto child : getChildren()) {
+      if (auto decl = std::dynamic_pointer_cast<Decl>(child)) {
+        if (!(decl->getParent().get() == this))
+          throw std::runtime_error(
+              "child declaration of this context has the wrong parent!");
+        declVector.push_back(decl);
+      }
+    }
+    return declVector;
+  }
+};
 
 class Type : public AstNode {
 public:
@@ -74,16 +100,24 @@ class Expr : public AstNode {
   // Reverse Polish Notation
   // TODO: We use vector for now
   std::vector<std::shared_ptr<ExprNode>> exprNodes;
+  std::shared_ptr<ScopeID> scope;
 
 public:
-  Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes)
-      : exprNodes{exprNodes} {}
+  Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes,
+       std::shared_ptr<ScopeID> scope)
+      : exprNodes{exprNodes}, scope{scope} {}
 
   // Getter
   // right now we return a copy, inefficient i know...
-  std::vector<std::shared_ptr<ExprNode>> getExprNodes() const {
-    return exprNodes;
+  std::vector<std::shared_ptr<ExprNode>> getExprNodes() { return exprNodes; }
+
+  std::shared_ptr<ScopeID> getScope() { return scope; }
+
+  void setExprNodes(std::vector<std::shared_ptr<ExprNode>> exprNodes) {
+    this->exprNodes = exprNodes;
   }
+
+  void setScope(std::shared_ptr<ScopeID> scope) { this->scope = scope; }
 
   const std::shared_ptr<ExprNode> getLastExprNode() const {
     if (exprNodes.empty()) {
@@ -192,7 +226,8 @@ public:
   }
 };
 
-class ProgramDecl : public CodeBody {
+class ProgramDecl : public CodeBody,
+                    public std::enable_shared_from_this<ProgramDecl> {
   std::shared_ptr<ReferenceType> package;
   std::vector<std::shared_ptr<ImportDecl>> imports;
   std::shared_ptr<CodeBody> body;
@@ -204,6 +239,7 @@ public:
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
   std::shared_ptr<ReferenceType> getPackage() const { return package; }
+  std::string getPackageName() const { return package->toString(); }
   std::vector<std::shared_ptr<ImportDecl>> &getImports() { return imports; }
 
   bool isDefaultPackage() const {
@@ -226,7 +262,9 @@ public:
   }
 };
 
-class ClassDecl : virtual public CodeBody, virtual public Decl {
+class ClassDecl : virtual public CodeBody,
+                  virtual public Decl,
+                  public std::enable_shared_from_this<ClassDecl> {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> superClasses;
   std::vector<std::shared_ptr<ReferenceType>> interfaces;
@@ -296,13 +334,17 @@ public:
     return methods;
   }
 
+  void setParent(std::shared_ptr<CodeBody> parent) override;
+
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 
   // WARNING - ONLY USE FOR java.lang.Object
   void clearSuperClasses() { superClasses.clear(); }
 };
 
-class InterfaceDecl : virtual public CodeBody, virtual public Decl {
+class InterfaceDecl : virtual public CodeBody,
+                      virtual public Decl,
+                      public std::enable_shared_from_this<InterfaceDecl> {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> interfaces;
   std::vector<std::shared_ptr<Decl>> interfaceBodyDecls;
@@ -342,22 +384,26 @@ public:
   std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
     return interfaces;
   }
+
+  void setParent(std::shared_ptr<CodeBody> parent) override;
 };
 
 class VarDecl : public Decl {
   std::shared_ptr<Type> type;
   std::shared_ptr<Expr> initializer;
+  std::shared_ptr<ScopeID> scope;
 
 public:
   VarDecl(std::shared_ptr<Type> type, std::string name,
-          std::shared_ptr<Expr> initializer)
-      : Decl{name}, type{type}, initializer{initializer} {}
+          std::shared_ptr<Expr> initializer, std::shared_ptr<ScopeID> scope)
+      : Decl{name}, type{type}, initializer{initializer}, scope{scope} {}
 
   bool hasInit() const { return initializer != nullptr; }
 
   // Getters
   std::shared_ptr<Type> getType() const { return type; }
   std::shared_ptr<Expr> getInitializer() const { return initializer; }
+  std::shared_ptr<ScopeID> getScope() const { return scope; }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
@@ -372,10 +418,13 @@ class FieldDecl : public VarDecl {
 
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
-            std::string name, std::shared_ptr<Expr> initializer);
+            std::string name, std::shared_ptr<Expr> initializer,
+            std::shared_ptr<ScopeID> scope);
 
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
+
+  void setParent(std::shared_ptr<CodeBody> parent) override;
 };
 
 class MethodDecl : public Decl {
@@ -438,6 +487,8 @@ public:
     signature += ")";
     return signature;
   }
+
+  void setParent(std::shared_ptr<CodeBody> parent) override;
 
   std::shared_ptr<Type> getReturnType() { return returnType; }
   std::shared_ptr<Block> getMethodBody() { return methodBody; }
@@ -765,6 +816,46 @@ public:
   const std::vector<std::shared_ptr<Type>> &getParamTypes() const {
     return paramTypes;
   }
+};
+
+class ScopeID final {
+public:
+  ScopeID(const std::shared_ptr<ScopeID> &parent, int pos)
+      : parent_{parent}, pos_{pos} {}
+
+public:
+  std::shared_ptr<ScopeID> next(std::shared_ptr<ScopeID> parent) const {
+    return std::make_shared<ScopeID>(parent, pos_ + 1);
+  }
+
+  bool canView(std::shared_ptr<ScopeID> other) const {
+    assert(other != nullptr && "Can't view the null scope");
+    if (this->parent_ == other->parent_) {
+      return this->pos_ >= other->pos_;
+    }
+    if (this->parent_) {
+      return this->parent_->canView(other);
+    }
+    return false;
+  }
+
+  std::shared_ptr<ScopeID> parent() const { return parent_; }
+
+  static std::shared_ptr<ScopeID> New() {
+    return std::make_shared<ScopeID>(nullptr, 0);
+  }
+
+  std::string toString() const {
+    return parent()->toString() + "." + std::to_string(pos_);
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const ScopeID &id) {
+    return os << id.toString();
+  }
+
+private:
+  std::shared_ptr<ScopeID> parent_;
+  const int pos_;
 };
 
 } // namespace parsetree::ast

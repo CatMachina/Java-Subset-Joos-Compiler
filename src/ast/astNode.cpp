@@ -8,6 +8,13 @@ ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
     : package{package}, imports{imports}, body{body} {
   std::unordered_map<std::string, std::string> existingImports;
 
+  auto decl = std::dynamic_pointer_cast<Decl>(body);
+  if (decl) {
+    decl->setParent(shared_from_this());
+  } else {
+    throw std::runtime_error("Body must be a Decl.");
+  }
+
   for (const auto &importDecl : imports) {
     if (importDecl->hasStar()) {
       continue;
@@ -88,6 +95,21 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
   }
 }
 
+void ClassDecl::setParent(std::shared_ptr<CodeBody> parent) {
+  auto program = std::dynamic_pointer_cast<ProgramDecl>(parent);
+  Decl::setParent(parent);
+  if (!program->isDefaultPackage()) {
+    name = program->getPackageName();
+    name += ".";
+  }
+  name += getName();
+
+  for (auto &field : getFields())
+    field->setParent(shared_from_this());
+  for (auto &method : getMethods())
+    method->setParent(shared_from_this());
+}
+
 InterfaceDecl::InterfaceDecl(
     std::shared_ptr<Modifiers> modifiers, std::string name,
     std::vector<std::shared_ptr<ReferenceType>> interfaces,
@@ -139,6 +161,18 @@ InterfaceDecl::InterfaceDecl(
       }
     }
   }
+}
+
+void InterfaceDecl::setParent(std::shared_ptr<CodeBody> parent) {
+  auto program = std::dynamic_pointer_cast<ProgramDecl>(parent);
+  Decl::setParent(parent);
+  if (!program->isDefaultPackage()) {
+    name = program->getPackageName();
+    name += ".";
+  }
+  name += getName();
+  for (auto &method : getMethods())
+    method->setParent(shared_from_this());
 }
 
 MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
@@ -229,6 +263,18 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
   checkSuperThisCalls(methodBody);
 }
 
+void MethodDecl::setParent(std::shared_ptr<CodeBody> parent) {
+  Decl::setParent(parent);
+  auto parentDecl = std::dynamic_pointer_cast<Decl>(parent);
+  if (!parentDecl)
+    throw std::runtime_error("Field Decl Parent must be a Decl");
+  if (modifiers->isStatic()) {
+    name = parentDecl->getName();
+    name += ".";
+    name += getName();
+  }
+}
+
 void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
   if (!block) {
     return;
@@ -285,8 +331,9 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
                      std::shared_ptr<Type> type, std::string name,
-                     std::shared_ptr<Expr> initializer)
-    : modifiers{modifiers}, VarDecl{type, name, initializer} {
+                     std::shared_ptr<Expr> initializer,
+                     std::shared_ptr<ScopeID> scope)
+    : modifiers{modifiers}, VarDecl{type, name, initializer, scope} {
   if (!modifiers) {
     throw std::runtime_error("Field Decl Invalid modifiers.");
   }

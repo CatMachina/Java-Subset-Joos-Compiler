@@ -8,14 +8,25 @@ namespace parsetree::ast {
 
 class ExprValue : public ExprNode {
 public:
-  explicit ExprValue() : decl_{nullptr}, type_{nullptr} {}
+  enum class ValueType {
+    PackageName,
+    TypeName,
+    ExpressionName,
+    MethodName,
+    Other
+  };
+
+  explicit ExprValue()
+      : decl_{nullptr}, type_{nullptr}, valueType_{ValueType::Other} {}
 
   std::shared_ptr<Decl> getResolvedDecl() const { return decl_; }
   std::shared_ptr<Type> getType() const { return type_; }
+  ValueType getValueType() const { return valueType_; }
 
   void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
     this->decl_ = resolvedDecl;
   }
+  void setValueType(ValueType valueType) { this->valueType_ = valueType; }
 
   virtual bool isDeclResolved() const { return decl_ != nullptr; }
   bool isTypeResolved() const { return type_ != nullptr; }
@@ -40,6 +51,7 @@ public:
 private:
   std::shared_ptr<Decl> decl_;
   std::shared_ptr<Type> type_;
+  ValueType valueType_;
 };
 
 class Literal : public ExprValue {
@@ -55,6 +67,8 @@ public:
 
   bool isDeclResolved() const override { return true; }
 
+  bool isString() const { return type == Type::String; }
+
   // Getters
   Type getType() const { return type; }
   std::string getValue() const { return value; }
@@ -66,8 +80,8 @@ private:
 
 class SimpleName : public ExprValue {
 public:
-  SimpleName(std::string name) 
-    : ExprValue{}, name{name}, shouldBeStatic{false} {}
+  SimpleName(std::string name)
+      : ExprValue{}, name{name}, shouldBeStatic{false} {}
 
   std::string getName() const { return name; }
 
@@ -78,9 +92,14 @@ public:
   //   this->resolvedDecl = resolvedDecl;
   // }
 
+  std::ostream &print(std::ostream &os) const override {
+    os << "(Simple Name " << name << ", shouldBeStatic: " << shouldBeStatic
+       << ")";
+    return os;
+  }
+
   bool getShouldBeStatic() const { return shouldBeStatic; }
   void setShouldBeStatic() { shouldBeStatic = true; }
-  
 
 private:
   std::string name;
@@ -121,6 +140,14 @@ public:
     }
     os << ")";
     return os;
+  }
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &simpleName : simpleNames) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(simpleName));
+    }
+    return children;
   }
 
 private:

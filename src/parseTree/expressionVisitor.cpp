@@ -63,45 +63,59 @@ ParseTreeVisitor::visitExpression(const NodePtr &node) {
   // TODO: Code looks repetitive. Will fix later
   switch (node->get_node_type()) {
   case NodeType::Expression:
-    return std::make_shared<ast::Expr>(visitExprNode(node));
+    return std::make_shared<ast::Expr>(visitExprNode(node),
+                                       envManager.CurrentScopeID());
   case NodeType::Assignment:
-    return std::make_shared<ast::Expr>(visitAssignment(node));
+    return std::make_shared<ast::Expr>(visitAssignment(node),
+                                       envManager.CurrentScopeID());
   case NodeType::MethodInvocation:
-    return std::make_shared<ast::Expr>(visitMethodInvocation(node));
+    return std::make_shared<ast::Expr>(visitMethodInvocation(node),
+                                       envManager.CurrentScopeID());
   case NodeType::ArrayAccess:
-    return std::make_shared<ast::Expr>(visitArrayAccess(node));
+    return std::make_shared<ast::Expr>(visitArrayAccess(node),
+                                       envManager.CurrentScopeID());
   case NodeType::FieldAccess:
-    return std::make_shared<ast::Expr>(visitFieldAccess(node));
+    return std::make_shared<ast::Expr>(visitFieldAccess(node),
+                                       envManager.CurrentScopeID());
   case NodeType::Cast:
-    return std::make_shared<ast::Expr>(visitCast(node));
+    return std::make_shared<ast::Expr>(visitCast(node),
+                                       envManager.CurrentScopeID());
   case NodeType::ArrayCreation:
-    return std::make_shared<ast::Expr>(visitArrayCreation(node));
+    return std::make_shared<ast::Expr>(visitArrayCreation(node),
+                                       envManager.CurrentScopeID());
   case NodeType::ClassCreation:
-    return std::make_shared<ast::Expr>(visitClassCreation(node));
+    return std::make_shared<ast::Expr>(visitClassCreation(node),
+                                       envManager.CurrentScopeID());
   case NodeType::Literal:
     return std::make_shared<ast::Expr>(
-        std::vector<std::shared_ptr<ast::ExprNode>>{visitLiteral(node)});
+        std::vector<std::shared_ptr<ast::ExprNode>>{visitLiteral(node)},
+        envManager.CurrentScopeID());
   case NodeType::Type:
     return std::make_shared<ast::Expr>(
-        std::vector<std::shared_ptr<ast::ExprNode>>{visitBasicType(node)});
+        std::vector<std::shared_ptr<ast::ExprNode>>{visitBasicType(node)},
+        envManager.CurrentScopeID());
   case NodeType::ArrayType:
     return std::make_shared<ast::Expr>(
-        std::vector<std::shared_ptr<ast::ExprNode>>{visitArrayType(node)});
+        std::vector<std::shared_ptr<ast::ExprNode>>{visitArrayType(node)},
+        envManager.CurrentScopeID());
   case NodeType::ArrayCastType:
     return std::make_shared<ast::Expr>(
-        std::vector<std::shared_ptr<ast::ExprNode>>{visitArrayType(node)});
+        std::vector<std::shared_ptr<ast::ExprNode>>{visitArrayType(node)},
+        envManager.CurrentScopeID());
   case NodeType::Identifier: {
     auto name = visitIdentifier(node);
     auto simpleName = std::make_shared<ast::SimpleName>(name);
     auto qualifiedName = std::make_shared<ast::QualifiedName>();
     qualifiedName->add(simpleName);
     return std::make_shared<ast::Expr>(
-        std::vector<std::shared_ptr<ast::ExprNode>>{qualifiedName});
+        std::vector<std::shared_ptr<ast::ExprNode>>{qualifiedName},
+        envManager.CurrentScopeID());
   }
   case NodeType::QualifiedName:
     return std::make_shared<ast::Expr>(
         std::vector<std::shared_ptr<ast::ExprNode>>{
-            visitQualifiedIdentifierInExpr(node)});
+            visitQualifiedIdentifierInExpr(node)},
+        envManager.CurrentScopeID());
   default:
     throw std::runtime_error("Invalid Expression");
   }

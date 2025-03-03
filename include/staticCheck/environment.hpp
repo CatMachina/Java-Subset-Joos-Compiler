@@ -24,7 +24,12 @@ class Decl {
 public:
   explicit Decl(std::shared_ptr<parsetree::ast::Decl> node)
       : astNode(std::move(node)) {}
-  virtual void printDecl(int depth = 0) const = 0;
+  void printDecl(int depth = 0) const {
+    for (int i = 0; i < depth; ++i)
+      std::cout << "  ";
+    std::cout << "(Decl: " << astNode->getName() << ")"
+              << "\n";
+  }
   std::string getName() const { return astNode->getName(); }
   std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode; }
 };
@@ -82,7 +87,7 @@ public:
 class Body : public Decl {
 public:
   explicit Body(std::shared_ptr<parsetree::ast::Decl> body) : Decl{body} {}
-  void printDecl(int depth = 0) const override {
+  void printDecl(int depth = 0) const {
     for (int i = 0; i < depth; ++i)
       std::cout << "  ";
     std::cout << "(Body: " << getAstNode()->getName() << ")"
@@ -93,7 +98,7 @@ public:
 class Class : public Decl {
 public:
   explicit Class(std::shared_ptr<parsetree::ast::ClassDecl> cls) : Decl{cls} {}
-  void printDecl(int depth = 0) const override {
+  void printDecl(int depth = 0) const {
     for (int i = 0; i < depth; ++i)
       std::cout << "  ";
     std::cout << "(Class: " << getAstNode()->getName() << ")"

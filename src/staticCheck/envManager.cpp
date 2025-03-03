@@ -33,7 +33,7 @@ std::shared_ptr<parsetree::ast::FieldDecl> EnvManager::BuildFieldDecl(
     const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
     const std::shared_ptr<parsetree::ast::Expr> &init) {
   return std::make_shared<parsetree::ast::FieldDecl>(modifiers, type, name,
-                                                     init);
+                                                     init, NextFieldScopeID());
 }
 
 std::shared_ptr<parsetree::ast::MethodDecl> EnvManager::BuildMethodDecl(
@@ -51,9 +51,11 @@ std::shared_ptr<parsetree::ast::MethodDecl> EnvManager::BuildMethodDecl(
 
 std::shared_ptr<parsetree::ast::VarDecl> EnvManager::BuildVarDecl(
     const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
+    const std::shared_ptr<parsetree::ast::ScopeID> &scopeID,
     const std::shared_ptr<parsetree::ast::Expr> &initializer) {
   std::shared_ptr<parsetree::ast::VarDecl> varDecl =
-      std::make_shared<parsetree::ast::VarDecl>(type, name, initializer);
+      std::make_shared<parsetree::ast::VarDecl>(type, name, initializer,
+                                                scopeID);
   if (!AddToLocalScope(varDecl)) {
     throw std::runtime_error("Variable " + std::string(name) +
                              " already declared in this scope.");

@@ -77,6 +77,7 @@ std::shared_ptr<ast::ClassDecl>
 ParseTreeVisitor::visitClassDecl(const NodePtr &node) {
   check_node_type(node, NodeType::ClassDecl);
   check_num_children(node, 5, 5);
+  envManager.ResetFieldScope();
 
   // Visit the modifiers identifier etc
   std::shared_ptr<ast::Modifiers> modifiers = std::make_shared<ast::Modifiers>(
@@ -140,6 +141,8 @@ ParseTreeVisitor::visitFieldDecl(const NodePtr &node) {
       std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
 
   auto decl = visitLocalDecl(node->child_at(1), node->child_at(2));
+  if (decl.init)
+    decl.init->setScope(envManager.CurrentFieldScopeID());
   return envManager.BuildFieldDecl(modifiers, decl.type, decl.name, decl.init);
 }
 
@@ -206,7 +209,7 @@ ParseTreeVisitor::visit<NodeType::ParameterList>(const NodePtr &node) {
   auto type = visitType(node->child_at(0));
   auto name = visitIdentifier(node->child_at(1));
 
-  return envManager.BuildVarDecl(type, name);
+  return envManager.BuildVarDecl(type, name, envManager.NextScopeID());
 }
 
 // Interface Declaration
@@ -215,6 +218,7 @@ std::shared_ptr<ast::InterfaceDecl>
 ParseTreeVisitor::visitInterfaceDecl(const NodePtr &node) {
   check_node_type(node, NodeType::InterfaceDecl);
   check_num_children(node, 4, 4);
+  envManager.ResetFieldScope();
 
   std::shared_ptr<ast::Modifiers> modifiers = std::make_shared<ast::Modifiers>(
       visitModifierList(node->child_at(0), ast::Modifiers{}));
@@ -391,7 +395,8 @@ ParseTreeVisitor::visitForStatement(const NodePtr &node) {
     if (initNode->get_node_type() == NodeType::LocalDecl) {
       check_num_children(initNode, 2, 2);
       auto decl = visitLocalDecl(initNode->child_at(0), initNode->child_at(1));
-      auto varDecl = envManager.BuildVarDecl(decl.type, decl.name, decl.init);
+      auto varDecl = envManager.BuildVarDecl(
+          decl.type, decl.name, envManager.NextScopeID(), decl.init);
       init = envManager.BuildDeclStmt(varDecl);
     } else {
       init = visitExpression(initNode);
@@ -446,7 +451,8 @@ ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
 
   auto decl =
       visitLocalDecl(innerLocalDecl->child_at(0), innerLocalDecl->child_at(1));
-  auto varDecl = envManager.BuildVarDecl(decl.type, decl.name, decl.init);
+  auto varDecl = envManager.BuildVarDecl(decl.type, decl.name,
+                                         envManager.NextScopeID(), decl.init);
   return envManager.BuildDeclStmt(varDecl);
 }
 
