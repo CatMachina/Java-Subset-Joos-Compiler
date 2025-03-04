@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
 
     // // type resolution
 
-    // typeResolver->resolve();
+    typeResolver->resolve();
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

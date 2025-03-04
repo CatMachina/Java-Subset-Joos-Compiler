@@ -29,8 +29,8 @@ protected:
                             const T array, const T index) = 0;
   virtual T evalCast(std::shared_ptr<parsetree::ast::Cast> &op, const T type,
                      const T value) = 0;
-  virtual T evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op, const T lhs,
-                            const T rhs) = 0;
+  virtual T evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
+                           const T lhs, const T rhs) = 0;
 
 public:
   T evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
@@ -106,8 +106,7 @@ public:
         auto value = popStack();
         auto type = popStack();
         op_stack.push(evalCast(cast, type, value));
-      }
-      else if (auto assignment =
+      } else if (auto assignment =
                      std::dynamic_pointer_cast<parsetree::ast::Assignment>(
                          node)) {
         auto lhs = popStack();

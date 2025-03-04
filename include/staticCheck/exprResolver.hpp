@@ -155,10 +155,9 @@ private:
   exprResolveType evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
                            const exprResolveType type,
                            const exprResolveType value);
-  exprResolveType evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
-                            const exprResolveType lhs,
-                            const exprResolveType rhs);
-                    
+  exprResolveType
+  evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
+                 const exprResolveType lhs, const exprResolveType rhs);
 
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>>
   recursiveReduce(std::shared_ptr<ExprNameLinked> node);

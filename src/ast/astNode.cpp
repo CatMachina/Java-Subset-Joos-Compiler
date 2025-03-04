@@ -284,6 +284,8 @@ void MethodDecl::setParent(std::shared_ptr<CodeBody> parent) {
   if (modifiers->isStatic()) {
     // change name
   }
+  for (auto &local : localDecls)
+    local->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
 }
 
 void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {

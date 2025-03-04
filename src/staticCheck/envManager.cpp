@@ -36,7 +36,8 @@ std::shared_ptr<parsetree::ast::FieldDecl> EnvManager::BuildFieldDecl(
     const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
     const std::shared_ptr<parsetree::ast::Expr> &init) {
   auto scopeID = NextFieldScopeID();
-  std::cout << "BuildFieldDecl: name=" << name << " scopeID=" << (scopeID ? scopeID->toString() : "") << std::endl;
+  std::cout << "BuildFieldDecl: name=" << name
+            << " scopeID=" << (scopeID ? scopeID->toString() : "") << std::endl;
   return std::make_shared<parsetree::ast::FieldDecl>(modifiers, type, name,
                                                      init, scopeID);
 }
@@ -58,7 +59,8 @@ std::shared_ptr<parsetree::ast::VarDecl> EnvManager::BuildVarDecl(
     const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
     const std::shared_ptr<parsetree::ast::ScopeID> &scopeID,
     const std::shared_ptr<parsetree::ast::Expr> &initializer) {
-  std::cout << "BuildVarDecl: name=" << name << " scopeID=" << (scopeID ? scopeID->toString() : "") << std::endl;
+  std::cout << "BuildVarDecl: name=" << name
+            << " scopeID=" << (scopeID ? scopeID->toString() : "") << std::endl;
   std::shared_ptr<parsetree::ast::VarDecl> varDecl =
       std::make_shared<parsetree::ast::VarDecl>(type, name, initializer,
                                                 scopeID);

@@ -61,9 +61,11 @@ public:
     std::vector<std::shared_ptr<Decl>> declVector;
     for (auto child : getChildren()) {
       if (auto decl = std::dynamic_pointer_cast<Decl>(child)) {
+        if (!(decl->getParent().get()))
+          throw std::runtime_error("parent null in CodeBody::getDecls");
         if (!(decl->getParent().get() == this))
           throw std::runtime_error(
-              "child declaration of this context has the wrong parent!");
+              "child declaration of this context has the wrong parent");
         declVector.push_back(decl);
       }
     }
@@ -272,6 +274,7 @@ public:
   std::ostream &print(std::ostream &os) const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::cout << "ProgramDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(package));
     for (const auto &node : imports) {
@@ -302,20 +305,6 @@ public:
 
   std::ostream &print(std::ostream &os) const;
 
-  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::vector<std::shared_ptr<AstNode>> children;
-    for (const auto &node : classBodyDecls) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : interfaces) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : superClasses) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    return children;
-  }
-
   std::vector<std::shared_ptr<ReferenceType>> getSuperClasses() {
     return superClasses;
   }
@@ -330,7 +319,7 @@ public:
 
   std::shared_ptr<Modifiers> getModifiers() { return modifiers; }
 
-  std::vector<std::shared_ptr<FieldDecl>> getFields() {
+  std::vector<std::shared_ptr<FieldDecl>> getFields() const {
     std::vector<std::shared_ptr<FieldDecl>> fields;
 
     for (const auto &decl : classBodyDecls) {
@@ -342,7 +331,7 @@ public:
     return fields;
   }
 
-  std::vector<std::shared_ptr<MethodDecl>> getMethods() {
+  std::vector<std::shared_ptr<MethodDecl>> getMethods() const {
     std::vector<std::shared_ptr<MethodDecl>> methods;
 
     for (const auto &decl : classBodyDecls) {
@@ -352,6 +341,28 @@ public:
     }
 
     return methods;
+  }
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::cout << "ClassDecl getChildren" << std::endl;
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &node : classBodyDecls) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : interfaces) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : superClasses) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    // do we need this
+    for (const auto &node : getFields()) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : getMethods()) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    return children;
   }
 
   void setParent(std::shared_ptr<CodeBody> parent) override;
@@ -396,6 +407,7 @@ public:
   std::ostream &print(std::ostream &os) const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::cout << "InterfaceDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     for (const auto &node : interfaces) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
@@ -460,6 +472,7 @@ public:
   std::shared_ptr<ScopeID> getScope() const { return scope; }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::cout << "VarDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(type));
     children.push_back(std::dynamic_pointer_cast<AstNode>(initializer));
@@ -512,6 +525,7 @@ public:
   bool hasBody() const { return methodBody != nullptr; };
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::cout << "MethodDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(returnType));
     for (const auto &node : params) {
@@ -903,13 +917,15 @@ public:
 
   bool canView(std::shared_ptr<ScopeID> other) const {
     assert(other != nullptr && "Can't view the null scope");
-    std::cout << "canView: this=" << toString() << " other=" << other->toString() << std::endl;
+    std::cout << "canView: this=" << toString()
+              << " other=" << other->toString() << std::endl;
     if (this->parent_ == other->parent_) {
       return this->pos_ >= other->pos_;
     }
     if (this->parent_) {
-      std::cout << "canView: this_parent=" << this->parent_->toString() << std::endl;
-      return this->parent_->canView(other);                                                                                                                                                        
+      std::cout << "canView: this_parent=" << this->parent_->toString()
+                << std::endl;
+      return this->parent_->canView(other);
     }
     return false;
   }

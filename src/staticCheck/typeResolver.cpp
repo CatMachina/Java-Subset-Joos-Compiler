@@ -396,9 +396,11 @@ bool TypeResolver::isValidCast(
 
 std::shared_ptr<parsetree::ast::Type>
 TypeResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
-  std::cout << "typeResolver mapValue" << std::endl;
-  if (!value->isDeclResolved())
+  std::cout << "typeResolver mapValue " << std::endl;
+  if (!(value->isDeclResolved()))
     throw std::runtime_error("ExprValue at mapValue not resolved");
+  std::cout << "mapping type " << value->getResolvedDecl()->getName()
+            << std::endl;
   if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
           value->getResolvedDecl())) {
     auto type = std::make_shared<parsetree::ast::MethodType>(method);
@@ -412,7 +414,7 @@ TypeResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
     }
     return type;
   } else {
-    if (!value->isTypeResolved())
+    if (!(value->isTypeResolved()))
       throw std::runtime_error("ExprValue at mapValue not type resolved");
     return value->getType();
   }
@@ -671,13 +673,13 @@ TypeResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
   return op->resolveResultType(type);
 }
 
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalAssignment(
-    std::shared_ptr<parsetree::ast::Assignment> &op,
-    const std::shared_ptr<parsetree::ast::Type> lhs,
-    const std::shared_ptr<parsetree::ast::Type> rhs) {
-  
+std::shared_ptr<parsetree::ast::Type>
+TypeResolver::evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
+                             const std::shared_ptr<parsetree::ast::Type> lhs,
+                             const std::shared_ptr<parsetree::ast::Type> rhs) {
+
   std::cout << "typeResolver evalAssignment" << std::endl;
-  
+
   if (isAssignableTo(lhs, rhs)) {
     return op->resolveResultType(lhs);
   }

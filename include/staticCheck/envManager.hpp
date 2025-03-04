@@ -109,7 +109,8 @@ public:
   }
 
   std::shared_ptr<parsetree::ast::ScopeID> NextScopeID() {
-    std::cout << "NextScopeID of scope " << currentScope_->toString() << std::endl;
+    std::cout << "NextScopeID of scope " << currentScope_->toString()
+              << std::endl;
     currentScope_ = currentScope_->next(currentScope_->parent());
     return currentScope_;
   }
