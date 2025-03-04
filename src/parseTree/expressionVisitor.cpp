@@ -381,28 +381,9 @@ ParseTreeVisitor::visitLiteral(const NodePtr &node) {
   if (!lit) {
     throw std::runtime_error("Expected literal node");
   }
-  ast::Literal::Type type;
-  switch (lit->getType()) {
-  case Literal::Type::Integer:
-    type = ast::Literal::Type::Integer;
-    break;
-  case Literal::Type::Character:
-    type = ast::Literal::Type::Character;
-    break;
-  case Literal::Type::String:
-    type = ast::Literal::Type::String;
-    break;
-  case Literal::Type::Boolean:
-    type = ast::Literal::Type::Boolean;
-    break;
-  case Literal::Type::Null:
-    type = ast::Literal::Type::Null;
-    break;
-  default:
-    throw std::runtime_error("Invalid literal type");
-  }
   std::vector<std::shared_ptr<ast::ExprNode>> exprNodes;
-  exprNodes.push_back(std::make_shared<ast::Literal>(type, lit->getValue()));
+  exprNodes.push_back(std::make_shared<ast::Literal>(
+      lit, envManager.BuildBasicType(lit->getType())));
   return exprNodes;
 }
 

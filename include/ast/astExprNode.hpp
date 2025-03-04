@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast/astNode.hpp"
+#include <variant>
 
 namespace parsetree::ast {
 
@@ -8,7 +9,8 @@ namespace parsetree::ast {
 
 class ExprValue : public ExprNode {
 public:
-  explicit ExprValue() : decl_{nullptr}, type_{nullptr} {}
+  explicit ExprValue(std::shared_ptr<Type> type = nullptr)
+      : ExprNode{}, decl_{nullptr}, type_{type} {}
 
   std::shared_ptr<Decl> getResolvedDecl() const { return decl_; }
   std::shared_ptr<Type> getType() const { return type_; }
@@ -42,30 +44,6 @@ public:
 private:
   std::shared_ptr<Decl> decl_;
   std::shared_ptr<Type> type_;
-};
-
-class Literal : public ExprValue {
-public:
-  enum class Type { Integer, Character, String, Boolean, Null };
-
-  Literal(Type type, std::string value) : type{type}, value{value} {}
-
-  std::ostream &print(std::ostream &os) const override {
-    os << "(Literal " << magic_enum::enum_name(type) << ", " << value << ")";
-    return os;
-  }
-
-  bool isDeclResolved() const override { return true; }
-
-  bool isString() const { return type == Type::String; }
-
-  // Getters
-  Type getType() const { return type; }
-  std::string getValue() const { return value; }
-
-private:
-  Type type;
-  std::string value;
 };
 
 class SimpleName : public ExprValue {
@@ -184,21 +162,21 @@ public:
 };
 
 class TypeNode : public ExprValue {
-  std::shared_ptr<Type> type;
+  std::shared_ptr<Type> unresolvedType;
 
 public:
-  TypeNode(std::shared_ptr<Type> type) : ExprValue{}, type{type} {};
+  TypeNode(std::shared_ptr<Type> type) : ExprValue{type} {};
 
   std::ostream &print(std::ostream &os) const {
-    return os << "(Type: " << type->toString() << ")";
+    return os << "(Type: " << getType()->toString() << ")";
   }
-  std::shared_ptr<Type> getType() const { return type; }
+  // std::shared_ptr<Type> getUnresolvedType() const { return unresolvedType; }
 
-  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::vector<std::shared_ptr<AstNode>> children;
-    children.push_back(std::dynamic_pointer_cast<AstNode>(type));
-    return children;
-  }
+  // std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+  //   std::vector<std::shared_ptr<AstNode>> children;
+  //   children.push_back(std::dynamic_pointer_cast<AstNode>(type));
+  //   return children;
+  // }
 
   bool isDeclResolved() const override { return true; }
 };
@@ -380,6 +358,143 @@ public:
     os << "(Cast)";
     return os;
   }
+};
+
+static uint8_t parseChar(std::string_view value) {
+  // Consume ' first, next value is either \ or a character
+  // If it is a character, just return that character
+  if (value.at(1) != '\\')
+    return (uint8_t)value.at(1);
+  // Here, we have an escape sequence, let's first handle the octal case
+  if (isdigit(value.at(2))) {
+    // We have an octal escape sequence of 1 to 3 digits
+    uint8_t octal[3] = {0, 0, 0};
+    // 1 digit '\0
+    octal[0] = value.at(2) - '0';
+    // 2 digits '\00
+    if (value.length() >= 4)
+      octal[1] = value.at(3) - '0';
+    // 3 digits '\000
+    if (value.length() >= 5)
+      octal[2] = value.at(4) - '0';
+    // Must consume ' then return the character
+    return (uint8_t)((octal[0] << 6) | (octal[1] << 3) | octal[2]);
+  }
+  // Here, we have a non-octal escape sequence
+  switch (value.at(2)) {
+  case 'n':
+    return '\n';
+  case 't':
+    return '\t';
+  case 'r':
+    return '\r';
+  case 'b':
+    return '\b';
+  case 'f':
+    return '\f';
+  case '\\':
+    return '\\';
+  case '\'':
+    return '\'';
+  case '\"':
+    return '\"';
+  default:
+    assert(false && "Invalid escape sequence");
+  }
+}
+
+static void unescapeString(std::string_view in, std::string &out) {
+  // minor: String literals are broken for now
+  for (size_t i = 1; i < in.length(); i++) {
+    char c = in.at(i);
+    if (c == '\"') {
+      break;
+    } else {
+      out.push_back(c);
+    }
+  }
+}
+
+class Literal : public ExprValue {
+public:
+  enum class Type { Integer, Character, String, Boolean, Null };
+
+  // Literal(Type type, std::string value) : type{type}, value{value} {}
+  Literal(std::shared_ptr<parsetree::Literal> node,
+          std::shared_ptr<parsetree::ast::BasicType> type)
+      : ExprValue{std::dynamic_pointer_cast<parsetree::ast::Type>(type)} {
+    auto str = node->getValue();
+
+    // 1. Check if the type is numeric
+    if (type->isNumeric()) {
+      uint32_t val = 0;
+      if (type->getType() == BasicType::Type::Char) {
+        val = parseChar(str);
+      } else {
+        // Convert the string to an integer
+        try {
+          if (node->isNegativeVal())
+            val = std::stoi("-" + std::string(str));
+          else
+            val = std::stoi(std::string(str));
+        } catch (std::invalid_argument &e) {
+          throw std::runtime_error("Invalid integer literal");
+        }
+      }
+      value = val;
+    }
+    // 2. Otherwise, check if the type is boolean
+    else if (type->isBoolean()) {
+      if (str == "true") {
+        value = 1U;
+      } else if (str == "false") {
+        value = 0U;
+      } else {
+        throw std::runtime_error("Invalid boolean literal");
+      }
+    }
+    // 3. Otherwise, its a string
+    else if (type->isString()) {
+      // Unescape the string
+      value = std::string{};
+      unescapeString(str, std::get<std::string>(value));
+    }
+    // 4. Maybe it's a NoneType (i.e., NULL)
+    else if (type->getType() == BasicType::Type::Void) {
+      value = 0U;
+    }
+    // 5. Otherwise, it's an invalid type
+    else {
+      throw std::runtime_error("Invalid type for literal node");
+    }
+  }
+
+  std::ostream &print(std::ostream &os) const override {
+    // os << "(Literal " << magic_enum::enum_name(type) << ", " << value << ")";
+    // return os;
+    os << "(Literal ";
+    getBasicType()->print(os);
+    os << ")";
+    return os;
+  }
+
+  bool isDeclResolved() const override { return true; }
+
+  bool isString() const { return std::holds_alternative<std::string>(value); }
+
+  // Getters
+  // Type getType() const { return type; }
+  // std::string getValue() const { return value; }
+  uint32_t getAsInt() const { return std::get<uint32_t>(value); }
+  auto const &getAsString() const { return std::get<std::string>(value); }
+  std::shared_ptr<BasicType> getBasicType() const {
+    return std::dynamic_pointer_cast<BasicType>(getType());
+  }
+
+private:
+  // Type type;
+  // std::string value;
+  std::variant<uint32_t, std::string> value;
 };
 
 } // namespace parsetree::ast

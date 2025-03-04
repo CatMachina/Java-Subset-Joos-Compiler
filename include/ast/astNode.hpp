@@ -165,7 +165,11 @@ public:
   virtual std::string toString() const override { return "ReferenceType"; }
 
   bool isResolved() const override { return resolvedDecl != nullptr; }
-  std::shared_ptr<Decl> getAsDecl() const override { return decl; }
+  std::shared_ptr<Decl> getAsDecl() const override {
+    if (!decl && !isResolved())
+      throw std::runtime_error("Decl not resolved");
+    return decl;
+  }
 
   void setResolvedDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
     if (isResolved() && resolvedDecl != this->resolvedDecl) {
@@ -753,6 +757,28 @@ public:
       type_ = Type::Char;
       break;
     case parsetree::BasicType::Type::Boolean:
+      type_ = Type::Boolean;
+      break;
+    default:
+      break;
+    }
+  }
+
+  BasicType(parsetree::Literal::Type type) {
+    switch (type) {
+    case parsetree::Literal::Type::String:
+      type_ = Type::String;
+      break;
+    case parsetree::Literal::Type::Null:
+      type_ = Type::Void;
+      break;
+    case parsetree::Literal::Type::Integer:
+      type_ = Type::Int;
+      break;
+    case parsetree::Literal::Type::Character:
+      type_ = Type::Char;
+      break;
+    case parsetree::Literal::Type::Boolean:
       type_ = Type::Boolean;
       break;
     default:

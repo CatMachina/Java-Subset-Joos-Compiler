@@ -120,11 +120,13 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
   std::cout << "resolving expr node" << std::endl;
   if (std::holds_alternative<
           std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(node)) {
+    std::cout << "resolving expr node vector" << std::endl;
     return std::get<std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(
         node);
   } else if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(
                  node)) {
     // ExprNode
+    std::cout << "resolving expr node expr node" << std::endl;
     auto expr = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(node);
     auto name = std::dynamic_pointer_cast<parsetree::ast::MemberName>(expr);
     auto thisNode = std::dynamic_pointer_cast<parsetree::ast::ThisNode>(expr);
@@ -152,6 +154,7 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
 
     return recursiveReduce(childLinked);
   } else if (std::holds_alternative<std::shared_ptr<ExprNameLinked>>(node)) {
+    std::cout << "resolving expr node expr name linked" << std::endl;
     auto expr = std::get<std::shared_ptr<ExprNameLinked>>(node);
     return recursiveReduce(expr);
   } else {
@@ -575,8 +578,11 @@ ExprResolver::evalNewObject(std::shared_ptr<parsetree::ast::ClassCreation> &op,
   std::shared_ptr<parsetree::ast::TypeNode> expr = nullptr;
   if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(
           object)) {
+    std::cout << "new object object is ExprNode" << std::endl;
     expr = std::dynamic_pointer_cast<parsetree::ast::TypeNode>(
         std::get<std::shared_ptr<parsetree::ast::ExprNode>>(object));
+    if (!expr)
+      throw std::runtime_error("Bad node. Expected TypeNode here.");
   } else {
     throw std::runtime_error("Bad grammar, object must be an atomic ExprNode*");
   }
@@ -585,14 +591,34 @@ ExprResolver::evalNewObject(std::shared_ptr<parsetree::ast::ClassCreation> &op,
   std::vector<std::shared_ptr<parsetree::ast::Type>> argType;
   ExprNodeList arglist;
   for (auto it = args.rbegin(); it != args.rend(); ++it) {
-    auto &arg = *it;
+    auto arg = *it;
     auto tmplist = resolveExprNode(arg);
+    std::cout << "tmplist size: " << tmplist.size() << std::endl;
     argType.push_back(typeResolver->EvalList(tmplist));
+    std::cout << "EvalList on tmplist finished" << std::endl;
     arglist.insert(arglist.begin(), tmplist.begin(), tmplist.end());
   }
 
   // Check if the type is abstract
-  auto typeAsDecl = expr->getType()->getAsDecl();
+  std::cout << "checking if type is abstract" << std::endl;
+  if (std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+          expr->getType())) {
+    if (std::dynamic_pointer_cast<parsetree::ast::UnresolvedTypeExpr>(
+            expr->getType())) {
+      std::cout << "UnresolvedTypeExpr..." << std::endl;
+    }
+    throw std::runtime_error("New object should not be unresolved type");
+  }
+  auto rType =
+      std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(expr->getType());
+  if (!rType) {
+    throw std::runtime_error("New object not reference type");
+  }
+  std::cout << "rType: " << rType->toString() << std::endl;
+  auto typeAsDecl = rType->getAsDecl();
+  if (!typeAsDecl)
+    typeAsDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(
+        rType->getResolvedDecl()->getAstNode());
   auto ctx = typeAsDecl->asCodeBody();
   if (auto classDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctx)) {
@@ -603,6 +629,7 @@ ExprResolver::evalNewObject(std::shared_ptr<parsetree::ast::ClassCreation> &op,
   }
 
   // Begin resolution of the method call
+  std::cout << "begin resolution of method call" << std::endl;
   auto methodDecl = resolveMethodOverload(ctx, "", argType, true);
   // override
   expr->setResolvedDecl(methodDecl);

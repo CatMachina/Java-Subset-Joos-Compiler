@@ -40,7 +40,6 @@ public:
 
   virtual T
   evaluateList(std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list) {
-    std::cout << "op_stack size at first is " << op_stack.size() << std::endl;
     std::cout << "Evaluator::evaluateList" << std::endl;
     while (!op_stack.empty())
       popStack();

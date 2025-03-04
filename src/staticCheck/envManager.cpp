@@ -96,6 +96,11 @@ EnvManager::BuildBasicType(parsetree::ast::BasicType::Type basicType) {
   return std::make_shared<parsetree::ast::BasicType>(basicType);
 }
 
+std::shared_ptr<parsetree::ast::BasicType>
+EnvManager::BuildBasicType(parsetree::Literal::Type basicType) {
+  return std::make_shared<parsetree::ast::BasicType>(basicType);
+}
+
 std::shared_ptr<parsetree::ast::ArrayType> EnvManager::BuildArrayType(
     const std::shared_ptr<parsetree::ast::Type> elemType) {
   return std::make_shared<parsetree::ast::ArrayType>(elemType);

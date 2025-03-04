@@ -397,10 +397,14 @@ bool TypeResolver::isValidCast(
 std::shared_ptr<parsetree::ast::Type>
 TypeResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
   std::cout << "typeResolver mapValue " << std::endl;
+  if (auto lit = std::dynamic_pointer_cast<parsetree::ast::Literal>(value)) {
+    lit->print(std::cout);
+  } else if (auto t = std::dynamic_pointer_cast<parsetree::ast::Type>(value)) {
+    t->print(std::cout);
+  }
+
   if (!(value->isDeclResolved()))
     throw std::runtime_error("ExprValue at mapValue not resolved");
-  std::cout << "mapping type " << value->getResolvedDecl()->getName()
-            << std::endl;
   if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
           value->getResolvedDecl())) {
     auto type = std::make_shared<parsetree::ast::MethodType>(method);

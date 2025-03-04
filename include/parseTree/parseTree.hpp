@@ -209,6 +209,7 @@ public:
 
   Type getType() const { return type; }
   std::string getValue() const { return value; }
+  bool isNegativeVal() const { return isNegative; }
 
 private:
   Type type;

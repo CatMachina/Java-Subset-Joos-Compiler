@@ -62,6 +62,9 @@ public:
   [[nodiscard]] std::shared_ptr<parsetree::ast::BasicType>
   BuildBasicType(parsetree::ast::BasicType::Type basicType);
 
+  [[nodiscard]] std::shared_ptr<parsetree::ast::BasicType>
+  BuildBasicType(parsetree::Literal::Type basicType);
+
   [[nodiscard]] std::shared_ptr<parsetree::ast::ArrayType>
   BuildArrayType(const std::shared_ptr<parsetree::ast::Type> elemType);
 
