@@ -6,7 +6,7 @@
 #include "evaluator.hpp"
 #include "hierarchyCheck.hpp"
 #include "typeLinker.hpp"
-// #include "typeResolver.hpp"
+#include "typeResolver.hpp"
 
 namespace static_check {
 
@@ -22,14 +22,19 @@ using previousType =
 static std::shared_ptr<parsetree::ast::Decl>
 GetTypeAsDecl(std::shared_ptr<parsetree::ast::Type> type,
               std::shared_ptr<parsetree::ast::ASTManager> manager) {
+  std::cout << "GetTypeAsDecl" << std::endl;
   if (auto refType =
           std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type)) {
+    std::cout << "GetTypeAsDecl refType" << std::endl;
     return refType->getResolvedDecl()->getAstNode();
   } else if (type->isString()) {
+    std::cout << "GetTypeAsDecl string" << std::endl;
     return manager->java_lang.String;
   } else if (type->isArray()) {
+    std::cout << "GetTypeAsDecl array" << std::endl;
     return manager->java_lang.Arrays;
   } else {
+    std::cout << "GetTypeAsDecl null" << std::endl;
     return nullptr;
   }
 }
@@ -46,20 +51,25 @@ public:
   };
 
   ExprNameLinked(ValueType type,
-                 std::shared_ptr<parsetree::ast::SimpleName> node,
+                 std::shared_ptr<parsetree::ast::MemberName> node,
                  std::shared_ptr<parsetree::ast::FieldAccess> op) {
     this->valueType_ = type;
     this->node_ = node;
     this->op_ = op;
     this->prev_ = std::nullopt;
+    this->package_ = nullptr;
   }
 
   ValueType getValueType() const { return valueType_; }
   void setValueType(ValueType valueType) { this->valueType_ = valueType; }
+  void setPackage(std::shared_ptr<Package> package) {
+    this->package_ = package;
+  }
 
-  std::shared_ptr<parsetree::ast::SimpleName> getNode() const { return node_; }
+  std::shared_ptr<parsetree::ast::MemberName> getNode() const { return node_; }
   std::optional<previousType> getPrev() const { return prev_; }
   std::shared_ptr<parsetree::ast::FieldAccess> getOp() const { return op_; }
+  std::shared_ptr<Package> getPackage() const { return package_; }
 
   void setPrev(std::optional<previousType> prev) {
     if (prev.has_value()) {
@@ -81,22 +91,16 @@ public:
     return nullptr;
   }
 
-  // std::shared_ptr<parsetree::ast::Decl>
-  // prevAsDecl(std::shared_ptr<TypeResolver> TR,
-  //            std::shared_ptr<parsetree::ast::ASTManager> manager) const {
-  //   if (auto p = prevAsLinked())
-  //     return p->getNode()->getResolvedDecl();
-  //   ExprNodeList prevList = std::get<ExprNodeList>(prev_.value());
-  //   auto type = TR->EvalList(prevList);
-  //   return std::dynamic_pointer_cast<parsetree::ast::Decl>(
-  //       GetTypeAsDecl(type, manager));
-  // }
+  std::shared_ptr<parsetree::ast::Decl>
+  prevAsDecl(std::shared_ptr<TypeResolver> TR,
+             std::shared_ptr<parsetree::ast::ASTManager> astManager) const;
 
 private:
-  std::shared_ptr<parsetree::ast::SimpleName> node_;
+  std::shared_ptr<parsetree::ast::MemberName> node_;
   std::shared_ptr<parsetree::ast::FieldAccess> op_;
   ValueType valueType_;
   std::optional<previousType> prev_;
+  std::shared_ptr<Package> package_;
 };
 
 class ExprResolver : public Evaluator<exprResolveType> {
@@ -105,9 +109,10 @@ class ExprResolver : public Evaluator<exprResolveType> {
 public:
   ExprResolver(std::shared_ptr<parsetree::ast::ASTManager> astManager,
                std::shared_ptr<HierarchyCheck> hierarchyChecker,
-               std::shared_ptr<TypeLinker> typeLinker)
+               std::shared_ptr<TypeLinker> typeLinker,
+               std::shared_ptr<TypeResolver> typeResolver)
       : astManager(astManager), hierarchyChecker(hierarchyChecker),
-        typeLinker(typeLinker) {}
+        typeLinker(typeLinker), typeResolver(typeResolver) {}
   void BeginProgram(std::shared_ptr<parsetree::ast::ProgramDecl> programDecl) {
     currentProgram = programDecl;
   }
@@ -126,8 +131,7 @@ private:
   evaluateList(std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list);
 
   exprResolveType mapValue(std::shared_ptr<parsetree::ast::ExprValue> &node);
-  exprResolveType
-  evalQualifiedName(std::shared_ptr<parsetree::ast::QualifiedName> &node);
+
   exprResolveType evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
                             const exprResolveType lhs,
                             const exprResolveType rhs);
@@ -156,7 +160,7 @@ private:
   recursiveReduce(std::shared_ptr<ExprNameLinked> node);
 
   std::shared_ptr<ExprNameLinked>
-  resolveSimpleName(std::shared_ptr<ExprNameLinked> expr);
+  resolveMemberName(std::shared_ptr<ExprNameLinked> expr);
 
   std::shared_ptr<parsetree::ast::Decl>
   lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
@@ -169,10 +173,39 @@ private:
   bool isAccessible(std::shared_ptr<parsetree::ast::Modifiers> mod,
                     std::shared_ptr<parsetree::ast::CodeBody> parent);
 
+  std::shared_ptr<ExprNameLinked>
+  resolveName(std::shared_ptr<parsetree::ast::MemberName> node) {
+    std::cout << "resolveName: " << node->getName() << std::endl;
+    if (auto method =
+            std::dynamic_pointer_cast<parsetree::ast::MethodName>(node)) {
+      return std::make_shared<ExprNameLinked>(
+          ExprNameLinked::ValueType::MethodName, method, nullptr);
+    }
+    return resolveMemberName(std::make_shared<ExprNameLinked>(
+        ExprNameLinked::ValueType::SingleAmbiguousName, node, nullptr));
+  }
+
+  // More helpers
+  void resolveFieldAccess(std::shared_ptr<ExprNameLinked> access);
+  void resolveTypeAccess(std::shared_ptr<ExprNameLinked> access);
+  void resolvePackageAccess(std::shared_ptr<ExprNameLinked> access) const;
+  std::shared_ptr<parsetree::ast::CodeBody>
+  getMethodParent(std::shared_ptr<ExprNameLinked> method) const;
+  std::shared_ptr<parsetree::ast::MethodDecl> resolveMethodOverload(
+      std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string_view name,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes,
+      bool isConstructor);
+  bool areParameterTypesApplicable(
+      std::shared_ptr<parsetree::ast::MethodDecl> decl,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes) const;
+  bool
+  isMethodMoreSpecific(std::shared_ptr<parsetree::ast::MethodDecl> a,
+                       std::shared_ptr<parsetree::ast::MethodDecl> b) const;
+
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<HierarchyCheck> hierarchyChecker;
   std::shared_ptr<TypeLinker> typeLinker;
-  // std::shared_ptr<TypeResolver> typeResolver;
+  std::shared_ptr<TypeResolver> typeResolver;
   std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
   std::shared_ptr<parsetree::ast::ScopeID> currentScope;

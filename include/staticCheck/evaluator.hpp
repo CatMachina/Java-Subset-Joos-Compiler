@@ -11,8 +11,7 @@ protected:
   using op_array = std::vector<T>;
 
   virtual T mapValue(std::shared_ptr<parsetree::ast::ExprValue> &node) = 0;
-  virtual T
-  evalQualifiedName(std::shared_ptr<parsetree::ast::QualifiedName> &node) = 0;
+
   virtual T evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op, const T lhs,
                       const T rhs) = 0;
   virtual T evalUnOp(std::shared_ptr<parsetree::ast::UnOp> &op,
@@ -33,22 +32,21 @@ protected:
 
 public:
   T evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
-    return evaluateList(expr->getExprNodes());
+    auto exprNodes = expr->getExprNodes();
+    return evaluateList(exprNodes);
   }
 
   virtual T
   evaluateList(std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list) {
+    std::cout << "op_stack size at first is " << op_stack.size() << std::endl;
+    std::cout << "Evaluator::evaluateList" << std::endl;
     while (!op_stack.empty())
       popStack();
 
     std::cout << "Evaluating " << list.size() << " nodes\n";
     for (const auto &node : list) {
       if (auto value =
-              std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(node)) {
-        op_stack.push(evalQualifiedName(value));
-      } else if (auto value =
-                     std::dynamic_pointer_cast<parsetree::ast::ExprValue>(
-                         node)) {
+              std::dynamic_pointer_cast<parsetree::ast::ExprValue>(node)) {
         op_stack.push(mapValue(value));
       } else if (auto unary =
                      std::dynamic_pointer_cast<parsetree::ast::UnOp>(node)) {
@@ -70,7 +68,7 @@ public:
         // Note: reverse order
         // Q: What happens if there are 3 children (primaryExpr, id, arg)?
         auto method_name = popStack();
-        std::vector<T> args(method->nargs() - 1);
+        std::vector<T> args(method->getNumArgs() - 1);
         std::generate(args.rbegin(), args.rend(),
                       [this] { return popStack(); });
         op_stack.push(evalMethodInvocation(method, method_name, args));
@@ -78,7 +76,7 @@ public:
                      std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
                          node)) {
         std::cout << "ClassCreation\n";
-        std::vector<T> args(newObj->nargs() - 1);
+        std::vector<T> args(newObj->getNumArgs() - 1);
         std::generate(args.rbegin(), args.rend(),
                       [this] { return popStack(); });
         auto type = popStack();
@@ -117,6 +115,7 @@ public:
 
 private:
   T popStack() {
+    std::cout << "Popping stack\n";
     if (op_stack.empty()) {
       throw std::runtime_error("Popping an empty stack!");
     }

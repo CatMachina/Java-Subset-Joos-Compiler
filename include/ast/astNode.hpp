@@ -51,11 +51,11 @@ public:
     return parent.lock();
   }
 
-  virtual void setParent(CodeBody *rawParent);
+  virtual void setParent(std::shared_ptr<CodeBody> rawParent);
+  virtual std::shared_ptr<CodeBody> asCodeBody() const { return nullptr; }
 };
 
-class CodeBody : virtual public AstNode,
-                 public std::enable_shared_from_this<CodeBody> {
+class CodeBody : virtual public AstNode {
 public:
   std::vector<std::shared_ptr<Decl>> getDecls() const {
     std::vector<std::shared_ptr<Decl>> declVector;
@@ -69,6 +69,8 @@ public:
     }
     return declVector;
   }
+
+  virtual std::shared_ptr<Decl> asDecl() const { return nullptr; }
 };
 
 class Type : public AstNode {
@@ -82,6 +84,10 @@ public:
   [[nodiscard]] virtual bool isNumeric() const { return false; }
   [[nodiscard]] virtual bool isBoolean() const { return false; }
   [[nodiscard]] virtual bool isArray() const { return false; }
+
+  [[nodiscard]] virtual std::shared_ptr<Decl> getAsDecl() const {
+    return nullptr;
+  }
 
   std::ostream &print(std::ostream &os) const { return os << toString(); }
 };
@@ -157,6 +163,7 @@ public:
   virtual std::string toString() const override { return "ReferenceType"; }
 
   bool isResolved() const override { return resolvedDecl != nullptr; }
+  std::shared_ptr<Decl> getAsDecl() const override { return decl; }
 
   void setResolvedDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
     if (isResolved() && resolvedDecl != this->resolvedDecl) {
@@ -226,7 +233,8 @@ public:
   }
 };
 
-class ProgramDecl : public CodeBody {
+class ProgramDecl : public CodeBody,
+                    public std::enable_shared_from_this<ProgramDecl> {
   std::shared_ptr<ReferenceType> package;
   std::vector<std::shared_ptr<ImportDecl>> imports;
   std::shared_ptr<CodeBody> body;
@@ -240,6 +248,19 @@ public:
   std::shared_ptr<ReferenceType> getPackage() const { return package; }
   std::string getPackageName() const { return package->toString(); }
   std::vector<std::shared_ptr<ImportDecl>> &getImports() { return imports; }
+
+  // should only be called once
+  void setAllParent() {
+    auto decl = std::dynamic_pointer_cast<Decl>(body);
+    if (decl) {
+      auto ptr = std::const_pointer_cast<ProgramDecl>(shared_from_this());
+      if (!ptr)
+        throw std::runtime_error("Failed to cast to ProgramDecl");
+      decl->setParent(std::dynamic_pointer_cast<CodeBody>(ptr));
+    } else {
+      throw std::runtime_error("Body wrong type in program decl!");
+    }
+  }
 
   bool isDefaultPackage() const {
     auto pkg = std::dynamic_pointer_cast<UnresolvedType>(package);
@@ -333,12 +354,29 @@ public:
     return methods;
   }
 
-  void setParent(CodeBody *parent) override;
+  void setParent(std::shared_ptr<CodeBody> parent) override;
 
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 
   // WARNING - ONLY USE FOR java.lang.Object
   void clearSuperClasses() { superClasses.clear(); }
+
+  std::shared_ptr<CodeBody> asCodeBody() const override {
+    auto ptr1 = std::const_pointer_cast<ClassDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<CodeBody>(shared_from_this());
+  }
+  std::shared_ptr<Decl> asDecl() const override {
+    auto ptr1 = std::const_pointer_cast<ClassDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<Decl>(shared_from_this());
+  }
 };
 
 class InterfaceDecl : virtual public CodeBody,
@@ -384,7 +422,24 @@ public:
     return interfaces;
   }
 
-  void setParent(CodeBody *parent) override;
+  void setParent(std::shared_ptr<CodeBody> parent) override;
+
+  std::shared_ptr<CodeBody> asCodeBody() const override {
+    auto ptr1 = std::const_pointer_cast<InterfaceDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<CodeBody>(shared_from_this());
+  }
+  std::shared_ptr<Decl> asDecl() const override {
+    // return std::static_pointer_cast<Decl>(shared_from_this());
+    auto ptr1 = std::const_pointer_cast<InterfaceDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+  }
 };
 
 class VarDecl : public Decl {
@@ -423,10 +478,12 @@ public:
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 
-  void setParent(CodeBody *parent) override;
+  void setParent(std::shared_ptr<CodeBody> parent) override;
 };
 
-class MethodDecl : public Decl {
+class MethodDecl : public Decl,
+                   public CodeBody,
+                   public std::enable_shared_from_this<MethodDecl> {
   std::shared_ptr<Modifiers> modifiers;
   std::shared_ptr<Type> returnType;
   std::vector<std::shared_ptr<VarDecl>> params;
@@ -487,12 +544,28 @@ public:
     return signature;
   }
 
-  void setParent(CodeBody *parent) override;
+  void setParent(std::shared_ptr<CodeBody> parent) override;
 
   std::shared_ptr<Type> getReturnType() { return returnType; }
   std::shared_ptr<Block> getMethodBody() { return methodBody; }
 
   std::vector<std::shared_ptr<VarDecl>> &getParams() { return params; }
+  std::shared_ptr<CodeBody> asCodeBody() const override {
+    auto ptr1 = std::const_pointer_cast<MethodDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<CodeBody>(shared_from_this());
+  }
+  std::shared_ptr<Decl> asDecl() const override {
+    auto ptr1 = std::const_pointer_cast<MethodDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<Decl>(shared_from_this());
+  }
 };
 
 // Statements /////////////////////////////////////////////////////////////

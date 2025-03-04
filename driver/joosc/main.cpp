@@ -16,9 +16,9 @@
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
 // #include "staticCheck/nameDisambiguator.hpp"
+#include "staticCheck/exprResolver.hpp"
 #include "staticCheck/typeLinker.hpp"
-// #include "staticCheck/exprResolver.hpp"
-// #include "staticCheck/typeResolver.hpp"
+#include "staticCheck/typeResolver.hpp"
 
 #include <memory>
 
@@ -175,15 +175,17 @@ int main(int argc, char **argv) {
     //     astManager, typeLinker, hierarchyChecker);
     // nameDisambiguator->resolve();
 
-    // auto exprResolver =
-    // std::make_shared<static_check::ExprResolver>(astManager,
-    // hierarchyChecker, typeLinker); exprResolver->resolve();
+    std::shared_ptr<static_check::EnvManager> env =
+        std::make_shared<static_check::EnvManager>();
+    auto typeResolver =
+        std::make_shared<static_check::TypeResolver>(astManager, env);
+
+    auto exprResolver = std::make_shared<static_check::ExprResolver>(
+        astManager, hierarchyChecker, typeLinker, typeResolver);
+    exprResolver->resolve();
 
     // // type resolution
-    // std::shared_ptr<static_check::EnvManager> env =
-    //     std::make_shared<static_check::EnvManager>();
-    // auto typeResolver =
-    //     std::make_shared<static_check::TypeResolver>(astManager, env);
+
     // typeResolver->resolve();
 
     return EXIT_SUCCESS;

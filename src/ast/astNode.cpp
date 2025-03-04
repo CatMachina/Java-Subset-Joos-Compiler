@@ -2,16 +2,17 @@
 
 namespace parsetree::ast {
 
-void Decl::setParent(CodeBody *rawParent) {
+void Decl::setParent(std::shared_ptr<CodeBody> rawParent) {
   std::cout << "Decl::setParent" << std::endl;
   if (rawParent == nullptr)
     throw std::runtime_error("parent cannot be null!");
-  if (!this->parent.expired())
-    throw std::runtime_error("parent already set!");
-  // std::shared_ptr<CodeBody> parentShared = rawParent->weak_from_this();
-  this->parent =
-      rawParent
-          ->weak_from_this(); // Store as weak_ptr to avoid ownership issues
+  // if (!this->parent.expired())
+  //   throw std::runtime_error("parent already set!");
+  // // std::shared_ptr<CodeBody> parentShared = rawParent->weak_from_this();
+  // this->parent =
+  //     rawParent
+  //         ->weak_from_this(); // Store as weak_ptr to avoid ownership issues
+  this->parent = rawParent;
   std::cout << "Decl::setParent done" << std::endl;
 }
 
@@ -23,7 +24,7 @@ ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
 
   auto decl = std::dynamic_pointer_cast<Decl>(body);
   if (decl) {
-    decl->setParent(this);
+    // decl->setParent(this);
   } else {
     throw std::runtime_error("Body must be a Decl.");
   }
@@ -108,18 +109,18 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
   }
 }
 
-void ClassDecl::setParent(CodeBody *parent) {
+void ClassDecl::setParent(std::shared_ptr<CodeBody> parent) {
   std::cout << "ClassDecl::setParent" << std::endl;
-  auto program = dynamic_cast<ProgramDecl *>(parent);
+  auto program = std::dynamic_pointer_cast<ProgramDecl>(parent);
   Decl::setParent(parent);
-  if (!program->isDefaultPackage()) {
+  if (!(program->isDefaultPackage())) {
     // change name
   }
 
   for (auto &field : getFields())
-    field->setParent(this);
+    field->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
   for (auto &method : getMethods())
-    method->setParent(this);
+    method->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
 }
 
 InterfaceDecl::InterfaceDecl(
@@ -175,15 +176,15 @@ InterfaceDecl::InterfaceDecl(
   }
 }
 
-void InterfaceDecl::setParent(CodeBody *parent) {
+void InterfaceDecl::setParent(std::shared_ptr<CodeBody> parent) {
   std::cout << "InterfaceDecl::setParent" << std::endl;
-  auto program = dynamic_cast<ProgramDecl *>(parent);
+  auto program = std::dynamic_pointer_cast<ProgramDecl>(parent);
   Decl::setParent(parent);
   if (!program->isDefaultPackage()) {
     // change name
   }
   for (auto &method : getMethods())
-    method->setParent(this);
+    method->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
 }
 
 MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
@@ -274,10 +275,10 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
   checkSuperThisCalls(methodBody);
 }
 
-void MethodDecl::setParent(CodeBody *parent) {
+void MethodDecl::setParent(std::shared_ptr<CodeBody> parent) {
   std::cout << "MethodDecl::setParent" << std::endl;
   Decl::setParent(parent);
-  auto parentDecl = dynamic_cast<Decl *>(parent);
+  auto parentDecl = std::dynamic_pointer_cast<Decl>(parent);
   if (!parentDecl)
     throw std::runtime_error("Field Decl Parent must be a Decl");
   if (modifiers->isStatic()) {
@@ -380,10 +381,10 @@ std::ostream &ClassDecl::print(std::ostream &os) const {
   return os;
 }
 
-void FieldDecl::setParent(CodeBody *parent) {
+void FieldDecl::setParent(std::shared_ptr<CodeBody> parent) {
   std::cout << "FieldDecl::setParent" << std::endl;
   Decl::setParent(parent);
-  auto parentDecl = dynamic_cast<Decl *>(parent);
+  auto parentDecl = std::dynamic_pointer_cast<Decl>(parent);
   if (!parentDecl)
     throw std::runtime_error("Field Decl Parent must be a Decl");
   if (modifiers->isStatic()) {

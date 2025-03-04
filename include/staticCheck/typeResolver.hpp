@@ -3,22 +3,29 @@
 #include "ast/ast.hpp"
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/environment.hpp"
+#include "staticCheck/evaluator.hpp"
 #include <memory>
 #include <stack>
 #include <vector>
 
 namespace static_check {
 
-class TypeResolver {
+class TypeResolver final
+    : private Evaluator<std::shared_ptr<parsetree::ast::Type>> {
 public:
   TypeResolver(std::shared_ptr<parsetree::ast::ASTManager> astManager,
                std::shared_ptr<EnvManager> envManager)
       : astManager(astManager), envManager(envManager) {}
-  std::shared_ptr<parsetree::ast::Type> evaluateList(
-      const std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list);
+  std::shared_ptr<parsetree::ast::Type>
+  EvalList(std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list) {
+    std::cout << "TypeResolver::EvalList" << std::endl;
+    return Evaluator<std::shared_ptr<parsetree::ast::Type>>::evaluateList(list);
+  }
 
   std::shared_ptr<parsetree::ast::Type>
-  evaluate(const std::shared_ptr<parsetree::ast::Expr> &node);
+  Eval(std::shared_ptr<parsetree::ast::Expr> &node) {
+    return Evaluator<std::shared_ptr<parsetree::ast::Type>>::evaluate(node);
+  }
 
   bool isAssignableTo(const std::shared_ptr<parsetree::ast::Type> &lhs,
                       const std::shared_ptr<parsetree::ast::Type> &rhs) const;
@@ -26,78 +33,63 @@ public:
   bool isValidCast(const std::shared_ptr<parsetree::ast::Type> &exprType,
                    const std::shared_ptr<parsetree::ast::Type> &castType) const;
 
-  void resolve() {
-    for (auto ast : astManager->getASTs()) {
-      resolveAST(ast);
-    }
-  }
+  void resolve();
 
 private:
   std::shared_ptr<parsetree::ast::Type>
-  evalBinOp(const std::shared_ptr<parsetree::ast::BinOp> &op,
-            const std::shared_ptr<parsetree::ast::Type> &lhs,
-            const std::shared_ptr<parsetree::ast::Type> &rhs) const;
+  evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
+            const std::shared_ptr<parsetree::ast::Type> lhs,
+            const std::shared_ptr<parsetree::ast::Type> rhs) override;
 
   std::shared_ptr<parsetree::ast::Type>
-  evalUnOp(const std::shared_ptr<parsetree::ast::UnOp> &op,
-           const std::shared_ptr<parsetree::ast::Type> &rhs) const;
+  evalUnOp(std::shared_ptr<parsetree::ast::UnOp> &op,
+           const std::shared_ptr<parsetree::ast::Type> rhs) override;
 
   std::shared_ptr<parsetree::ast::Type>
-  evalFieldAccess(const std::shared_ptr<parsetree::ast::FieldAccess> &op,
-                  const std::shared_ptr<parsetree::ast::Type> &lhs,
-                  const std::shared_ptr<parsetree::ast::Type> &field) const;
+  evalFieldAccess(std::shared_ptr<parsetree::ast::FieldAccess> &op,
+                  const std::shared_ptr<parsetree::ast::Type> lhs,
+                  const std::shared_ptr<parsetree::ast::Type> field) override;
 
   std::shared_ptr<parsetree::ast::Type> evalMethodInvocation(
-      const std::shared_ptr<parsetree::ast::MethodInvocation> &op,
-      const std::shared_ptr<parsetree::ast::Type> &method,
-      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const;
+      std::shared_ptr<parsetree::ast::MethodInvocation> &op,
+      const std::shared_ptr<parsetree::ast::Type> method,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) override;
 
   std::shared_ptr<parsetree::ast::Type> evalNewObject(
-      const std::shared_ptr<parsetree::ast::ClassCreation> &op,
-      const std::shared_ptr<parsetree::ast::Type> &object,
-      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const;
+      std::shared_ptr<parsetree::ast::ClassCreation> &op,
+      const std::shared_ptr<parsetree::ast::Type> object,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) override;
 
   std::shared_ptr<parsetree::ast::Type>
-  evalNewArray(const std::shared_ptr<parsetree::ast::ArrayCreation> &op,
-               const std::shared_ptr<parsetree::ast::Type> &type,
-               const std::shared_ptr<parsetree::ast::Type> &size) const;
+  evalNewArray(std::shared_ptr<parsetree::ast::ArrayCreation> &op,
+               const std::shared_ptr<parsetree::ast::Type> type,
+               const std::shared_ptr<parsetree::ast::Type> size) override;
 
   std::shared_ptr<parsetree::ast::Type>
-  evalArrayAccess(const std::shared_ptr<parsetree::ast::ArrayAccess> &op,
-                  const std::shared_ptr<parsetree::ast::Type> &array,
-                  const std::shared_ptr<parsetree::ast::Type> &index) const;
+  evalArrayAccess(std::shared_ptr<parsetree::ast::ArrayAccess> &op,
+                  const std::shared_ptr<parsetree::ast::Type> array,
+                  const std::shared_ptr<parsetree::ast::Type> index) override;
 
   std::shared_ptr<parsetree::ast::Type>
-  evalCast(const std::shared_ptr<parsetree::ast::Cast> &op,
-           const std::shared_ptr<parsetree::ast::Type> &type,
-           const std::shared_ptr<parsetree::ast::Type> &value) const;
+  evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
+           const std::shared_ptr<parsetree::ast::Type> type,
+           const std::shared_ptr<parsetree::ast::Type> value) override;
 
-  std::shared_ptr<parsetree::ast::Type>
-  evalAssignment(const std::shared_ptr<parsetree::ast::Assignment> &op,
-                 const std::shared_ptr<parsetree::ast::Type> &lhs,
-                 const std::shared_ptr<parsetree::ast::Type> &rhs) const;
+  // std::shared_ptr<parsetree::ast::Type>
+  // evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
+  //                const std::shared_ptr<parsetree::ast::Type> lhs,
+  //                const std::shared_ptr<parsetree::ast::Type> rhs) override;
 
   bool isReferenceOrArrType(std::shared_ptr<parsetree::ast::Type> type) const;
 
   bool isTypeString(std::shared_ptr<parsetree::ast::Type> type) const;
 
-  std::shared_ptr<parsetree::ast::Type> popStack() {
-    if (op_stack.empty()) {
-      throw std::runtime_error("Popping an empty stack!");
-    }
-    std::shared_ptr<parsetree::ast::Type> value = op_stack.top();
-    op_stack.pop();
-    return value;
-  }
-
   void resolveAST(const std::shared_ptr<parsetree::ast::AstNode> &node);
 
   std::shared_ptr<parsetree::ast::Type>
-  mapValue(const std::shared_ptr<parsetree::ast::QualifiedName> &value) const;
+  mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) override;
 
 private:
-  std::stack<std::shared_ptr<parsetree::ast::Type>> op_stack;
-  std::shared_ptr<parsetree::ast::ExprOp> current_op;
   std::shared_ptr<EnvManager> envManager;
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
 };

@@ -6,6 +6,14 @@
 
 namespace static_check {
 
+struct InheritedMethodsResult {
+  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
+      abstractMethods;
+  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
+      methods;
+  bool success;
+};
+
 class HierarchyCheck {
   std::shared_ptr<Package> rootPackage;
 
@@ -1138,6 +1146,22 @@ public:
         fields;
     getInheritedFields(astNode, fields, true);
     return fields;
+  }
+
+  InheritedMethodsResult
+  getAllInheritedMethods(std::shared_ptr<parsetree::ast::Decl> astNode) {
+    InheritedMethodsResult result;
+
+    if (!astNode) {
+      result.success = false;
+      return result;
+    }
+
+    std::unordered_set<std::string> implements;
+    bool success = getInheritedMethods(astNode, result.abstractMethods,
+                                       result.methods, implements);
+    result.success = success;
+    return result;
   }
 };
 

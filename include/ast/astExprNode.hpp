@@ -144,9 +144,9 @@ private:
   std::vector<std::shared_ptr<SimpleName>> simpleNames;
 };
 
-class MemberName : public ExprNode {
+class MemberName : public ExprValue {
 public:
-  MemberName(std::string_view name) : name{name} {}
+  MemberName(std::string_view name) : ExprValue{}, name{name} {}
 
   std::ostream &print(std::ostream &os) const override {
     os << "(Member name: " << name << ")";
@@ -203,7 +203,7 @@ public:
   bool isDeclResolved() const override { return true; }
 };
 
-class ThisNode : public ExprNode {
+class ThisNode : public ExprValue {
 public:
   std::ostream &print(std::ostream &os) const override {
     os << "(This)";
@@ -219,11 +219,25 @@ public:
 // Operators /////////////////////////////////////////////////////////////
 
 class ExprOp : public ExprNode {
+public:
+  int getNumArgs() const { return num_args; }
+
+  std::shared_ptr<Type> getResultType() const { return resultType; }
+  std::shared_ptr<Type> resolveResultType(std::shared_ptr<Type> type) {
+    if (resultType)
+      throw std::runtime_error("Tried to resolve op result type twice");
+    if (!type || !type->isResolved())
+      throw std::runtime_error("Tried to resolve op with unresolved type");
+    resultType = type;
+    return type;
+  }
+
 protected:
   ExprOp(int num_args) : num_args{num_args} {}
 
 private:
   int num_args;
+  std::shared_ptr<Type> resultType;
 };
 
 // For AST
@@ -238,6 +252,8 @@ public:
     os << "(UnOp " << magic_enum::enum_name(op) << ")";
     return os;
   }
+
+  OpType getOp() const { return op; }
 
 private:
   OpType op;
@@ -272,6 +288,8 @@ public:
     os << "(BinOp " << magic_enum::enum_name(op) << ")";
     return os;
   }
+
+  OpType getOp() const { return op; }
 
 private:
   OpType op;

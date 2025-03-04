@@ -14,7 +14,10 @@ std::shared_ptr<parsetree::ast::ProgramDecl> EnvManager::BuildProgramDecl(
   imports.push_back(std::make_shared<parsetree::ast::ImportDecl>(
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(javaPkg),
       true));
-  return std::make_shared<parsetree::ast::ProgramDecl>(package, imports, body);
+  auto program =
+      std::make_shared<parsetree::ast::ProgramDecl>(package, imports, body);
+  program->setAllParent();
+  return program;
 }
 
 std::shared_ptr<parsetree::ast::ClassDecl> EnvManager::BuildClassDecl(

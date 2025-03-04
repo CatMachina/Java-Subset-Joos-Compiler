@@ -2,6 +2,12 @@
 
 namespace static_check {
 
+void TypeResolver::resolve() {
+  for (auto ast : astManager->getASTs()) {
+    resolveAST(ast);
+  }
+}
+
 bool TypeResolver::isReferenceOrArrType(
     std::shared_ptr<parsetree::ast::Type> type) const {
   return std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type) ||
@@ -22,17 +28,17 @@ bool TypeResolver::isTypeString(
 }
 
 // Taken from HierarchyCheck
-bool isClass(std::shared_ptr<parsetree::ast::AstNode> decl) {
+static bool isClass(std::shared_ptr<parsetree::ast::AstNode> decl) {
   return !!std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl);
 }
 
 // Taken from HierarchyCheck
-bool isInterface(std::shared_ptr<parsetree::ast::AstNode> decl) {
+static bool isInterface(std::shared_ptr<parsetree::ast::AstNode> decl) {
   return !!std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
 }
 
-bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> child,
-                  std::shared_ptr<parsetree::ast::AstNode> super) {
+static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> child,
+                         std::shared_ptr<parsetree::ast::AstNode> super) {
   if (!child || !super) {
     // std::cout << "Either child or super is a nullptr."
     return false;
@@ -54,7 +60,7 @@ bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> child,
 
     // Cast to class
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        superClass->getResolvedDecl());
+        superClass->getResolvedDecl()->getAstNode());
 
     if (superClassDecl == superDecl)
       return true;
@@ -67,8 +73,9 @@ bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> child,
   return false;
 }
 
-bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
-                      std::shared_ptr<parsetree::ast::AstNode> interface) {
+static bool
+isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
+                 std::shared_ptr<parsetree::ast::AstNode> interface) {
   if (!child || !interface) {
     // std::cout << "Either child or super interface is a nullptr."
     return false;
@@ -93,7 +100,7 @@ bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
       // Cast to class
       auto superInterfaceDecl =
           std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-              superInterface->getResolvedDecl());
+              superInterface->getResolvedDecl()->getAstNode());
 
       if (superInterfaceDecl == interface)
         return true;
@@ -110,7 +117,7 @@ bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
       // Cast to class
       auto superClassDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-              superClass->getResolvedDecl());
+              superClass->getResolvedDecl()->getAstNode());
 
       if (isSuperInterface(std::dynamic_pointer_cast<parsetree::ast::AstNode>(
                                superClassDecl),
@@ -127,7 +134,7 @@ bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
       // Cast to interface
       auto superInterfaceDecl =
           std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-              superInterface->getResolvedDecl());
+              superInterface->getResolvedDecl()->getAstNode());
 
       if (superInterfaceDecl == interface)
         return true;
@@ -140,8 +147,10 @@ bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
   return false;
 }
 
-bool isWiderThan(const std::shared_ptr<parsetree::ast::BasicType> &type,
-                 const std::shared_ptr<parsetree::ast::BasicType> &other) {
+// 5.1.2
+static bool
+isWiderThan(const std::shared_ptr<parsetree::ast::BasicType> &type,
+            const std::shared_ptr<parsetree::ast::BasicType> &other) {
   using Type = parsetree::ast::BasicType::Type;
 
   Type otherType = other->getType();
@@ -195,6 +204,7 @@ bool isWiderThan(const std::shared_ptr<parsetree::ast::BasicType> &type,
 bool TypeResolver::isAssignableTo(
     const std::shared_ptr<parsetree::ast::Type> &lhs,
     const std::shared_ptr<parsetree::ast::Type> &rhs) const {
+  std::cout << "typeResolver isAssignableTo" << std::endl;
   if (lhs == rhs)
     return true;
 
@@ -302,12 +312,13 @@ bool TypeResolver::isAssignableTo(
 bool TypeResolver::isValidCast(
     const std::shared_ptr<parsetree::ast::Type> &exprType,
     const std::shared_ptr<parsetree::ast::Type> &castType) const {
+  std::cout << "typeResolver isValidCast" << std::endl;
   if (exprType == castType)
     return true;
 
   // Identity conversion: Java astManager->java_lang.String <-> primitive
   // astManager->java_lang.String
-  if (isTypeString(exprType) && isTypeString(castType))
+  if (isTypeString(exprType) && isTypeString(castType) || exprType->isNull())
     return true;
 
   if (isAssignableTo(exprType, castType) ||
@@ -383,130 +394,28 @@ bool TypeResolver::isValidCast(
                            " to " + castType->toString());
 }
 
-std::shared_ptr<parsetree::ast::Type> TypeResolver::mapValue(
-    const std::shared_ptr<parsetree::ast::QualifiedName> &value) const {
-  for (int i = 0; i < value->size(); i++) {
-    auto simpleName = value->get(i);
-    std::cout << "mapValue: " << simpleName->getName() << std::endl;
-    if (!simpleName->isDeclResolved())
-      throw std::runtime_error("SimpleName at mapValue not resolved");
-    if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
-            simpleName->getResolvedDecl())) {
-      // ToDo
-      if (method->isConstructor())
-        std::cout << "MapValue met MethodDecl Constructor" << std::endl;
-    } else if (!simpleName->isTypeResolved()) {
-      std::cout << "decl: " << simpleName->getResolvedDecl()->getName()
-                << std::endl;
-      throw std::runtime_error("SimpleName at mapValue not type resolved");
-    }
-  }
-  return value->getLast()->getType();
-  // if (!value->isDeclResolved())
-  //   throw std::runtime_error("QualifiedName at mapValue not resolved");
-  // if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
-  //         value->getResolvedDecl())) {
-  //   auto type = std::make_shared<parsetree::ast::MethodType>(method);
-  //   if (method->isConstructor()) {
-  //     // need double check
-  //     //
-  //     type->setReturnType(std::make_shared<parsetree::ast::ReferenceType>(method->getMethodBody()));
-  //   }
-  //   return type;
-  // } else {
-  //   if (!value->isTypeResolved())
-  //     throw std::runtime_error("ExprValue at mapValue not typeresolved");
-  //   return value->getType();
-  // }
-}
-
-////////////////////////////////////////
-// Main Logic
-////////////////////////////////////////
-
-// check if the format of exprNode vector and this is consistent
-// highly possible not
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evaluateList(
-    const std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list) {
-  while (!op_stack.empty())
-    popStack();
-
-  std::cout << "Evaluating " << list.size() << " nodes\n";
-  for (const auto &node : list) {
-    if (auto value =
-            std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(node)) {
-      op_stack.push(mapValue(value));
-    } else if (auto unary =
-                   std::dynamic_pointer_cast<parsetree::ast::UnOp>(node)) {
-      auto rhs = popStack();
-      op_stack.push(evalUnOp(unary, rhs));
-    } else if (auto binary =
-                   std::dynamic_pointer_cast<parsetree::ast::BinOp>(node)) {
-      auto rhs = popStack();
-      auto lhs = popStack();
-      op_stack.push(evalBinOp(binary, lhs, rhs));
-    } else if (auto field =
-                   std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
-                       node)) {
-      auto rhs = popStack();
-      auto lhs = popStack();
-      op_stack.push(evalFieldAccess(field, lhs, rhs));
-    } else if (auto method =
-                   std::dynamic_pointer_cast<parsetree::ast::MethodInvocation>(
-                       node)) {
-      // Note: reverse order
-      // Q: What happens if there are 3 children (primaryExpr, id, arg)?
-      auto method_name = popStack();
-      std::vector<std::shared_ptr<parsetree::ast::Type>> args(method->nargs() -
-                                                              1);
-      std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
-      op_stack.push(evalMethodInvocation(method, method_name, args));
-    } else if (auto newObj =
-                   std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
-                       node)) {
-      std::cout << "ClassCreation\n";
-      std::vector<std::shared_ptr<parsetree::ast::Type>> args(newObj->nargs() -
-                                                              1);
-      std::generate(args.rbegin(), args.rend(), [this] { return popStack(); });
-      auto type = popStack();
-      op_stack.push(evalNewObject(newObj, type, args));
-    } else if (auto array =
-                   std::dynamic_pointer_cast<parsetree::ast::ArrayCreation>(
-                       node)) {
-      auto size = popStack();
-      auto type = popStack();
-      op_stack.push(evalNewArray(array, type, size));
-    } else if (auto access =
-                   std::dynamic_pointer_cast<parsetree::ast::ArrayAccess>(
-                       node)) {
-      auto index = popStack();
-      auto array = popStack();
-      op_stack.push(evalArrayAccess(access, array, index));
-    } else if (auto cast =
-                   std::dynamic_pointer_cast<parsetree::ast::Cast>(node)) {
-      auto value = popStack();
-      auto type = popStack();
-      op_stack.push(evalCast(cast, type, value));
-    } else if (auto assignment =
-                   std::dynamic_pointer_cast<parsetree::ast::Assignment>(
-                       node)) {
-      auto lhs = popStack();
-      auto rhs = popStack();
-      op_stack.push(evalAssignment(assignment, lhs, rhs));
-    }
-  }
-  if (op_stack.size() != 1) {
-    throw std::runtime_error("Stack not empty after evaluation!");
-  }
-  return popStack();
-}
-
 std::shared_ptr<parsetree::ast::Type>
-TypeResolver::evaluate(const std::shared_ptr<parsetree::ast::Expr> &node) {
-  std::cout << "Evaluating ";
-  node->print(std::cout);
-  std::cout << std::endl;
-  return evaluateList(node->getExprNodes());
+TypeResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
+  std::cout << "typeResolver mapValue" << std::endl;
+  if (!value->isDeclResolved())
+    throw std::runtime_error("ExprValue at mapValue not resolved");
+  if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+          value->getResolvedDecl())) {
+    auto type = std::make_shared<parsetree::ast::MethodType>(method);
+    if (method->isConstructor()) {
+      // need double check
+      auto retType = std::make_shared<parsetree::ast::ReferenceType>(
+          method->getParent()->asDecl());
+      retType->setResolvedDecl(
+          std::make_shared<Decl>(method->getParent()->asDecl()));
+      type->setReturnType(retType);
+    }
+    return type;
+  } else {
+    if (!value->isTypeResolved())
+      throw std::runtime_error("ExprValue at mapValue not type resolved");
+    return value->getType();
+  }
 }
 
 void TypeResolver::resolveAST(
@@ -525,10 +434,11 @@ void TypeResolver::resolveAST(
   }
 }
 
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalBinOp(
-    const std::shared_ptr<parsetree::ast::BinOp> &op,
-    const std::shared_ptr<parsetree::ast::Type> &lhs,
-    const std::shared_ptr<parsetree::ast::Type> &rhs) const {
+std::shared_ptr<parsetree::ast::Type>
+TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
+                        const std::shared_ptr<parsetree::ast::Type> lhs,
+                        const std::shared_ptr<parsetree::ast::Type> rhs) {
+  std::cout << "typeResolver evalBinOp" << std::endl;
   if (auto result = op->getResultType(); result) {
     return result;
   }
@@ -596,8 +506,9 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalBinOp(
 }
 
 std::shared_ptr<parsetree::ast::Type>
-TypeResolver::evalUnOp(const std::shared_ptr<parsetree::ast::UnOp> &op,
-                       const std::shared_ptr<parsetree::ast::Type> &rhs) const {
+TypeResolver::evalUnOp(std::shared_ptr<parsetree::ast::UnOp> &op,
+                       const std::shared_ptr<parsetree::ast::Type> rhs) {
+  std::cout << "typeResolver evalUnOp" << std::endl;
   if (auto result = op->getResultType(); result) {
     return result;
   }
@@ -627,9 +538,10 @@ TypeResolver::evalUnOp(const std::shared_ptr<parsetree::ast::UnOp> &op,
 }
 
 std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
-    const std::shared_ptr<parsetree::ast::FieldAccess> &op,
-    const std::shared_ptr<parsetree::ast::Type> &lhs,
-    const std::shared_ptr<parsetree::ast::Type> &field) const {
+    std::shared_ptr<parsetree::ast::FieldAccess> &op,
+    const std::shared_ptr<parsetree::ast::Type> lhs,
+    const std::shared_ptr<parsetree::ast::Type> field) {
+  std::cout << "typeResolver evalFieldAccess" << std::endl;
 
   if (auto result = op->getResultType(); result) {
     return result;
@@ -638,9 +550,10 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalFieldAccess(
 }
 
 std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
-    const std::shared_ptr<parsetree::ast::MethodInvocation> &op,
-    const std::shared_ptr<parsetree::ast::Type> &method,
-    const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
+    std::shared_ptr<parsetree::ast::MethodInvocation> &op,
+    const std::shared_ptr<parsetree::ast::Type> method,
+    const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) {
+  std::cout << "typeResolver evalMethodInvocation" << std::endl;
 
   if (auto result = op->getResultType(); result) {
     return result;
@@ -668,9 +581,11 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalMethodInvocation(
 }
 
 std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewObject(
-    const std::shared_ptr<parsetree::ast::ClassCreation> &op,
-    const std::shared_ptr<parsetree::ast::Type> &object,
-    const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) const {
+    std::shared_ptr<parsetree::ast::ClassCreation> &op,
+    const std::shared_ptr<parsetree::ast::Type> object,
+    const std::vector<std::shared_ptr<parsetree::ast::Type>> &args) {
+
+  std::cout << "typeResolver evalNewObject" << std::endl;
 
   if (auto result = op->getResultType(); result) {
     return result;
@@ -696,10 +611,12 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewObject(
   return op->resolveResultType(constructor->getReturnType());
 }
 
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewArray(
-    const std::shared_ptr<parsetree::ast::ArrayCreation> &op,
-    const std::shared_ptr<parsetree::ast::Type> &type,
-    const std::shared_ptr<parsetree::ast::Type> &size) const {
+std::shared_ptr<parsetree::ast::Type>
+TypeResolver::evalNewArray(std::shared_ptr<parsetree::ast::ArrayCreation> &op,
+                           const std::shared_ptr<parsetree::ast::Type> type,
+                           const std::shared_ptr<parsetree::ast::Type> size) {
+
+  std::cout << "typeResolver evalNewArray" << std::endl;
 
   if (auto result = op->getResultType(); result) {
     return result;
@@ -713,9 +630,11 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewArray(
 }
 
 std::shared_ptr<parsetree::ast::Type> TypeResolver::evalArrayAccess(
-    const std::shared_ptr<parsetree::ast::ArrayAccess> &op,
-    const std::shared_ptr<parsetree::ast::Type> &array,
-    const std::shared_ptr<parsetree::ast::Type> &index) const {
+    std::shared_ptr<parsetree::ast::ArrayAccess> &op,
+    const std::shared_ptr<parsetree::ast::Type> array,
+    const std::shared_ptr<parsetree::ast::Type> index) {
+
+  std::cout << "typeResolver evalArrayAccess" << std::endl;
 
   if (auto result = op->getResultType(); result) {
     return result;
@@ -733,10 +652,12 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalArrayAccess(
   return op->resolveResultType(arrayType->getElementType());
 }
 
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalCast(
-    const std::shared_ptr<parsetree::ast::Cast> &op,
-    const std::shared_ptr<parsetree::ast::Type> &type,
-    const std::shared_ptr<parsetree::ast::Type> &value) const {
+std::shared_ptr<parsetree::ast::Type>
+TypeResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
+                       const std::shared_ptr<parsetree::ast::Type> type,
+                       const std::shared_ptr<parsetree::ast::Type> value) {
+
+  std::cout << "typeResolver evalCast" << std::endl;
 
   if (auto result = op->getResultType(); result) {
     return result;
@@ -750,14 +671,14 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalCast(
   return op->resolveResultType(type);
 }
 
-std::shared_ptr<parsetree::ast::Type> TypeResolver::evalAssignment(
-    const std::shared_ptr<parsetree::ast::Assignment> &op,
-    const std::shared_ptr<parsetree::ast::Type> &lhs,
-    const std::shared_ptr<parsetree::ast::Type> &rhs) const {
-  if (isAssignableTo(lhs, rhs)) {
-    return op->resolveResultType(lhs);
-  }
-  throw std::runtime_error("assignment is not valid");
-}
+// std::shared_ptr<parsetree::ast::Type> TypeResolver::evalAssignment(
+//     const std::shared_ptr<parsetree::ast::Assignment> &op,
+//     const std::shared_ptr<parsetree::ast::Type> &lhs,
+//     const std::shared_ptr<parsetree::ast::Type> &rhs) const {
+//   if (isAssignableTo(lhs, rhs)) {
+//     return op->resolveResultType(lhs);
+//   }
+//   throw std::runtime_error("assignment is not valid");
+// }
 
 } // namespace static_check

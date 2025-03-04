@@ -116,6 +116,7 @@ exprResolveType ExprResolver::evaluateList(
 
 std::vector<std::shared_ptr<parsetree::ast::ExprNode>>
 ExprResolver::resolveExprNode(const exprResolveType node) {
+  std::cout << "resolving expr node" << std::endl;
   if (std::holds_alternative<
           std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(node)) {
     return std::get<std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(
@@ -124,61 +125,31 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
                  node)) {
     // ExprNode
     auto expr = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(node);
-    auto name = std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(expr);
+    auto name = std::dynamic_pointer_cast<parsetree::ast::MemberName>(expr);
+    auto thisNode = std::dynamic_pointer_cast<parsetree::ast::ThisNode>(expr);
+
+    auto currentDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(
+        currentProgram->getBody());
+    if (!currentDecl) {
+      throw std::runtime_error("current program body not Decl");
+    }
+
+    if (thisNode) {
+      auto refType =
+          std::make_shared<parsetree::ast::ReferenceType>(currentDecl);
+      refType->setResolvedDecl(std::make_shared<Decl>(currentDecl));
+      thisNode->resolveDeclAndType(currentDecl, refType);
+    }
 
     if (!name)
       return {expr};
 
-    std::cout << "QualifiedName ";
+    std::cout << "MemberName ";
     name->print(std::cout);
-    std::cout << " has children num " << name->getChildren().size()
-              << std::endl;
 
-    std::vector<std::shared_ptr<parsetree::ast::ExprNode>> ret;
+    auto childLinked = resolveName(name);
 
-    for (auto &n : name->getChildren()) {
-      if (!n)
-        continue;
-
-      auto child = std::dynamic_pointer_cast<parsetree::ast::SimpleName>(n);
-      if (!child)
-        throw std::runtime_error("Node is null when traversing QualifiedName");
-
-      std::cout << "this child: ";
-      child->print(std::cout);
-      std::cout << std::endl;
-
-      if (child->getName() == "this") {
-        if (!(child->isDeclResolved() && child->isTypeResolved())) {
-          auto currentDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(
-              currentProgram->getBody());
-          if (!currentDecl) {
-            throw std::runtime_error("current program body not Decl");
-          }
-          auto refType =
-              std::make_shared<parsetree::ast::ReferenceType>(currentDecl);
-          refType->setResolvedDecl(std::make_shared<Decl>(currentDecl));
-          child->resolveDeclAndType(currentDecl, refType);
-        }
-
-        if (!(child->isDeclResolved() && child->isTypeResolved())) {
-          throw std::runtime_error("ThisNode not resolved in resolveExprNode");
-        }
-        ret.push_back(child);
-        continue;
-      }
-
-      auto childLinked = resolveSimpleName(std::make_shared<ExprNameLinked>(
-          ExprNameLinked::ValueType::SingleAmbiguousName, child, nullptr));
-      if (child->isDeclResolved() && child->isTypeResolved()) {
-        auto resolved = recursiveReduce(childLinked);
-        ret.insert(ret.end(), resolved.begin(), resolved.end());
-      } else {
-        auto resolved = recursiveReduce(childLinked);
-        ret.insert(ret.end(), resolved.begin(), resolved.end());
-      }
-    }
-    return ret;
+    return recursiveReduce(childLinked);
   } else if (std::holds_alternative<std::shared_ptr<ExprNameLinked>>(node)) {
     auto expr = std::get<std::shared_ptr<ExprNameLinked>>(node);
     return recursiveReduce(expr);
@@ -190,6 +161,7 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
 std::shared_ptr<parsetree::ast::Decl>
 ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
                               std::string_view name) {
+  std::cout << "lookupNamedDecl" << std::endl;
   auto condition = [name, this](std::shared_ptr<parsetree::ast::Decl> decl) {
     if (auto typedDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl);
@@ -265,7 +237,8 @@ ExprResolver::reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
 }
 
 std::shared_ptr<ExprNameLinked>
-ExprResolver::resolveSimpleName(std::shared_ptr<ExprNameLinked> expr) {
+ExprResolver::resolveMemberName(std::shared_ptr<ExprNameLinked> expr) {
+  std::cout << "resolveMemberName" << std::endl;
   if (expr->getNode()->isTypeResolved() && expr->getNode()->isDeclResolved()) {
     if (std::dynamic_pointer_cast<parsetree::ast::VarDecl>(
             expr->getNode()->getResolvedDecl())) {
@@ -307,6 +280,7 @@ ExprResolver::resolveSimpleName(std::shared_ptr<ExprNameLinked> expr) {
 
   } else if (auto pkg = std::get_if<std::shared_ptr<Package>>(&import)) {
     expr->setValueType(ExprNameLinked::ValueType::PackageName);
+    expr->setPackage(*pkg);
     // if (!expr->isDeclResolved())
     //   expr->setResolvedDecl(pkg);
   }
@@ -315,6 +289,7 @@ ExprResolver::resolveSimpleName(std::shared_ptr<ExprNameLinked> expr) {
 
 std::vector<std::shared_ptr<parsetree::ast::ExprNode>>
 ExprResolver::recursiveReduce(std::shared_ptr<ExprNameLinked> node) {
+  std::cout << "recursiveReduce" << std::endl;
   if (node->getValueType() != ExprNameLinked::ValueType::ExpressionName) {
     throw std::runtime_error("expected an expression name here");
   }
@@ -350,13 +325,6 @@ exprResolveType
 ExprResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &node) {
   std::cout << "mapping value" << std::endl;
   return node;
-}
-
-exprResolveType ExprResolver::evalQualifiedName(
-    std::shared_ptr<parsetree::ast::QualifiedName> &node) {
-  std::cout << "evaluating qualified name" << std::endl;
-  // todo
-  return resolveExprNode(node);
 }
 
 exprResolveType
@@ -395,15 +363,21 @@ ExprResolver::evalFieldAccess(std::shared_ptr<parsetree::ast::FieldAccess> &op,
           std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(lhs)) {
     prev =
         std::get<std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(lhs);
+    std::cout << "field access on vector" << std::endl;
   } else if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(
                  lhs)) {
     auto node = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(lhs);
-    if (std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(node)) {
-      throw std::runtime_error("breakpoint for QualifiedName in field access");
-    } else if (std::dynamic_pointer_cast<parsetree::ast::SimpleName>(node)) {
-      throw std::runtime_error("breakpoint for SimpleName in field access");
+    if (auto memberName =
+            std::dynamic_pointer_cast<parsetree::ast::MemberName>(node)) {
+      std::cout << "field access on member name" << std::endl;
+      prev = resolveName(memberName);
+    } else if (auto thisNode =
+                   std::dynamic_pointer_cast<parsetree::ast::ThisNode>(node)) {
+      std::cout << "field access on this node" << std::endl;
+      prev = resolveExprNode(thisNode);
     } else if (auto literal =
                    std::dynamic_pointer_cast<parsetree::ast::Literal>(node)) {
+      std::cout << "field access on literal" << std::endl;
       if (!literal->isString())
         throw std::runtime_error("accessing field on non string literal");
       prev = ExprNodeList{literal};
@@ -412,6 +386,7 @@ ExprResolver::evalFieldAccess(std::shared_ptr<parsetree::ast::FieldAccess> &op,
           "cannot resolve field access due to bad grammar");
     }
   } else if (std::holds_alternative<std::shared_ptr<ExprNameLinked>>(lhs)) {
+    std::cout << "field access on expr name linked" << std::endl;
     prev = std::get<std::shared_ptr<ExprNameLinked>>(lhs);
   } else {
     throw std::runtime_error("should not reach here");
@@ -430,16 +405,26 @@ ExprResolver::evalFieldAccess(std::shared_ptr<parsetree::ast::FieldAccess> &op,
 
   auto exprNode = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(id);
   //  // Special case: If "Id" in Q . Id is a method name, then defer resolution
+  if (auto methodNode =
+          std::dynamic_pointer_cast<parsetree::ast::MethodName>(exprNode)) {
+    auto newPrev = std::make_shared<ExprNameLinked>(
+        ExprNameLinked::ValueType::MethodName, methodNode, op);
+    newPrev->setPrev(prev);
+    return newPrev;
+  }
 
   // Now grab the id and cast it to the appropriate type
+  std::cout << "grabbing id" << std::endl;
   auto fieldNode =
-      std::dynamic_pointer_cast<parsetree::ast::SimpleName>(exprNode);
+      std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNode);
   if (!fieldNode)
-    throw std::runtime_error("Malformed node. Expected SimpleName here.");
+    throw std::runtime_error("Bad node. Expected MemberName here.");
   // Allocate a new node as the member access to represent "Id" in Lhs . Id
   auto newPrev = std::make_shared<ExprNameLinked>(
       ExprNameLinked::ValueType::SingleAmbiguousName, fieldNode, op);
   newPrev->setPrev(prev);
+
+  std::cout << "building reduced expression" << std::endl;
   // And we can build the reduced expression now
   // 1. If the previous node is a wrapper, then newPrev can be anything
   // 2. If the previous is a list, then newPrev must be ExpressionName
@@ -447,19 +432,19 @@ ExprResolver::evalFieldAccess(std::shared_ptr<parsetree::ast::FieldAccess> &op,
   if (exprNodePtr) {
     switch ((*exprNodePtr)->getValueType()) {
     case ExprNameLinked::ValueType::ExpressionName:
-      // resolveFieldAccess(newPrev);
+      resolveFieldAccess(newPrev);
       break;
     case ExprNameLinked::ValueType::TypeName:
-      // resolveTypeAccess(newPrev);
+      resolveTypeAccess(newPrev);
       break;
     case ExprNameLinked::ValueType::PackageName:
-      // resolvePackageAccess(newPrev);
+      resolvePackageAccess(newPrev);
       break;
     default:
       throw std::runtime_error("should not reach here");
     }
   } else {
-    // resolveFieldAccess(newPrev);
+    resolveFieldAccess(newPrev);
   }
   return newPrev;
 }
@@ -467,16 +452,129 @@ ExprResolver::evalFieldAccess(std::shared_ptr<parsetree::ast::FieldAccess> &op,
 exprResolveType ExprResolver::evalMethodInvocation(
     std::shared_ptr<parsetree::ast::MethodInvocation> &op,
     const exprResolveType method, const op_array &args) {
-  // todo
-  throw std::runtime_error("breakpoint for method invocation");
+  // incomplete resolved method name
+  std::shared_ptr<ExprNameLinked> unresolved = nullptr;
+  // Single name method can never be static, and static methods can
+  // never be single name methods!
+  bool isSingleNameMethod = false;
+
+  // 1. It could be a raw ExprNode, in which case is something like Fun()
+  // 2. Or it could be a wrapped ExprNameLinked, in which case is something
+  //    like org.pkg.Class.Fun()
+  // 3. Or it could be a list of nodes, in which case is something like
+  //    (1 + 2 + 3)()
+  if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(
+          method)) {
+    auto expr = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(method);
+    auto name = std::dynamic_pointer_cast<parsetree::ast::MethodName>(expr);
+    if (!name)
+      throw std::runtime_error("Bad node. Expected MethodName here.");
+    unresolved = resolveName(name);
+    isSingleNameMethod = true;
+  } else if (std::holds_alternative<std::shared_ptr<ExprNameLinked>>(method)) {
+    unresolved = std::get<std::shared_ptr<ExprNameLinked>>(method);
+  } else {
+    throw std::runtime_error("Bad Method Call Expression");
+  }
+
+  // Resolve the array of arguments
+  std::vector<std::shared_ptr<parsetree::ast::Type>> argTypes;
+  ExprNodeList arglist;
+  for (auto it = args.rbegin(); it != args.rend(); ++it) {
+    auto &arg = *it;
+    auto tmplist = resolveExprNode(arg);
+    argTypes.push_back(typeResolver->EvalList(tmplist));
+    arglist.insert(arglist.begin(), tmplist.begin(), tmplist.end());
+  }
+
+  // Begin resolution of the method call
+  auto ctx = getMethodParent(unresolved);
+  auto methodDecl = resolveMethodOverload(ctx, unresolved->getNode()->getName(),
+                                          argTypes, false);
+
+  // Check if the method call is legal
+  if (!isAccessible(methodDecl->getModifiers(), methodDecl->getParent())) {
+    throw std::runtime_error("method call to non-accessible method: " +
+                             methodDecl->getName());
+  }
+
+  // static method call check
+  if (isSingleNameMethod && methodDecl->getModifiers()->isStatic()) {
+    throw std::runtime_error(
+        "attempted to call static method using single name: " +
+        methodDecl->getName());
+  }
+
+  // check if the previous a type name
+  if (unresolved->getPrev().has_value() && unresolved->prevAsLinked() &&
+      unresolved->prevAsLinked()->getValueType() ==
+          ExprNameLinked::ValueType::TypeName) {
+    // we are calling a static method, check
+    if (!methodDecl->getModifiers()->isStatic()) {
+      throw std::runtime_error("attempted to call non-static method: " +
+                               methodDecl->getName());
+    }
+  }
+
+  // Reclassify
+  unresolved->setValueType(ExprNameLinked::ValueType::ExpressionName);
+  unresolved->getNode()->setResolvedDecl(methodDecl);
+
+  // Once unresolved has been resolved, we can build the expression list
+  ExprNodeList list;
+  auto reduced = recursiveReduce(unresolved);
+  list.insert(list.begin(), reduced.begin(), reduced.end());
+  list.insert(list.end(), arglist.begin(), arglist.end());
+  list.push_back(op);
+  return list;
 }
 
 exprResolveType
 ExprResolver::evalNewObject(std::shared_ptr<parsetree::ast::ClassCreation> &op,
                             const exprResolveType object,
                             const op_array &args) {
-  // todo
-  throw std::runtime_error("breakpoint for new object");
+  // Get the type we are instantiating
+  std::shared_ptr<parsetree::ast::TypeNode> expr = nullptr;
+  if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(
+          object)) {
+    expr = std::dynamic_pointer_cast<parsetree::ast::TypeNode>(
+        std::get<std::shared_ptr<parsetree::ast::ExprNode>>(object));
+  } else {
+    throw std::runtime_error("Bad grammar, object must be an atomic ExprNode*");
+  }
+
+  // Resolve the array of arguments
+  std::vector<std::shared_ptr<parsetree::ast::Type>> argType;
+  ExprNodeList arglist;
+  for (auto it = args.rbegin(); it != args.rend(); ++it) {
+    auto &arg = *it;
+    auto tmplist = resolveExprNode(arg);
+    argType.push_back(typeResolver->EvalList(tmplist));
+    arglist.insert(arglist.begin(), tmplist.begin(), tmplist.end());
+  }
+
+  // Check if the type is abstract
+  auto typeAsDecl = expr->getType()->getAsDecl();
+  auto ctx = typeAsDecl->asCodeBody();
+  if (auto classDecl =
+          std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctx)) {
+    if (classDecl->getModifiers()->isAbstract()) {
+      throw std::runtime_error("attempted to instantiate abstract class: " +
+                               classDecl->getName());
+    }
+  }
+
+  // Begin resolution of the method call
+  auto methodDecl = resolveMethodOverload(ctx, "", argType, true);
+  // override
+  expr->setResolvedDecl(methodDecl);
+
+  // Once op has been resolved, we can build the expression list
+  ExprNodeList list;
+  list.push_back(expr);
+  list.insert(list.end(), arglist.begin(), arglist.end());
+  list.push_back(op);
+  return list;
 }
 
 exprResolveType
@@ -553,6 +651,368 @@ bool ExprResolver::isAccessible(
       return true;
   }
   return false;
+}
+
+//// More Helper
+
+std::shared_ptr<parsetree::ast::Decl> ExprNameLinked::prevAsDecl(
+    std::shared_ptr<TypeResolver> TR,
+    std::shared_ptr<parsetree::ast::ASTManager> astManager) const {
+  std::cout << "prevAsDecl" << std::endl;
+  if (auto p = prevAsLinked())
+    return p->getNode()->getResolvedDecl();
+  std::cout << "prevAsDecl complex case" << std::endl;
+  // Complex case, the previous node is an expression list
+  if (!prev_.has_value())
+    throw std::runtime_error("No previous value");
+  if (!std::holds_alternative<ExprNodeList>(prev_.value()))
+    throw std::runtime_error("Previous Not an expression list");
+  ExprNodeList prevList = std::get<ExprNodeList>(prev_.value());
+  std::cout << "EvalList started in prevAsDecl" << std::endl;
+  auto type = TR->EvalList(prevList);
+  std::cout << "EvalList finished in prevAsDecl" << std::endl;
+  return std::dynamic_pointer_cast<parsetree::ast::Decl>(
+      GetTypeAsDecl(type, astManager));
+}
+
+void ExprResolver::resolveFieldAccess(std::shared_ptr<ExprNameLinked> access) {
+  std::cout << "resolveFieldAccess" << std::endl;
+  // First, verify invariants if access is a field access
+  if (access->getValueType() != ExprNameLinked::ValueType::SingleAmbiguousName)
+    throw std::runtime_error("Not a ambiguous name, Not a field access");
+  if (auto p = access->prevAsLinked()) {
+    if (p->getValueType() != ExprNameLinked::ValueType::ExpressionName)
+      throw std::runtime_error("Not an expression name, Not a field access");
+  }
+
+  // Next, fetch the type or declaration
+  std::cout << "fetch the type or declaration" << std::endl;
+  auto name = access->getNode()->getName();
+  auto typeOrDecl = access->prevAsDecl(typeResolver, astManager);
+  std::shared_ptr<parsetree::ast::CodeBody> refType = nullptr;
+  if (access->prevAsLinked()) {
+    std::cout << "prev a wrapper, resolve type" << std::endl;
+    // If the previous node is a wrapper, then we resolve the type
+    auto decl = typeOrDecl;
+    auto typeddecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl);
+    if (!typeddecl) {
+      throw std::runtime_error("field access to non-typed declaration" +
+                               decl->getName());
+    }
+    auto type = typeddecl->getType();
+    if (!type) {
+      throw std::runtime_error("field access to void-typed declaration: " +
+                               decl->getName());
+    }
+    auto typeAsDecl = GetTypeAsDecl(type, astManager);
+    refType = typeAsDecl->asCodeBody();
+    if (!refType) {
+      throw std::runtime_error("field access to void-typed declaration: " +
+                               decl->getName());
+    }
+  } else {
+    if (!typeOrDecl)
+      throw std::runtime_error("typeOrDecl is null");
+    auto typeOrDeclDecl =
+        std::dynamic_pointer_cast<parsetree::ast::Decl>(typeOrDecl);
+    if (!typeOrDeclDecl) {
+      throw std::runtime_error("Expected decl here");
+    }
+    refType = typeOrDeclDecl->asCodeBody();
+    if (!refType) {
+      throw std::runtime_error("Expected non-null type here");
+    }
+  }
+  // Now we check if "name" is a field of "decl"
+  std::cout << "checking if name is in decl" << std::endl;
+  auto field = this->lookupNamedDecl(refType, name);
+  if (!field) {
+    throw std::runtime_error("field access failed for " + name);
+  }
+  if (!std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(field) &&
+      !std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(field)) {
+    throw std::runtime_error(
+        "field shouldn't be anything other than field or method");
+  }
+
+  std::shared_ptr<parsetree::ast::Type> fieldType = nullptr;
+  if (auto x = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(field))
+    fieldType = x->getType();
+  access->setValueType(ExprNameLinked::ValueType::ExpressionName);
+  access->getNode()->resolveDeclAndType(field, fieldType);
+}
+
+void ExprResolver::resolveTypeAccess(std::shared_ptr<ExprNameLinked> access) {
+  std::cout << "resolveTypeAccess" << std::endl;
+  // First, verify invariants if access is a type access
+  if (access->getValueType() !=
+      ExprNameLinked::ValueType::SingleAmbiguousName) {
+    throw std::runtime_error("Not a ambiguous name, Not a type access");
+  }
+  if (auto p = access->prevAsLinked()) {
+    if (p->getValueType() != ExprNameLinked::ValueType::TypeName)
+      throw std::runtime_error("Not a type name, Not a type access");
+  }
+  // Next, fetch the type or declaration
+  auto name = access->getNode()->getName();
+  auto typeOrDecl = access->prevAsDecl(typeResolver, astManager);
+  // We note this must be a class type or we have a type error
+  auto type = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(typeOrDecl);
+  if (!type) {
+    throw std::runtime_error("static member access to non-class type: " +
+                             typeOrDecl->getName());
+  }
+  // Now we check if "name" is a field of "decl".
+  auto field = lookupNamedDecl(type, name);
+  if (!field) {
+    throw std::runtime_error("type access failed for " + name);
+  }
+  // With the additional constraint that the field must be static
+  std::shared_ptr<parsetree::ast::Modifiers> mods;
+  if (auto fieldDecl =
+          std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(field)) {
+    mods = fieldDecl->getModifiers();
+  } else if (auto methodDecl =
+                 std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(field)) {
+    mods = methodDecl->getModifiers();
+  } else {
+    throw std::runtime_error(
+        "field shouldn't be anything other than field or method");
+  }
+  if (!mods->isStatic()) {
+    throw std::runtime_error("field attempt to access non-static member: " +
+                             field->getName());
+  }
+  // field access is valid
+  std::shared_ptr<parsetree::ast::Type> fieldType = nullptr;
+  if (auto x = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(field))
+    fieldType = x->getType();
+  access->setValueType(ExprNameLinked::ValueType::ExpressionName);
+  access->getNode()->resolveDeclAndType(field, fieldType);
+  access->setPrev(std::nullopt);
+}
+
+void ExprResolver::resolvePackageAccess(
+    std::shared_ptr<ExprNameLinked> access) const {
+  std::cout << "resolvePackageAccess" << std::endl;
+  // First, verify invariants if access is a package access
+  auto prev = access->prevAsLinked();
+  if (!prev)
+    throw std::runtime_error("Expected non-null previous node");
+  if (access->getValueType() !=
+      ExprNameLinked::ValueType::SingleAmbiguousName) {
+    throw std::runtime_error("Not a ambiguous name, Not a package access");
+  }
+  if (prev->getValueType() != ExprNameLinked::ValueType::PackageName)
+    throw std::runtime_error("Not a package name, Not a package access");
+  // Now we can get the "pkg" and "name" to resolve against
+  auto pkg = prev->getPackage();
+  auto name = access->getNode()->getName();
+  if (!pkg)
+    throw std::runtime_error("Expected non-null package here");
+  // Now we check if "name" is a package of "pkg"
+  auto subpkg = pkg->getChild(name);
+  if (std::holds_alternative<nullptr_t>(subpkg)) {
+    throw std::runtime_error("package access to unknown member: " + name);
+  }
+  // reclassify
+  if (std::holds_alternative<std::shared_ptr<Decl>>(subpkg)) {
+    auto pkgdecl = std::get<std::shared_ptr<Decl>>(subpkg);
+    access->setValueType(ExprNameLinked::ValueType::TypeName);
+    auto pkgType =
+        std::make_shared<parsetree::ast::ReferenceType>(pkgdecl->getAstNode());
+    pkgType->setResolvedDecl(pkgdecl);
+    access->getNode()->resolveDeclAndType(pkgdecl->getAstNode(), pkgType);
+  } else {
+    access->setValueType(ExprNameLinked::ValueType::TypeName);
+    access->setPackage(std::get<std::shared_ptr<Package>>(subpkg));
+  }
+  access->setPrev(std::nullopt);
+}
+
+std::shared_ptr<parsetree::ast::CodeBody>
+ExprResolver::getMethodParent(std::shared_ptr<ExprNameLinked> method) const {
+  std::cout << "getMethodParent" << std::endl;
+  if (method->getValueType() != ExprNameLinked::ValueType::MethodName) {
+    throw std::runtime_error("Not a method name, cannot get parent");
+  }
+  // If there's no previous, use the current context
+  if (!method->getPrev().has_value())
+    return currentProgram->getBody();
+  auto declOrType = method->prevAsDecl(typeResolver, astManager);
+  // auto ty = std::dynamic_pointer_cast<parsetree::ast::CodeBody>(declOrType);
+  auto ty = declOrType->asCodeBody();
+  if (method->prevAsLinked() && !ty) {
+    auto typedDecl =
+        std::dynamic_pointer_cast<parsetree::ast::VarDecl>(declOrType);
+    if (!typedDecl) {
+      throw std::runtime_error("method call to non-typed declaration: " +
+                               declOrType->getName());
+    }
+    auto type = typedDecl->getType();
+    if (!type) {
+      throw std::runtime_error("method call to non-typed declaration: " +
+                               declOrType->getName());
+    }
+    auto typeAsDecl = GetTypeAsDecl(type, astManager);
+    ty = typeAsDecl->asCodeBody();
+    if (!ty) {
+      throw std::runtime_error("method call to non-reference type: " +
+                               declOrType->getName());
+    }
+  }
+  if (!ty)
+    throw std::runtime_error("Expected non-null type");
+  return ty;
+}
+
+std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
+    std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string_view name,
+    const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes,
+    bool isConstructor) {
+  std::cout << "resolveMethodOverload" << std::endl;
+  // Set the name to the constructor name if isConstructor is true
+  if (isConstructor)
+    name = ctx->asDecl()->getName();
+  // 15.12.2.1
+  std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> candidates;
+  if (isConstructor) {
+    auto program = std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(
+        std::dynamic_pointer_cast<parsetree::ast::Decl>(ctx)->getParent());
+    // Only grab the constructors of this type
+    for (auto decl : ctx->getDecls()) {
+      auto ctor = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl);
+      if (!ctor)
+        continue;
+      if (!ctor->isConstructor())
+        continue;
+      if (ctor->getParams().size() != argTypes.size())
+        continue;
+      if (!isAccessible(ctor->getModifiers(), ctor->getParent()))
+        continue;
+      // If the ctor is protected, it must be in the same PACKAGE
+      if (ctor->getModifiers()->isProtected()) {
+        if (program->getPackageName() != currentProgram->getPackageName()) {
+          throw std::runtime_error(
+              "attempted to access protected constructor from different "
+              "package");
+        }
+      }
+      if (areParameterTypesApplicable(ctor, argTypes))
+        candidates.push_back(ctor);
+    }
+  } else {
+    // Search the current class and all superclasses
+    // 1. Parameters number match
+    // 2. Parameters are convertible
+    // 3. Method is accessible
+    auto ctxDecl = ctx->asDecl();
+    auto result = hierarchyChecker->getAllInheritedMethods(ctxDecl);
+    if (!result.success)
+      throw std::runtime_error("Failed to get inherited methods");
+
+    // should we also loop through abstract methods?
+    std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
+        allMethods = result.methods;
+    allMethods.insert(result.abstractMethods.begin(),
+                      result.abstractMethods.end());
+    for (auto pair : allMethods) {
+      auto decl = pair.second;
+      if (!decl)
+        continue;
+      if (decl->getParams().size() != argTypes.size())
+        continue;
+      if (decl->getName() != name)
+        continue;
+      if (!areParameterTypesApplicable(decl, argTypes))
+        continue;
+      if (!isAccessible(decl->getModifiers(), decl->getParent()))
+        continue;
+      candidates.push_back(decl);
+    }
+  }
+  if (candidates.size() == 0) {
+    if (isConstructor) {
+      throw std::runtime_error("no method found for " + std::string(name));
+    } else {
+      throw std::runtime_error("no constructor found for " + std::string(name));
+    }
+  }
+  if (candidates.size() == 1)
+    return candidates[0];
+
+  // 15.12.2.2 Choose the Most Specific Method
+  std::shared_ptr<parsetree::ast::MethodDecl> mostSpecific = nullptr;
+  std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> maxSpecific;
+  // Grab the (not necessarily unique) minimum
+  for (auto cur : candidates) {
+    if (!mostSpecific) {
+      mostSpecific = cur;
+      continue;
+    }
+    // cur < minimum?
+    if (isMethodMoreSpecific(cur, mostSpecific)) {
+      mostSpecific = cur;
+    }
+  }
+  // Now grab all the maximally specific methods
+  for (auto cur : candidates) {
+    if (cur == mostSpecific) {
+      maxSpecific.push_back(cur);
+    } else if (isMethodMoreSpecific(cur, mostSpecific) &&
+               isMethodMoreSpecific(mostSpecific, cur)) {
+      maxSpecific.push_back(cur);
+    }
+  }
+  // If there's only one maximally specific method, return it
+  if (maxSpecific.size() == 1)
+    return maxSpecific[0];
+  // There are more conditions i.e., abstract...
+  // Otherwise, we have an ambiguity error
+  throw std::runtime_error("ambiguous method found for " + std::string(name));
+}
+
+bool ExprResolver::areParameterTypesApplicable(
+    std::shared_ptr<parsetree::ast::MethodDecl> decl,
+    const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes) const {
+  std::cout << "areParameterTypesApplicable" << std::endl;
+  bool valid = true;
+  for (size_t i = 0; i < argTypes.size(); i++) {
+    auto ty1 = argTypes[i];
+    auto ty2 = decl->getParams()[i]->getType();
+    valid &= typeResolver->isAssignableTo(ty1, ty2);
+  }
+  return valid;
+}
+
+bool ExprResolver::isMethodMoreSpecific(
+    std::shared_ptr<parsetree::ast::MethodDecl> a,
+    std::shared_ptr<parsetree::ast::MethodDecl> b) const {
+  std::cout << "isMethodMoreSpecific" << std::endl;
+  // Let a be declared in T with parameter types Ti
+  // Let b be declared in U with parameter types Ui
+  // Then a > b when for all i, Ti > Ui and T > U
+  // Where two types A > B when A converts to B
+  auto aDecl = std::make_shared<Decl>(
+      std::dynamic_pointer_cast<parsetree::ast::Decl>(a->getParent()));
+  auto T = std::make_shared<parsetree::ast::ReferenceType>(aDecl->getAstNode());
+  T->setResolvedDecl(aDecl);
+
+  auto bDecl = std::make_shared<Decl>(
+      std::dynamic_pointer_cast<parsetree::ast::Decl>(b->getParent()));
+  auto U = std::make_shared<parsetree::ast::ReferenceType>(bDecl->getAstNode());
+  U->setResolvedDecl(bDecl);
+
+  if (!typeResolver->isAssignableTo(T, U))
+    return false;
+  assert(a->getParams().size() == b->getParams().size());
+  for (size_t i = 0; i < a->getParams().size(); i++) {
+    auto Ti = a->getParams()[i]->getType();
+    auto Ui = b->getParams()[i]->getType();
+    if (!typeResolver->isAssignableTo(Ti, Ui))
+      return false;
+  }
+  return true;
 }
 
 } // namespace static_check
