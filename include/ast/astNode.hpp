@@ -903,11 +903,13 @@ public:
 
   bool canView(std::shared_ptr<ScopeID> other) const {
     assert(other != nullptr && "Can't view the null scope");
+    std::cout << "canView: this=" << toString() << " other=" << other->toString() << std::endl;
     if (this->parent_ == other->parent_) {
       return this->pos_ >= other->pos_;
     }
     if (this->parent_) {
-      return this->parent_->canView(other);
+      std::cout << "canView: this_parent=" << this->parent_->toString() << std::endl;
+      return this->parent_->canView(other);                                                                                                                                                        
     }
     return false;
   }
@@ -919,7 +921,7 @@ public:
   }
 
   std::string toString() const {
-    return parent()->toString() + "." + std::to_string(pos_);
+    return (parent_ ? parent_->toString() + "." : "") + std::to_string(pos_);
   }
 
   friend std::ostream &operator<<(std::ostream &os, const ScopeID &id) {

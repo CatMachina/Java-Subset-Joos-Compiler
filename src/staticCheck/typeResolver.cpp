@@ -671,14 +671,17 @@ TypeResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
   return op->resolveResultType(type);
 }
 
-// std::shared_ptr<parsetree::ast::Type> TypeResolver::evalAssignment(
-//     const std::shared_ptr<parsetree::ast::Assignment> &op,
-//     const std::shared_ptr<parsetree::ast::Type> &lhs,
-//     const std::shared_ptr<parsetree::ast::Type> &rhs) const {
-//   if (isAssignableTo(lhs, rhs)) {
-//     return op->resolveResultType(lhs);
-//   }
-//   throw std::runtime_error("assignment is not valid");
-// }
+std::shared_ptr<parsetree::ast::Type> TypeResolver::evalAssignment(
+    std::shared_ptr<parsetree::ast::Assignment> &op,
+    const std::shared_ptr<parsetree::ast::Type> lhs,
+    const std::shared_ptr<parsetree::ast::Type> rhs) {
+  
+  std::cout << "typeResolver evalAssignment" << std::endl;
+  
+  if (isAssignableTo(lhs, rhs)) {
+    return op->resolveResultType(lhs);
+  }
+  throw std::runtime_error("assignment is not valid");
+}
 
 } // namespace static_check

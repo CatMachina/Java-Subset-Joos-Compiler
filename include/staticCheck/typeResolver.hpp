@@ -75,10 +75,10 @@ private:
            const std::shared_ptr<parsetree::ast::Type> type,
            const std::shared_ptr<parsetree::ast::Type> value) override;
 
-  // std::shared_ptr<parsetree::ast::Type>
-  // evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
-  //                const std::shared_ptr<parsetree::ast::Type> lhs,
-  //                const std::shared_ptr<parsetree::ast::Type> rhs) override;
+  std::shared_ptr<parsetree::ast::Type>
+  evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
+                 const std::shared_ptr<parsetree::ast::Type> lhs,
+                 const std::shared_ptr<parsetree::ast::Type> rhs) override;
 
   bool isReferenceOrArrType(std::shared_ptr<parsetree::ast::Type> type) const;
 

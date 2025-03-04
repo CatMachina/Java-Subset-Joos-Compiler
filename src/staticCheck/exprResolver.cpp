@@ -161,23 +161,35 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
 std::shared_ptr<parsetree::ast::Decl>
 ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
                               std::string_view name) {
-  std::cout << "lookupNamedDecl" << std::endl;
   auto condition = [name, this](std::shared_ptr<parsetree::ast::Decl> decl) {
-    if (auto typedDecl =
-            std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl);
-        typedDecl) {
-      bool scopeVisible =
-          !currentScope || currentScope->canView(typedDecl->getScope());
-      bool canAccess = true;
-      if (auto fieldDecl =
-              std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
-        canAccess =
-            isAccessible(fieldDecl->getModifiers(), fieldDecl->getParent());
-      }
-      std::cout << "name: " << name << " got name: " << decl->getName()
-                << " scopeVisible: " << scopeVisible
-                << " canAccess: " << canAccess << std::endl;
-      return decl->getName() == name && scopeVisible && canAccess;
+    // if (auto typedDecl =
+    //         std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl);
+    //     typedDecl) {
+    //   bool scopeVisible =
+    //       !currentScope || currentScope->canView(typedDecl->getScope());
+    //   bool canAccess = true;
+    //   if (auto fieldDecl =
+    //           std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
+    //     canAccess =
+    //         isAccessible(fieldDecl->getModifiers(), fieldDecl->getParent());
+    //   }
+    //   std::cout << "name: " << name << " got name: " << decl->getName()
+    //             << " scopeVisible: " << scopeVisible
+    //             << " canAccess: " << canAccess << std::endl;
+    //   return decl->getName() == name && scopeVisible && canAccess;
+    // }
+    // return false;
+    auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl);
+    auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl);
+    bool nameMatch = decl->getName() == name;
+    if (fieldDecl) {
+      // A field
+      bool canAccess = isAccessible(fieldDecl->getModifiers(), fieldDecl->getParent());
+      return nameMatch && canAccess;
+    } else if (varDecl) {
+      // A local variable
+      bool scopeVisible = !currentScope || currentScope->canView(varDecl->getScope());
+      return nameMatch && scopeVisible;
     }
     return false;
   };
@@ -186,10 +198,23 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
   if (auto classDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctx);
       classDecl) {
+    // Search in the declared set
+    std::cout << "classDecl " << classDecl->getName()
+      << " checking declared fields" << std::endl;
+    auto declaredFields = classDecl->getFields();
+    for (const auto decl : declaredFields) {
+      if (condition(decl)) {
+        std::cout << "found declared field " << decl->getName() << std::endl;
+        return decl;
+      }
+    }
+    // Search in the inherit set
     std::cout << "classDecl " << classDecl->getName()
               << " checking inherited fields" << std::endl;
     std::shared_ptr<parsetree::ast::Decl> result = nullptr;
-    for (const auto decl : hierarchyChecker->getInheritedFields(classDecl)) {
+    // TODO: this recomputes inherited field every time...
+    auto inheritedFields = hierarchyChecker->getInheritedFields(classDecl);
+    for (const auto decl : inheritedFields) {
       std::cout << "inherited field " << decl.second->getName() << std::endl;
       if (condition(decl.second)) {
         std::cout << "found inherited field " << decl.second->getName()
@@ -199,11 +224,10 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
         result = decl.second;
       }
     }
-    return result;
-  }
-  for (const auto decl : ctx->getDecls()) {
-    if (condition(decl))
-      return decl;
+    if (result)  {
+      return result;
+    }
+
   }
   return nullptr;
 }
@@ -323,7 +347,7 @@ ExprResolver::recursiveReduce(std::shared_ptr<ExprNameLinked> node) {
 
 exprResolveType
 ExprResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &node) {
-  std::cout << "mapping value" << std::endl;
+  std::cout << "exprResolver mapValue" << std::endl;
   return node;
 }
 
@@ -628,6 +652,21 @@ ExprResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
   return ret;
 }
 
+exprResolveType
+ExprResolver::evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
+                              const exprResolveType lhs,
+                              const exprResolveType rhs) {
+  std::cout << "evaluating for assignment" << std::endl;
+  std::vector<std::shared_ptr<parsetree::ast::ExprNode>> ret;
+  auto lhsVec = resolveExprNode(lhs);
+  auto rhsVec = resolveExprNode(rhs);
+  ret.reserve(lhsVec.size() + rhsVec.size() + 1);
+  ret.insert(ret.end(), lhsVec.begin(), lhsVec.end());
+  ret.insert(ret.end(), rhsVec.begin(), rhsVec.end());
+  ret.push_back(op);
+  return ret;
+}
+
 bool ExprResolver::isAccessible(
     std::shared_ptr<parsetree::ast::Modifiers> mod,
     std::shared_ptr<parsetree::ast::CodeBody> parent) {
@@ -725,7 +764,7 @@ void ExprResolver::resolveFieldAccess(std::shared_ptr<ExprNameLinked> access) {
   }
   // Now we check if "name" is a field of "decl"
   std::cout << "checking if name is in decl" << std::endl;
-  auto field = this->lookupNamedDecl(refType, name);
+  auto field = lookupNamedDecl(refType, name);
   if (!field) {
     throw std::runtime_error("field access failed for " + name);
   }

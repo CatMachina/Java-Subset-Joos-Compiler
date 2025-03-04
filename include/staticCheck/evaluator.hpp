@@ -29,6 +29,8 @@ protected:
                             const T array, const T index) = 0;
   virtual T evalCast(std::shared_ptr<parsetree::ast::Cast> &op, const T type,
                      const T value) = 0;
+  virtual T evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op, const T lhs,
+                            const T rhs) = 0;
 
 public:
   T evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
@@ -48,21 +50,25 @@ public:
       if (auto value =
               std::dynamic_pointer_cast<parsetree::ast::ExprValue>(node)) {
         op_stack.push(mapValue(value));
+        std::cout << "Pushed mapValue" << std::endl;
       } else if (auto unary =
                      std::dynamic_pointer_cast<parsetree::ast::UnOp>(node)) {
         auto rhs = popStack();
         op_stack.push(evalUnOp(unary, rhs));
+        std::cout << "Pushed evalUnOp" << std::endl;
       } else if (auto binary =
                      std::dynamic_pointer_cast<parsetree::ast::BinOp>(node)) {
         auto rhs = popStack();
         auto lhs = popStack();
         op_stack.push(evalBinOp(binary, lhs, rhs));
+        std::cout << "Pushed evalBinOp" << std::endl;
       } else if (auto field =
                      std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
                          node)) {
         auto rhs = popStack();
         auto lhs = popStack();
         op_stack.push(evalFieldAccess(field, lhs, rhs));
+        std::cout << "Pushed evalFieldAccess" << std::endl;
       } else if (auto method = std::dynamic_pointer_cast<
                      parsetree::ast::MethodInvocation>(node)) {
         // Note: reverse order
@@ -72,6 +78,7 @@ public:
         std::generate(args.rbegin(), args.rend(),
                       [this] { return popStack(); });
         op_stack.push(evalMethodInvocation(method, method_name, args));
+        std::cout << "Pushed evalMethodInvocation" << std::endl;
       } else if (auto newObj =
                      std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
                          node)) {
@@ -81,6 +88,7 @@ public:
                       [this] { return popStack(); });
         auto type = popStack();
         op_stack.push(evalNewObject(newObj, type, args));
+        std::cout << "Pushed evalNewObject" << std::endl;
       } else if (auto array =
                      std::dynamic_pointer_cast<parsetree::ast::ArrayCreation>(
                          node)) {
@@ -99,14 +107,15 @@ public:
         auto type = popStack();
         op_stack.push(evalCast(cast, type, value));
       }
-      // else if (auto assignment =
-      //                std::dynamic_pointer_cast<parsetree::ast::Assignment>(
-      //                    node)) {
-      //   auto lhs = popStack();
-      //   auto rhs = popStack();
-      //   op_stack.push(evalAssignment(assignment, lhs, rhs));
-      // }
+      else if (auto assignment =
+                     std::dynamic_pointer_cast<parsetree::ast::Assignment>(
+                         node)) {
+        auto lhs = popStack();
+        auto rhs = popStack();
+        op_stack.push(evalAssignment(assignment, lhs, rhs));
+      }
     }
+    std::cout << "Stack size: " << op_stack.size() << std::endl;
     if (op_stack.size() != 1) {
       throw std::runtime_error("Stack not empty after evaluation!");
     }
