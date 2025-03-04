@@ -3,13 +3,12 @@
 
 namespace static_check {
 
+using ExprNodeList = std::vector<std::shared_ptr<parsetree::ast::ExprNode>>;
 using exprResolveType =
-    std::variant<std::shared_ptr<parsetree::ast::ExprNode>,
-                 std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>;
-
+    std::variant<std::shared_ptr<ExprNameLinked>,
+                 std::shared_ptr<parsetree::ast::ExprNode>, ExprNodeList>;
 using previousType =
-    std::variant<std::shared_ptr<parsetree::ast::ExprNode>,
-                 std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>;
+    std::variant<std::shared_ptr<ExprNameLinked>, ExprNodeList>;
 
 // Taken from HierarchyCheck
 bool isClass(std::shared_ptr<parsetree::ast::AstNode> decl) {
@@ -121,7 +120,8 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
           std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(node)) {
     return std::get<std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(
         node);
-  } else {
+  } else if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(
+                 node)) {
     // ExprNode
     auto expr = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(node);
     auto name = std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(expr);
@@ -150,18 +150,40 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
 
       if (child->getName() == "this") {
         if (!(child->isDeclResolved() && child->isTypeResolved())) {
+          auto currentDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(
+              currentProgram->getBody());
+          if (!currentDecl) {
+            throw std::runtime_error("current program body not Decl");
+          }
+          auto refType =
+              std::make_shared<parsetree::ast::ReferenceType>(currentDecl);
+          refType->setResolvedDecl(std::make_shared<Decl>(currentDecl));
+          child->resolveDeclAndType(currentDecl, refType);
+        }
+
+        if (!(child->isDeclResolved() && child->isTypeResolved())) {
           throw std::runtime_error("ThisNode not resolved in resolveExprNode");
         }
+        ret.push_back(child);
+        continue;
       }
+
+      auto childLinked = resolveSimpleName(std::make_shared<ExprNameLinked>(
+          ExprNameLinked::ValueType::SingleAmbiguousName, child, nullptr));
       if (child->isDeclResolved() && child->isTypeResolved()) {
-        auto resolved = recursiveReduce(child);
+        auto resolved = recursiveReduce(childLinked);
         ret.insert(ret.end(), resolved.begin(), resolved.end());
       } else {
-        auto resolved = recursiveReduce(child);
+        auto resolved = recursiveReduce(childLinked);
         ret.insert(ret.end(), resolved.begin(), resolved.end());
       }
     }
     return ret;
+  } else if (std::holds_alternative<std::shared_ptr<ExprNameLinked>>(node)) {
+    auto expr = std::get<std::shared_ptr<ExprNameLinked>>(node);
+    return recursiveReduce(expr);
+  } else {
+    throw std::runtime_error("should not happen");
   }
 }
 
@@ -180,17 +202,26 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
         canAccess =
             isAccessible(fieldDecl->getModifiers(), fieldDecl->getParent());
       }
+      std::cout << "name: " << name << " got name: " << decl->getName()
+                << " scopeVisible: " << scopeVisible
+                << " canAccess: " << canAccess << std::endl;
       return decl->getName() == name && scopeVisible && canAccess;
     }
     return false;
   };
 
+  std::cout << "lookupNamedDecl " << name << std::endl;
   if (auto classDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctx);
       classDecl) {
+    std::cout << "classDecl " << classDecl->getName()
+              << " checking inherited fields" << std::endl;
     std::shared_ptr<parsetree::ast::Decl> result = nullptr;
     for (const auto decl : hierarchyChecker->getInheritedFields(classDecl)) {
+      std::cout << "inherited field " << decl.second->getName() << std::endl;
       if (condition(decl.second)) {
+        std::cout << "found inherited field " << decl.second->getName()
+                  << std::endl;
         if (result)
           return nullptr; // Ambiguous case
         result = decl.second;
@@ -207,19 +238,20 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
 
 std::shared_ptr<parsetree::ast::Decl>
 ExprResolver::reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
-                             std::shared_ptr<parsetree::ast::SimpleName> node) {
-  if (auto decl = lookupNamedDecl(currentContext, node->getName())) {
+                             std::shared_ptr<ExprNameLinked> node) {
+  std::cout << "reclassifyDecl" << std::endl;
+  if (auto decl = lookupNamedDecl(currentContext, node->getNode()->getName())) {
     if (auto varDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl)) {
       // data->reclassify(ExprName::Type::ExpressionName, varDecl);
-      node->setValueType(parsetree::ast::ExprValue::ValueType::ExpressionName);
-      node->resolveDeclAndType(varDecl, varDecl->getType());
+      node->setValueType(ExprNameLinked::ValueType::ExpressionName);
+      node->getNode()->resolveDeclAndType(varDecl, varDecl->getType());
       return varDecl;
     } else if (auto fieldDecl =
                    std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
       // data->reclassify(ExprName::Type::ExpressionName, fieldDecl);
-      node->setValueType(parsetree::ast::ExprValue::ValueType::ExpressionName);
-      node->resolveDeclAndType(fieldDecl, fieldDecl->getType());
+      node->setValueType(ExprNameLinked::ValueType::ExpressionName);
+      node->getNode()->resolveDeclAndType(fieldDecl, fieldDecl->getType());
       return fieldDecl;
     }
   }
@@ -232,20 +264,31 @@ ExprResolver::reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
   return nullptr;
 }
 
-std::shared_ptr<parsetree::ast::SimpleName> ExprResolver::resolveSimpleName(
-    std::shared_ptr<parsetree::ast::SimpleName> expr) {
+std::shared_ptr<ExprNameLinked>
+ExprResolver::resolveSimpleName(std::shared_ptr<ExprNameLinked> expr) {
+  if (expr->getNode()->isTypeResolved() && expr->getNode()->isDeclResolved()) {
+    if (std::dynamic_pointer_cast<parsetree::ast::VarDecl>(
+            expr->getNode()->getResolvedDecl())) {
+      expr->setValueType(ExprNameLinked::ValueType::ExpressionName);
+      return expr;
+    }
+  }
   auto decl = reclassifyDecl(currentContext, expr);
   if (decl != nullptr) {
-    expr->setResolvedDecl(decl);
+    expr->getNode()->setResolvedDecl(decl);
     return expr;
   }
 
   auto &context = typeLinker->getContext(currentProgram);
-  auto import = context.find(expr->getName()) != context.end()
-                    ? context[expr->getName()]
+  auto import = context.find(expr->getNode()->getName()) != context.end()
+                    ? context[expr->getNode()->getName()]
                     : nullptr;
   if (std::holds_alternative<nullptr_t>(import)) {
-    throw std::runtime_error("No import for " + expr->getName());
+    for (auto pair : context) {
+      std::cout << pair.first << " ";
+    }
+    std::cout << std::endl;
+    throw std::runtime_error("No import for " + expr->getNode()->getName());
   }
   if (auto decl = std::get_if<std::shared_ptr<Decl>>(&import)) {
     if (!decl) {
@@ -253,46 +296,45 @@ std::shared_ptr<parsetree::ast::SimpleName> ExprResolver::resolveSimpleName(
     }
     auto declNode = (*decl)->getAstNode();
     // data->reclassify(ExprName::Type::TypeName, decl);
-    expr->setValueType(parsetree::ast::ExprValue::ValueType::TypeName);
-    if (!expr->isTypeResolved()) {
+    expr->setValueType(ExprNameLinked::ValueType::TypeName);
+    if (!expr->getNode()->isTypeResolved()) {
       auto refType = std::make_shared<parsetree::ast::ReferenceType>(declNode);
       refType->setResolvedDecl(std::make_shared<Decl>(declNode));
-      expr->resolveDeclAndType(declNode, refType);
-    } else if (!expr->isDeclResolved()) {
-      expr->setResolvedDecl(declNode);
+      expr->getNode()->resolveDeclAndType(declNode, refType);
+    } else if (!expr->getNode()->isDeclResolved()) {
+      expr->getNode()->setResolvedDecl(declNode);
     };
 
   } else if (auto pkg = std::get_if<std::shared_ptr<Package>>(&import)) {
-    expr->setValueType(parsetree::ast::ExprValue::ValueType::PackageName);
+    expr->setValueType(ExprNameLinked::ValueType::PackageName);
     // if (!expr->isDeclResolved())
     //   expr->setResolvedDecl(pkg);
   }
+  return expr;
 }
 
 std::vector<std::shared_ptr<parsetree::ast::ExprNode>>
-ExprResolver::recursiveReduce(std::shared_ptr<parsetree::ast::ExprValue> node) {
-  if (node->getValueType() !=
-      parsetree::ast::ExprValue::ValueType::ExpressionName) {
+ExprResolver::recursiveReduce(std::shared_ptr<ExprNameLinked> node) {
+  if (node->getValueType() != ExprNameLinked::ValueType::ExpressionName) {
     throw std::runtime_error("expected an expression name here");
   }
 
   // Base case
   if (!node->getPrev().has_value() ||
-      (node->getPrev()->getValueType() !=
-           parsetree::ast::ExprValue::ValueType::Other &&
-       node->getPrev()->getValueType() !=
-           parsetree::ast::ExprValue::ValueType::ExpressionName)) {
-    return std::vector<std::shared_ptr<parsetree::ast::ExprNode>>{node};
+      (node->prevAsLinked() && node->prevAsLinked()->getValueType() !=
+                                   ExprNameLinked::ValueType::ExpressionName)) {
+    return std::vector<std::shared_ptr<parsetree::ast::ExprNode>>{
+        node->getNode()};
   }
 
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>> list;
-  if (auto prev = node->getPrev()) {
+  if (auto prev = node->prevAsLinked()) {
     list = recursiveReduce(prev);
   } else {
     list = std::get<std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(
         node->getPrev().value());
   }
-  list.push_back(node);
+  list.push_back(node->getNode());
   if (!node->getOp()) {
     throw std::runtime_error("expected an operator here");
   }
@@ -306,11 +348,13 @@ ExprResolver::recursiveReduce(std::shared_ptr<parsetree::ast::ExprValue> node) {
 
 exprResolveType
 ExprResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &node) {
+  std::cout << "mapping value" << std::endl;
   return node;
 }
 
 exprResolveType ExprResolver::evalQualifiedName(
     std::shared_ptr<parsetree::ast::QualifiedName> &node) {
+  std::cout << "evaluating qualified name" << std::endl;
   // todo
   return resolveExprNode(node);
 }
@@ -318,6 +362,7 @@ exprResolveType ExprResolver::evalQualifiedName(
 exprResolveType
 ExprResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
                         const exprResolveType lhs, const exprResolveType rhs) {
+  std::cout << "evaluating binop" << std::endl;
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>> ret;
   auto lhsVec = resolveExprNode(lhs);
   auto rhsVec = resolveExprNode(rhs);
@@ -331,6 +376,7 @@ ExprResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
 exprResolveType
 ExprResolver::evalUnOp(std::shared_ptr<parsetree::ast::UnOp> &op,
                        const exprResolveType rhs) {
+  std::cout << "evaluating unop" << std::endl;
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>> ret;
   auto rhsVec = resolveExprNode(rhs);
   ret.reserve(rhsVec.size() + 1);
@@ -343,55 +389,79 @@ exprResolveType
 ExprResolver::evalFieldAccess(std::shared_ptr<parsetree::ast::FieldAccess> &op,
                               const exprResolveType lhs,
                               const exprResolveType id) {
+  std::cout << "evaluating field access" << std::endl;
   previousType prev;
   if (std::holds_alternative<
           std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(lhs)) {
     prev =
         std::get<std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(lhs);
-  } else {
+  } else if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(
+                 lhs)) {
     auto node = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(lhs);
-    auto nodeVal = std::dynamic_pointer_cast<parsetree::ast::ExprValue>(node);
-    if (!nodeVal)
-      throw std::runtime_error("cannot cast to ExprValue");
-    if (nodeVal->getValueType() !=
-        parsetree::ast::ExprValue::ValueType::Other) {
-      prev = nodeVal;
+    if (std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(node)) {
+      throw std::runtime_error("breakpoint for QualifiedName in field access");
+    } else if (std::dynamic_pointer_cast<parsetree::ast::SimpleName>(node)) {
+      throw std::runtime_error("breakpoint for SimpleName in field access");
+    } else if (auto literal =
+                   std::dynamic_pointer_cast<parsetree::ast::Literal>(node)) {
+      if (!literal->isString())
+        throw std::runtime_error("accessing field on non string literal");
+      prev = ExprNodeList{literal};
     } else {
-      if (auto name =
-              std::dynamic_pointer_cast<parsetree::ast::SimpleName>(node)) {
-        // todo
-        throw std::runtime_error("breakpoint for simple name");
-      } else if (auto name =
-                     std::dynamic_pointer_cast<parsetree::ast::QualifiedName>(
-                         node)) {
-        // todo
-        throw std::runtime_error("breakpoint for qualified name");
-      } else if (auto literal =
-                     std::dynamic_pointer_cast<parsetree::ast::Literal>(node)) {
-        if (!literal->isString())
-          throw std::runtime_error("accessing field on non string literal");
-        prev = std::vector<std::shared_ptr<parsetree::ast::ExprNode>>{literal};
-      } else {
-        throw std::runtime_error(
-            "cannot resolve field access due to bad grammar");
-      }
+      throw std::runtime_error(
+          "cannot resolve field access due to bad grammar");
     }
+  } else if (std::holds_alternative<std::shared_ptr<ExprNameLinked>>(lhs)) {
+    prev = std::get<std::shared_ptr<ExprNameLinked>>(lhs);
+  } else {
+    throw std::runtime_error("should not reach here");
   }
 
-  if (auto exprNodePtr =
-          std::get_if<std::shared_ptr<parsetree::ast::ExprNode>>(&prev)) {
-    auto node =
-        std::dynamic_pointer_cast<parsetree::ast::ExprValue>(*exprNodePtr);
-    if (node->getValueType() !=
-            parsetree::ast::ExprValue::ValueType::ExpressionName &&
-        node->getValueType() !=
-            parsetree::ast::ExprValue::ValueType::TypeName &&
-        node->getValueType() !=
-            parsetree::ast::ExprValue::ValueType::PackageName) {
+  auto exprNodePtr = std::get_if<std::shared_ptr<ExprNameLinked>>(&prev);
+  if (exprNodePtr) {
+    auto node = *exprNodePtr;
+    if (node->getValueType() != ExprNameLinked::ValueType::ExpressionName &&
+        node->getValueType() != ExprNameLinked::ValueType::TypeName &&
+        node->getValueType() != ExprNameLinked::ValueType::PackageName) {
       throw std::runtime_error("cannot resolve field access due to bad "
                                "grammar, not expr type or package namew");
     }
   }
+
+  auto exprNode = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(id);
+  //  // Special case: If "Id" in Q . Id is a method name, then defer resolution
+
+  // Now grab the id and cast it to the appropriate type
+  auto fieldNode =
+      std::dynamic_pointer_cast<parsetree::ast::SimpleName>(exprNode);
+  if (!fieldNode)
+    throw std::runtime_error("Malformed node. Expected SimpleName here.");
+  // Allocate a new node as the member access to represent "Id" in Lhs . Id
+  auto newPrev = std::make_shared<ExprNameLinked>(
+      ExprNameLinked::ValueType::SingleAmbiguousName, fieldNode, op);
+  newPrev->setPrev(prev);
+  // And we can build the reduced expression now
+  // 1. If the previous node is a wrapper, then newPrev can be anything
+  // 2. If the previous is a list, then newPrev must be ExpressionName
+  //    FIXME: Is this true? What about (Class).Field?
+  if (exprNodePtr) {
+    switch ((*exprNodePtr)->getValueType()) {
+    case ExprNameLinked::ValueType::ExpressionName:
+      // resolveFieldAccess(newPrev);
+      break;
+    case ExprNameLinked::ValueType::TypeName:
+      // resolveTypeAccess(newPrev);
+      break;
+    case ExprNameLinked::ValueType::PackageName:
+      // resolvePackageAccess(newPrev);
+      break;
+    default:
+      throw std::runtime_error("should not reach here");
+    }
+  } else {
+    // resolveFieldAccess(newPrev);
+  }
+  return newPrev;
 }
 
 exprResolveType ExprResolver::evalMethodInvocation(
@@ -413,6 +483,7 @@ exprResolveType
 ExprResolver::evalNewArray(std::shared_ptr<parsetree::ast::ArrayCreation> &op,
                            const exprResolveType type,
                            const exprResolveType size) {
+  std::cout << "evaluating for new array" << std::endl;
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>> ret;
   if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(type)) {
     auto typeNode = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(type);
@@ -430,6 +501,7 @@ exprResolveType
 ExprResolver::evalArrayAccess(std::shared_ptr<parsetree::ast::ArrayAccess> &op,
                               const exprResolveType array,
                               const exprResolveType index) {
+  std::cout << "evaluating for array access" << std::endl;
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>> ret;
   auto arrayVec = resolveExprNode(array);
   auto indexVec = resolveExprNode(index);
@@ -444,6 +516,7 @@ exprResolveType
 ExprResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
                        const exprResolveType type,
                        const exprResolveType value) {
+  std::cout << "evaluating for cast" << std::endl;
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>> ret;
   if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(type)) {
     auto typeNode = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(type);
@@ -460,6 +533,7 @@ ExprResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
 bool ExprResolver::isAccessible(
     std::shared_ptr<parsetree::ast::Modifiers> mod,
     std::shared_ptr<parsetree::ast::CodeBody> parent) {
+  std::cout << "checking accessibility" << std::endl;
   // 6.6.1
   if (mod->isPublic())
     return true;

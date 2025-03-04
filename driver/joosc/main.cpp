@@ -15,9 +15,9 @@
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
-#include "staticCheck/nameDisambiguator.hpp"
+// #include "staticCheck/nameDisambiguator.hpp"
 #include "staticCheck/typeLinker.hpp"
-#include "staticCheck/exprResolver.hpp"
+// #include "staticCheck/exprResolver.hpp"
 // #include "staticCheck/typeResolver.hpp"
 
 #include <memory>
@@ -115,6 +115,7 @@ int main(int argc, char **argv) {
       try {
         if (parse_tree->is_corrupted())
           throw std::runtime_error("Parse tree is invalid");
+        std::cout << "Visiting parse tree..." << std::endl;
         ast = visitor.visitProgramDecl(parse_tree);
       } catch (const std::exception &ex) {
         std::cerr << "Runtime error: " << ex.what() << std::endl;
@@ -142,7 +143,7 @@ int main(int argc, char **argv) {
         return EXIT_ERROR;
       }
       astManager->addAST(ast);
-      // std::cout << "Parsed " << fileName << std::endl;
+      std::cout << "Parsed " << fileName << std::endl;
     }
 
     std::cout << "Passed AST constructions\n";
@@ -168,13 +169,15 @@ int main(int argc, char **argv) {
     }
     std::cout << "Passed hierarchy check\n";
 
-    // name disambiguation
-    auto nameDisambiguator = std::make_shared<static_check::NameDisambiguator>(
-        astManager, typeLinker, hierarchyChecker);
-    nameDisambiguator->resolve();
+    // // name disambiguation
+    // auto nameDisambiguator =
+    // std::make_shared<static_check::NameDisambiguator>(
+    //     astManager, typeLinker, hierarchyChecker);
+    // nameDisambiguator->resolve();
 
-    auto exprResolver = std::make_shared<static_check::ExprResolver>(astManager);
-    exprResolver->resolve();
+    // auto exprResolver =
+    // std::make_shared<static_check::ExprResolver>(astManager,
+    // hierarchyChecker, typeLinker); exprResolver->resolve();
 
     // // type resolution
     // std::shared_ptr<static_check::EnvManager> env =

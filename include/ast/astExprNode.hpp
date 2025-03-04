@@ -8,25 +8,14 @@ namespace parsetree::ast {
 
 class ExprValue : public ExprNode {
 public:
-  enum class ValueType {
-    PackageName,
-    TypeName,
-    ExpressionName,
-    MethodName,
-    Other
-  };
-
-  explicit ExprValue()
-      : decl_{nullptr}, type_{nullptr}, valueType_{ValueType::Other} {}
+  explicit ExprValue() : decl_{nullptr}, type_{nullptr} {}
 
   std::shared_ptr<Decl> getResolvedDecl() const { return decl_; }
   std::shared_ptr<Type> getType() const { return type_; }
-  ValueType getValueType() const { return valueType_; }
 
   void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
     this->decl_ = resolvedDecl;
   }
-  void setValueType(ValueType valueType) { this->valueType_ = valueType; }
 
   virtual bool isDeclResolved() const { return decl_ != nullptr; }
   bool isTypeResolved() const { return type_ != nullptr; }
@@ -42,7 +31,9 @@ public:
       throw std::runtime_error("Decl already resolved");
     decl_ = decl;
     if (type_ && type != type_)
-      throw std::runtime_error("Type already resolved");
+      throw std::runtime_error("Type already resolved with " +
+                               type_->toString() + " instead of " +
+                               type->toString());
     if (type && !type->isResolved())
       throw std::runtime_error("Type not resolved");
     type_ = type;
@@ -51,7 +42,6 @@ public:
 private:
   std::shared_ptr<Decl> decl_;
   std::shared_ptr<Type> type_;
-  ValueType valueType_;
 };
 
 class Literal : public ExprValue {
@@ -154,6 +144,32 @@ private:
   std::vector<std::shared_ptr<SimpleName>> simpleNames;
 };
 
+class MemberName : public ExprNode {
+public:
+  MemberName(std::string_view name) : name{name} {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(Member name: " << name << ")";
+    return os;
+  }
+
+  // Getters
+  std::string getName() const { return name; }
+
+private:
+  std::string name;
+};
+
+class MethodName : public MemberName {
+public:
+  MethodName(std::string_view name) : MemberName{name} {}
+
+  std::ostream &print(std::ostream &os) const override {
+    os << "(Method name: " << getName() << ")";
+    return os;
+  }
+};
+
 class UnresolvedTypeExpr : public ExprNode, public UnresolvedType {
 public:
   UnresolvedTypeExpr() : UnresolvedType() {}
@@ -187,6 +203,14 @@ public:
   bool isDeclResolved() const override { return true; }
 };
 
+class ThisNode : public ExprNode {
+public:
+  std::ostream &print(std::ostream &os) const override {
+    os << "(This)";
+    return os;
+  }
+};
+
 class Separator : public ExprNode {
 public:
   std::ostream &print(std::ostream &os) const { return os << " (|) "; }
@@ -195,26 +219,11 @@ public:
 // Operators /////////////////////////////////////////////////////////////
 
 class ExprOp : public ExprNode {
-public:
-  int nargs() const { return num_args; }
-
-  std::shared_ptr<Type> resolveResultType(std::shared_ptr<Type> type) {
-    if (resultType)
-      throw std::runtime_error("Result type already resolved");
-    if (type && !type->isResolved())
-      throw std::runtime_error("Type not resolved");
-    resultType = type;
-    return type;
-  }
-
-  std::shared_ptr<Type> getResultType() const { return resultType; }
-
 protected:
   ExprOp(int num_args) : num_args{num_args} {}
 
 private:
   int num_args;
-  std::shared_ptr<Type> resultType;
 };
 
 // For AST
@@ -229,8 +238,6 @@ public:
     os << "(UnOp " << magic_enum::enum_name(op) << ")";
     return os;
   }
-
-  OpType getOp() const { return op; }
 
 private:
   OpType op;
@@ -266,8 +273,6 @@ public:
     return os;
   }
 
-  OpType getOp() const { return op; }
-
 private:
   OpType op;
 };
@@ -283,20 +288,29 @@ public:
 };
 
 class MethodInvocation : public ExprOp {
+  std::vector<std::shared_ptr<ast::ExprNode>> qualifiedIdentifier;
+
 public:
-  MethodInvocation(int num_args, bool needsDisambiguation = false)
-      : ExprOp(num_args), needsDisambiguation{needsDisambiguation} {}
-
-  bool getNeedsDisambiguation() const { return needsDisambiguation; }
-
-  std::ostream &print(std::ostream &os) const override {
-    os << "(MethodInvocation: " << nargs() - 1 << " args"
-       << ")";
-    return os;
+  MethodInvocation(int num_args,
+                   std::vector<std::shared_ptr<ast::ExprNode>> &qid)
+      : ExprOp(num_args), qualifiedIdentifier{qid} {}
+  std::vector<std::shared_ptr<ast::ExprNode>> &getQualifiedIdentifier() {
+    return qualifiedIdentifier;
   }
 
-private:
-  bool needsDisambiguation;
+  std::ostream &print(std::ostream &os) const override {
+    os << "(MethodInvocation: ";
+    for (const auto &qid : qualifiedIdentifier) {
+      if (!qid) {
+        os << "null";
+      } else {
+        qid->print(os);
+      }
+      os << " ";
+    }
+    os << ")";
+    return os;
+  }
 };
 
 class ClassCreation : public ExprOp {
@@ -311,10 +325,11 @@ public:
 
 class FieldAccess : public ExprOp {
 public:
-  FieldAccess(int num_args) : ExprOp(num_args) {}
+  // Question: Why 1?
+  FieldAccess() : ExprOp(1) {}
 
   std::ostream &print(std::ostream &os) const override {
-    os << "(FieldAccess " << nargs() << ")";
+    os << "(FieldAccess)";
     return os;
   }
 };

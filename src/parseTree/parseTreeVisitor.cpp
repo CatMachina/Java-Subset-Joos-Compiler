@@ -12,6 +12,7 @@ using NodePtr = std::shared_ptr<Node>;
 
 std::shared_ptr<ast::ProgramDecl>
 ParseTreeVisitor::visitProgramDecl(const NodePtr &node) {
+  std::cout << "Visiting ProgramDecl" << std::endl;
   // Validate the node
   check_node_type(node, NodeType::ProgramDecl);
   check_num_children(node, 3, 3);
@@ -47,6 +48,7 @@ ParseTreeVisitor::visitProgramDecl(const NodePtr &node) {
 
 std::shared_ptr<ast::ReferenceType>
 ParseTreeVisitor::visitPackageDecl(const NodePtr &node) {
+  std::cout << "Visiting PackageDecl" << std::endl;
   if (!node)
     return envManager.BuildUnresolvedType();
   check_node_type(node, NodeType::PackageDecl);
@@ -75,6 +77,7 @@ ParseTreeVisitor::visit<NodeType::ImportDeclList>(const NodePtr &node) {
 
 std::shared_ptr<ast::ClassDecl>
 ParseTreeVisitor::visitClassDecl(const NodePtr &node) {
+  std::cout << "Visiting ClassDecl" << std::endl;
   check_node_type(node, NodeType::ClassDecl);
   check_num_children(node, 5, 5);
   envManager.ResetFieldScope();
@@ -102,6 +105,7 @@ ParseTreeVisitor::visitClassDecl(const NodePtr &node) {
 
 std::shared_ptr<ast::ReferenceType>
 ParseTreeVisitor::visitSuper(const NodePtr &node) {
+  std::cout << "Visiting Super" << std::endl;
   if (!node)
     return nullptr;
   check_node_type(node, NodeType::SuperClass);
@@ -134,6 +138,7 @@ ParseTreeVisitor::visit<NodeType::ClassBodyDeclList>(const NodePtr &node) {
 
 std::shared_ptr<ast::FieldDecl>
 ParseTreeVisitor::visitFieldDecl(const NodePtr &node) {
+  std::cout << "Visiting FieldDecl" << std::endl;
   check_node_type(node, NodeType::FieldDecl);
   check_num_children(node, 3, 3);
 
@@ -150,6 +155,7 @@ ParseTreeVisitor::visitFieldDecl(const NodePtr &node) {
 
 std::shared_ptr<ast::MethodDecl>
 ParseTreeVisitor::visitMethodDecl(const NodePtr &node) {
+  std::cout << "Visiting MethodDecl" << std::endl;
   check_node_type(node, NodeType::MethodDecl);
   check_num_children(node, 4, 5);
 
@@ -178,6 +184,7 @@ ParseTreeVisitor::visitMethodDecl(const NodePtr &node) {
 
 std::shared_ptr<ast::MethodDecl>
 ParseTreeVisitor::visitConstructorDecl(const NodePtr &node) {
+  std::cout << "Visiting ConstructorDecl" << std::endl;
   check_node_type(node, NodeType::ConstructorDecl);
   check_num_children(node, 4, 4);
 
@@ -216,6 +223,7 @@ ParseTreeVisitor::visit<NodeType::ParameterList>(const NodePtr &node) {
 
 std::shared_ptr<ast::InterfaceDecl>
 ParseTreeVisitor::visitInterfaceDecl(const NodePtr &node) {
+  std::cout << "Visiting InterfaceDecl" << std::endl;
   check_node_type(node, NodeType::InterfaceDecl);
   check_num_children(node, 4, 4);
   envManager.ResetFieldScope();
@@ -241,8 +249,11 @@ ParseTreeVisitor::visitInterfaceDecl(const NodePtr &node) {
 
 std::shared_ptr<ast::MethodDecl>
 ParseTreeVisitor::visitAbstractMethodDecl(const NodePtr &node) {
+  std::cout << "Visiting AbstractMethodDecl" << std::endl;
   check_node_type(node, NodeType::AbstractMethodDecl);
   check_num_children(node, 3, 4);
+
+  envManager.ClearLocalScope();
 
   std::shared_ptr<ast::Modifiers> modifiers =
       std::make_shared<ast::Modifiers>(visitModifierList(node->child_at(0)));
@@ -255,6 +266,7 @@ ParseTreeVisitor::visitAbstractMethodDecl(const NodePtr &node) {
   visitListPattern<NodeType::ParameterList, std::shared_ptr<ast::VarDecl>,
                    true>(node->child_at(type ? 3 : 2), params);
 
+  std::cout << "Visiting ParameterList finish" << std::endl;
   // need to set as abstract
   if (!modifiers->isAbstract()) {
     modifiers->setAbstract();
@@ -274,6 +286,7 @@ ParseTreeVisitor::visit<NodeType::InterfaceBodyDeclList>(const NodePtr &node) {
 
 void ParseTreeVisitor::visitStatementList(
     const NodePtr &node, std::vector<std::shared_ptr<ast::Stmt>> &statements) {
+  std::cout << "Visiting StatementList" << std::endl;
   check_node_type(node, NodeType::StatementList);
   check_num_children(node, 1, 2);
   auto statement = node->child_at(0);
@@ -289,6 +302,7 @@ void ParseTreeVisitor::visitStatementList(
 
 std::shared_ptr<ast::Stmt>
 ParseTreeVisitor::visitStatement(const NodePtr &node) {
+  std::cout << "Visiting Statement" << std::endl;
   switch (node->get_node_type()) {
   case NodeType::Block:
     return visitBlock(node);
@@ -312,6 +326,7 @@ ParseTreeVisitor::visitStatement(const NodePtr &node) {
 }
 
 std::shared_ptr<ast::Block> ParseTreeVisitor::visitBlock(const NodePtr &node) {
+  std::cout << "Visiting Block" << std::endl;
   check_node_type(node, NodeType::Block);
   check_num_children(node, 1, 1);
   // TODO: check implementation
@@ -331,6 +346,7 @@ std::shared_ptr<ast::Block> ParseTreeVisitor::visitBlock(const NodePtr &node) {
 
 std::shared_ptr<ast::ReturnStmt>
 ParseTreeVisitor::visitReturnStatement(const NodePtr &node) {
+  std::cout << "Visiting ReturnStatement" << std::endl;
   check_node_type(node, NodeType::ReturnStatement);
   check_num_children(node, 0, 1);
   if (node->child_at(0) == nullptr) {
@@ -343,6 +359,7 @@ ParseTreeVisitor::visitReturnStatement(const NodePtr &node) {
 
 std::shared_ptr<ast::IfStmt>
 ParseTreeVisitor::visitIfStatement(const NodePtr &node) {
+  std::cout << "Visiting IfStatement" << std::endl;
   check_node_type(node, NodeType::IfStatement);
   check_num_children(node, 2, 3);
 
@@ -361,6 +378,7 @@ ParseTreeVisitor::visitIfStatement(const NodePtr &node) {
 
 std::shared_ptr<ast::WhileStmt>
 ParseTreeVisitor::visitWhileStatement(const NodePtr &node) {
+  std::cout << "Visiting WhileStatement" << std::endl;
   check_node_type(node, NodeType::WhileStatement);
   check_num_children(node, 2, 2);
 
@@ -378,6 +396,7 @@ ParseTreeVisitor::visitWhileStatement(const NodePtr &node) {
 
 std::shared_ptr<ast::ForStmt>
 ParseTreeVisitor::visitForStatement(const NodePtr &node) {
+  std::cout << "Visiting ForStatement" << std::endl;
   check_node_type(node, NodeType::ForStatement);
   check_num_children(node, 4, 4);
 
@@ -417,6 +436,7 @@ ParseTreeVisitor::visitForStatement(const NodePtr &node) {
 
 std::shared_ptr<ast::ExpressionStmt>
 ParseTreeVisitor::visitExprStatement(const NodePtr &node) {
+  std::cout << "Visiting ExprStatement" << std::endl;
   check_node_type(node, NodeType::ExprStatement);
   check_num_children(node, 1, 1);
   if (!node->child_at(0)) {
@@ -429,6 +449,7 @@ ParseTreeVisitor::visitExprStatement(const NodePtr &node) {
 ParseTreeVisitor::VariableDecl
 ParseTreeVisitor::visitLocalDecl(const NodePtr &typeNode,
                                  const NodePtr &declNode) {
+  std::cout << "Visiting LocalDecl" << std::endl;
   check_node_type(declNode, NodeType::Variable);
   check_num_children(declNode, 1, 2);
 
@@ -443,6 +464,7 @@ ParseTreeVisitor::visitLocalDecl(const NodePtr &typeNode,
 
 std::shared_ptr<ast::DeclStmt>
 ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
+  std::cout << "Visiting LocalDeclStatement" << std::endl;
   check_node_type(node, NodeType::LocalDeclStatement);
   check_num_children(node, 1, 1);
 
@@ -460,6 +482,7 @@ ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
 
 std::shared_ptr<ast::UnresolvedType> ParseTreeVisitor::visitReferenceType(
     const NodePtr &node, std::shared_ptr<ast::UnresolvedType> ast_node) {
+  std::cout << "Visiting ReferenceType" << std::endl;
   check_node_type(node, NodeType::QualifiedName);
   check_num_children(node, 1, 2);
 
@@ -477,12 +500,15 @@ std::shared_ptr<ast::UnresolvedType> ParseTreeVisitor::visitReferenceType(
 }
 
 std::string ParseTreeVisitor::visitIdentifier(const NodePtr &node) {
+  std::cout << "Visiting Identifier ";
+  node->print(std::cout);
   check_node_type(node, NodeType::Identifier);
   return std::dynamic_pointer_cast<Identifier>(node)->get_name();
 }
 
 ast::Modifiers ParseTreeVisitor::visitModifierList(const NodePtr &node,
                                                    ast::Modifiers modifiers) {
+  std::cout << "Visiting ModifierList" << std::endl;
   if (!node) {
     return modifiers;
   }
@@ -499,6 +525,7 @@ ast::Modifiers ParseTreeVisitor::visitModifierList(const NodePtr &node,
 }
 
 Modifier ParseTreeVisitor::visitModifier(const NodePtr &node) {
+  std::cout << "Visiting Modifier" << std::endl;
   check_node_type(node, NodeType::Modifier);
   return *std::dynamic_pointer_cast<Modifier>(node);
 }
@@ -521,6 +548,7 @@ ast::BasicType::Type ParseTreeVisitor::getAstBasicType(BasicType::Type type) {
 }
 
 std::shared_ptr<ast::Type> ParseTreeVisitor::visitType(const NodePtr &node) {
+  std::cout << "Visiting Type" << std::endl;
   check_num_children(node, 1, 1);
 
   auto innerType = node->child_at(0);

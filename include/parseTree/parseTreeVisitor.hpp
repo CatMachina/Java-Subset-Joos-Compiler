@@ -158,8 +158,8 @@ public:
   [[nodiscard]] std::shared_ptr<ast::ExprNode>
   visitArrayTypeInExpr(const NodePtr &node);
 
-  [[nodiscard]] std::shared_ptr<ast::QualifiedName>
-  visitQualifiedIdentifierInExpr(const NodePtr &node);
+  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  visitQualifiedIdentifierInExpr(const NodePtr &node, bool isMethod = false);
 
   [[nodiscard]] std::vector<std::string>
   visitUnresolvedTypeExpr(const NodePtr &node);
@@ -167,6 +167,19 @@ public:
   std::shared_ptr<ast::ExprNode> visitBasicType(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::Expr> visitExpression(const NodePtr &node);
+
+  [[nodiscard]] ast::UnOp::OpType
+  getUnOpType(const std::shared_ptr<Operator> &node);
+
+  [[nodiscard]] ast::BinOp::OpType
+  getBinOpType(const std::shared_ptr<Operator> &node);
+
+  [[nodiscard]] std::shared_ptr<ast::UnOp> visitUnOp(const NodePtr &node);
+
+  [[nodiscard]] std::shared_ptr<ast::BinOp> visitBinOp(const NodePtr &node);
+
+  [[nodiscard]] std::shared_ptr<ast::StatementExpr>
+  visitStatementExpr(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitFieldAccess(const NodePtr &node);
@@ -203,15 +216,5 @@ public:
 
 private:
   static_check::EnvManager envManager;
-
-  // Helpers
-
-  [[nodiscard]] ast::UnOp::OpType
-  getUnOpType(const std::shared_ptr<Operator> &node);
-
-  [[nodiscard]] ast::BinOp::OpType
-  getBinOpType(const std::shared_ptr<Operator> &node);
-
-  void insertSeparator(std::vector<std::shared_ptr<ast::ExprNode>> &exprNodes);
 };
 } // namespace parsetree

@@ -17,6 +17,7 @@ public:
   }
 
   struct {
+    std::shared_ptr<ClassDecl> Arrays;
     std::shared_ptr<ClassDecl> Boolean;
     std::shared_ptr<ClassDecl> Byte;
     std::shared_ptr<ClassDecl> Character;

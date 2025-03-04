@@ -41,22 +41,21 @@ public:
 class Decl : virtual public AstNode {
 protected:
   std::string name;
-  std::shared_ptr<CodeBody> parent;
+  std::weak_ptr<CodeBody> parent;
 
 public:
-  explicit Decl(std::string name) : name{name}, parent{nullptr} {}
+  explicit Decl(std::string name) : name{name} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
   [[nodiscard]] std::shared_ptr<CodeBody> getParent() const noexcept {
-    return parent;
+    std::cout << "Decl::getParent()" << std::endl;
+    return parent.lock();
   }
-  virtual void setParent(std::shared_ptr<CodeBody> parent) {
-    if (this->parent)
-      throw std::runtime_error("parent already set!");
-    this->parent = parent;
-  }
+
+  virtual void setParent(CodeBody *rawParent);
 };
 
-class CodeBody : virtual public AstNode {
+class CodeBody : virtual public AstNode,
+                 public std::enable_shared_from_this<CodeBody> {
 public:
   std::vector<std::shared_ptr<Decl>> getDecls() const {
     std::vector<std::shared_ptr<Decl>> declVector;
@@ -82,6 +81,7 @@ public:
   [[nodiscard]] virtual bool isNull() const { return false; };
   [[nodiscard]] virtual bool isNumeric() const { return false; }
   [[nodiscard]] virtual bool isBoolean() const { return false; }
+  [[nodiscard]] virtual bool isArray() const { return false; }
 
   std::ostream &print(std::ostream &os) const { return os << toString(); }
 };
@@ -226,8 +226,7 @@ public:
   }
 };
 
-class ProgramDecl : public CodeBody,
-                    public std::enable_shared_from_this<ProgramDecl> {
+class ProgramDecl : public CodeBody {
   std::shared_ptr<ReferenceType> package;
   std::vector<std::shared_ptr<ImportDecl>> imports;
   std::shared_ptr<CodeBody> body;
@@ -334,7 +333,7 @@ public:
     return methods;
   }
 
-  void setParent(std::shared_ptr<CodeBody> parent) override;
+  void setParent(CodeBody *parent) override;
 
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 
@@ -385,7 +384,7 @@ public:
     return interfaces;
   }
 
-  void setParent(std::shared_ptr<CodeBody> parent) override;
+  void setParent(CodeBody *parent) override;
 };
 
 class VarDecl : public Decl {
@@ -413,7 +412,7 @@ public:
   }
 };
 
-class FieldDecl : public VarDecl {
+class FieldDecl final : public VarDecl {
   std::shared_ptr<Modifiers> modifiers;
 
 public:
@@ -424,7 +423,7 @@ public:
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 
-  void setParent(std::shared_ptr<CodeBody> parent) override;
+  void setParent(CodeBody *parent) override;
 };
 
 class MethodDecl : public Decl {
@@ -488,7 +487,7 @@ public:
     return signature;
   }
 
-  void setParent(std::shared_ptr<CodeBody> parent) override;
+  void setParent(CodeBody *parent) override;
 
   std::shared_ptr<Type> getReturnType() { return returnType; }
   std::shared_ptr<Block> getMethodBody() { return methodBody; }
@@ -707,6 +706,7 @@ public:
   }
 
   bool isResolved() const override { return elementType->isResolved(); }
+  bool isArray() const override { return true; }
 
   std::shared_ptr<Type> getElementType() const { return elementType; }
 
