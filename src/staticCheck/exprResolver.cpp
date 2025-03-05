@@ -617,6 +617,9 @@ ExprResolver::evalNewObject(std::shared_ptr<parsetree::ast::ClassCreation> &op,
   if (std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(rType)) {
     std::cout << "rType is unresolved type" << std::endl;
   }
+  if (!rType->isResolved()) {
+    typeLinker->resolveType(rType, currentProgram);
+  }
   std::cout << "rType: " << rType->toString()
             << " is resolved? :  " << rType->isResolved() << std::endl;
   auto typeAsDecl = rType->getAsDecl();

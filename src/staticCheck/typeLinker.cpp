@@ -258,7 +258,9 @@ TypeLinker::resolveImport(const std::vector<std::string> &identifiers) {
   return current;
 }
 
-void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
+void TypeLinker::resolveType(
+    std::shared_ptr<parsetree::ast::Type> type,
+    std::shared_ptr<parsetree::ast::ProgramDecl> program) {
   // only resolve if not resolved
   auto unresolvedType =
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(type);
@@ -274,9 +276,11 @@ void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
   bool first = true;
   for (auto &id : unresolvedType->getIdentifiers()) {
     if (first) {
-      currentType = resolveSimpleName(id);
+      currentType = resolveSimpleName(id, program);
       if (std::holds_alternative<std::nullptr_t>(currentType)) {
-        throw std::runtime_error("Could not resolve type at " + id);
+        throw std::runtime_error(
+            "Could not resolve type at " + id +
+            " due to failed resolveSimpleName at resolveType");
       }
       first = false;
     } else {
@@ -327,7 +331,9 @@ Package::packageChild TypeLinker::resolveQualifiedName(
     if (first) {
       current = resolveSimpleName(id, program);
       if (std::holds_alternative<std::nullptr_t>(current)) {
-        throw std::runtime_error("Could not resolve type at " + id);
+        throw std::runtime_error(
+            "Could not resolve type at " + id +
+            " due to failed resolveSimpleName at resolveType");
       }
       first = false;
       continue;

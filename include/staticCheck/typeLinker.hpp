@@ -34,7 +34,9 @@ public:
   Package::packageChild
   resolveImport(const std::vector<std::string> &identifiers);
 
-  void resolveType(std::shared_ptr<parsetree::ast::Type> type);
+  void
+  resolveType(std::shared_ptr<parsetree::ast::Type> type,
+              std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
 
   Package::packageChild resolveSimpleName(
       const std::string &simpleName,
