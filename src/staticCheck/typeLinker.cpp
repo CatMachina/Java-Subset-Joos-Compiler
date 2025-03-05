@@ -364,12 +364,6 @@ void TypeLinker::populateJavaLang() {
     throw std::runtime_error("Could not resolve io package");
   }
 
-  auto utilPackage =
-      std::get<std::shared_ptr<Package>>(javaPackage->children["util"]);
-  if (!utilPackage) {
-    throw std::runtime_error("Could not resolve util package");
-  }
-
   auto getClassDecl =
       [](const auto &package,
          const std::string &key) -> std::shared_ptr<parsetree::ast::ClassDecl> {
@@ -384,11 +378,6 @@ void TypeLinker::populateJavaLang() {
         std::get<std::shared_ptr<Decl>>(package->children.at(key))
             ->getAstNode());
   };
-
-  astManager->java_lang.Arrays = getClassDecl(utilPackage, "Arrays");
-  if (!astManager->java_lang.Arrays) {
-    throw std::runtime_error("Could not resolve java.lang.Arrays");
-  }
 
   astManager->java_lang.Boolean = getClassDecl(langPackage, "Boolean");
   if (!astManager->java_lang.Boolean) {
@@ -450,6 +439,34 @@ void TypeLinker::populateJavaLang() {
   if (!astManager->java_lang.Serializable) {
     throw std::runtime_error("Could not resolve java.io.Serializable");
   }
+
+  // Add Hardcoded array
+  std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> interfaces{};
+  std::vector<std::shared_ptr<parsetree::ast::Decl>> body{};
+  std::vector<std::shared_ptr<parsetree::ast::VarDecl>> emptyParams{};
+  std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> emptyImports{};
+
+  auto lengthModifier = std::make_shared<parsetree::ast::Modifiers>();
+  auto publicModifier = std::make_shared<parsetree::ast::Modifiers>();
+
+  lengthModifier->set(parsetree::Modifier::Type::Public);
+  lengthModifier->set(parsetree::Modifier::Type::Final);
+  publicModifier->set(parsetree::Modifier::Type::Public);
+
+  auto type = std::make_shared<parsetree::ast::BasicType>(
+      parsetree::BasicType::Type::Int);
+  auto length =
+      envManager->BuildFieldDecl(lengthModifier, type, "length", nullptr, true);
+  auto nullBlock = std::make_shared<parsetree::ast::Block>();
+  auto constructor =
+      envManager->BuildMethodDecl(publicModifier, "_hardcoded_array", nullptr,
+                                  emptyParams, true, nullBlock);
+  body.push_back(length);
+  body.push_back(constructor);
+  astManager->java_lang.Array = envManager->BuildClassDecl(
+      publicModifier, "_hardcoded_array", nullptr, interfaces, body);
+  (void)envManager->BuildProgramDecl(nullptr, emptyImports,
+                                     astManager->java_lang.Array);
 }
 
 } // namespace static_check

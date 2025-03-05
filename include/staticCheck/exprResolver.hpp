@@ -32,7 +32,7 @@ GetTypeAsDecl(std::shared_ptr<parsetree::ast::Type> type,
     return manager->java_lang.String;
   } else if (type->isArray()) {
     std::cout << "GetTypeAsDecl array" << std::endl;
-    return manager->java_lang.Arrays;
+    return manager->java_lang.Array;
   } else {
     std::cout << "GetTypeAsDecl null" << std::endl;
     return nullptr;

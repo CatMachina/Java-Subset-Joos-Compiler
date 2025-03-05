@@ -268,6 +268,8 @@ public:
   }
 
   bool isDefaultPackage() const {
+    if (!package)
+      return true;
     auto pkg = std::dynamic_pointer_cast<UnresolvedType>(package);
     if (!pkg)
       throw std::runtime_error("Package wrong type in program decl!");
@@ -485,7 +487,7 @@ class FieldDecl final : public VarDecl {
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
             std::string name, std::shared_ptr<Expr> initializer,
-            std::shared_ptr<ScopeID> scope);
+            std::shared_ptr<ScopeID> scope, bool allowFinal = false);
 
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }

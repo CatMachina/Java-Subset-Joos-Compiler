@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast/ast.hpp"
+#include "envManager.hpp"
 #include "environment.hpp"
 #include <memory>
 
@@ -8,8 +9,9 @@ namespace static_check {
 
 class TypeLinker {
 public:
-  TypeLinker(std::shared_ptr<parsetree::ast::ASTManager> astManager)
-      : astManager(astManager) {
+  TypeLinker(std::shared_ptr<parsetree::ast::ASTManager> astManager,
+             std::shared_ptr<EnvManager> envManager)
+      : astManager(astManager), envManager(envManager) {
     rootPackage = std::make_shared<Package>();
     // add the default package
     rootPackage->addPackage(DEFAULT_PACKAGE_NAME);
@@ -58,6 +60,7 @@ private:
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> ast);
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
+  std::shared_ptr<EnvManager> envManager;
   std::shared_ptr<Package> rootPackage; // no decl
   std::unordered_map<std::shared_ptr<parsetree::ast::ProgramDecl>,
                      std::unordered_map<std::string, Package::packageChild>>

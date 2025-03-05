@@ -34,12 +34,12 @@ std::shared_ptr<parsetree::ast::ClassDecl> EnvManager::BuildClassDecl(
 std::shared_ptr<parsetree::ast::FieldDecl> EnvManager::BuildFieldDecl(
     const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
     const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
-    const std::shared_ptr<parsetree::ast::Expr> &init) {
+    const std::shared_ptr<parsetree::ast::Expr> &init, bool allowFinal) {
   auto scopeID = NextFieldScopeID();
   std::cout << "BuildFieldDecl: name=" << name
             << " scopeID=" << (scopeID ? scopeID->toString() : "") << std::endl;
   return std::make_shared<parsetree::ast::FieldDecl>(modifiers, type, name,
-                                                     init, scopeID);
+                                                     init, scopeID, allowFinal);
 }
 
 std::shared_ptr<parsetree::ast::MethodDecl> EnvManager::BuildMethodDecl(

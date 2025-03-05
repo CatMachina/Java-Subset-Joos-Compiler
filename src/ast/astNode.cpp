@@ -343,12 +343,12 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
                      std::shared_ptr<Type> type, std::string name,
                      std::shared_ptr<Expr> initializer,
-                     std::shared_ptr<ScopeID> scope)
+                     std::shared_ptr<ScopeID> scope, bool allowFinal)
     : modifiers{modifiers}, VarDecl{type, name, initializer, scope} {
   if (!modifiers) {
     throw std::runtime_error("Field Decl Invalid modifiers.");
   }
-  if (modifiers->isFinal()) {
+  if (!allowFinal && modifiers->isFinal()) {
     throw std::runtime_error("A field cannot be final");
   }
   if (modifiers->isAbstract()) {

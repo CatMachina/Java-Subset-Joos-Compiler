@@ -208,9 +208,8 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
   };
 
   std::cout << "lookupNamedDecl " << name << std::endl;
-  if (auto classDecl =
-          std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctx);
-      classDecl) {
+  auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctx);
+  if (classDecl && (ctx != astManager->java_lang.Array)) {
     // Search in the declared set
     std::cout << "classDecl " << classDecl->getName()
               << " checking declared fields" << std::endl;
@@ -844,7 +843,8 @@ void ExprResolver::resolveTypeAccess(std::shared_ptr<ExprNameLinked> access) {
   // We note this must be a class type or we have a type error
   auto type = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(typeOrDecl);
   if (!type) {
-    throw std::runtime_error("static member access to non-class type");
+    throw std::runtime_error("static member access to non-class type for " +
+                             name);
   }
   // Now we check if "name" is a field of "decl".
   std::cout << "checking if name is in decl" << std::endl;

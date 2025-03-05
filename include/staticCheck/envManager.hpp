@@ -33,7 +33,8 @@ public:
   BuildFieldDecl(const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
                  const std::shared_ptr<parsetree::ast::Type> &type,
                  std::string name,
-                 const std::shared_ptr<parsetree::ast::Expr> &init);
+                 const std::shared_ptr<parsetree::ast::Expr> &init,
+                 bool allowFinal = false);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::MethodDecl> BuildMethodDecl(
       const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,

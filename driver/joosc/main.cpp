@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
 
     source::SourceManager sm = source::SourceManager();
     auto astManager = std::make_shared<parsetree::ast::ASTManager>();
+    auto env = std::make_shared<static_check::EnvManager>();
 
     std::cout << "Starting compilation..." << std::endl;
 
@@ -134,7 +135,6 @@ int main(int argc, char **argv) {
 
       // Build AST from the parse tree
       std::shared_ptr<parsetree::ast::ProgramDecl> ast;
-      static_check::EnvManager env;
       parsetree::ParseTreeVisitor visitor{env};
       try {
         if (parse_tree->is_corrupted())
@@ -173,7 +173,8 @@ int main(int argc, char **argv) {
     std::cout << "Passed AST constructions\n";
 
     // environment (symbol table) building + type linking
-    auto typeLinker = std::make_shared<static_check::TypeLinker>(astManager);
+    auto typeLinker =
+        std::make_shared<static_check::TypeLinker>(astManager, env);
     std::shared_ptr<static_check::Package> rootPackage =
         typeLinker->getRootPackage();
     rootPackage->printStructure();
@@ -203,8 +204,6 @@ int main(int argc, char **argv) {
     //     astManager, typeLinker, hierarchyChecker);
     // nameDisambiguator->resolve();
 
-    std::shared_ptr<static_check::EnvManager> env =
-        std::make_shared<static_check::EnvManager>();
     auto typeResolver =
         std::make_shared<static_check::TypeResolver>(astManager, env);
 

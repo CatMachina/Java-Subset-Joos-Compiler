@@ -16,7 +16,7 @@ using NodePtr = std::shared_ptr<Node>;
 class ParseTreeVisitor {
 
 public:
-  ParseTreeVisitor(static_check::EnvManager &envManager)
+  ParseTreeVisitor(std::shared_ptr<static_check::EnvManager> envManager)
       : envManager{envManager} {}
 
 private:
@@ -215,6 +215,6 @@ public:
   [[nodiscard]] std::shared_ptr<ast::Type> visitType(const NodePtr &node);
 
 private:
-  static_check::EnvManager envManager;
+  std::shared_ptr<static_check::EnvManager> envManager;
 };
 } // namespace parsetree
