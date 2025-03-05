@@ -38,7 +38,7 @@ class Variable;
 // trie tree structure
 class Package {
 
-  std::string_view name;
+  std::string name;
 
 public:
   using packageChild = std::variant<std::shared_ptr<Package>,
@@ -48,13 +48,13 @@ public:
   std::unordered_map<std::string, packageChild> children;
 
   explicit Package() {} // for root
-  explicit Package(std::string_view packageName) : name(packageName) {}
+  explicit Package(std::string packageName) : name(packageName) {}
 
-  bool hasChild(std::string_view childName) {
+  bool hasChild(std::string childName) {
     return children.find(std::string(childName)) != children.end();
   }
 
-  std::shared_ptr<Package> addPackage(std::string_view childName) {
+  std::shared_ptr<Package> addPackage(std::string childName) {
     if (!hasChild(childName)) {
       children[std::string(childName)] = std::make_shared<Package>(childName);
     }
@@ -66,7 +66,7 @@ public:
     return std::get<std::shared_ptr<Package>>(children[std::string(childName)]);
   }
 
-  packageChild getChild(std::string_view childName) {
+  packageChild getChild(std::string childName) {
     auto it = children.find(std::string(childName));
     return (it != children.end()) ? it->second : nullptr;
   }

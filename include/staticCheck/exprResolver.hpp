@@ -167,7 +167,7 @@ private:
 
   std::shared_ptr<parsetree::ast::Decl>
   lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
-                  std::string_view name);
+                  std::string name);
 
   std::shared_ptr<parsetree::ast::Decl>
   reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
@@ -195,7 +195,7 @@ private:
   std::shared_ptr<parsetree::ast::CodeBody>
   getMethodParent(std::shared_ptr<ExprNameLinked> method) const;
   std::shared_ptr<parsetree::ast::MethodDecl> resolveMethodOverload(
-      std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string_view name,
+      std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string name,
       const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes,
       bool isConstructor);
   bool areParameterTypesApplicable(

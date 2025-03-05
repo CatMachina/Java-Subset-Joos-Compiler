@@ -166,7 +166,7 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
 
 std::shared_ptr<parsetree::ast::Decl>
 ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
-                              std::string_view name) {
+                              std::string name) {
   auto condition = [name, this](std::shared_ptr<parsetree::ast::Decl> decl) {
     if (auto typedDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl);
@@ -190,25 +190,29 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
                 << " canAccess: " << canAccess << std::endl;
       return sameName && scopeVisible && canAccess;
     }
-    return false;
+    // TODO: fix?
     // auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl);
-    // auto fieldDecl =
-    // std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl); bool
-    // nameMatch = decl->getName() == name; if (fieldDecl) {
+    // auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl);
+    // bool nameMatch = decl->getName() == name;
+    // if (fieldDecl) {
     //   // A field
-    //   bool canAccess = isAccessible(fieldDecl->getModifiers(),
-    //   fieldDecl->getParent()); return nameMatch && canAccess;
+    //   bool canAccess = isAccessible(fieldDecl->getModifiers(), fieldDecl->getParent());
+    //   return nameMatch && canAccess;
     // } else if (varDecl) {
     //   // A local variable
     //   bool scopeVisible = !currentScope ||
-    //   currentScope->canView(varDecl->getScope()); return nameMatch &&
-    //   scopeVisible;
+    //   currentScope->canView(varDecl->getScope());
+    //   return nameMatch && scopeVisible;
     // }
     // return false;
   };
 
   std::cout << "lookupNamedDecl " << name << std::endl;
   auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctx);
+  if (!classDecl) std::cout << "No current class?" << std::endl;
+  auto methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(ctx);
+  if (methodDecl) std::cout << "We are in a method" << std::endl;
+
   if (classDecl && (ctx != astManager->java_lang.Array)) {
     // Search in the declared set
     std::cout << "classDecl " << classDecl->getName()
@@ -253,18 +257,18 @@ ExprResolver::reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
                              std::shared_ptr<ExprNameLinked> node) {
   std::cout << "reclassifyDecl" << std::endl;
   if (auto decl = lookupNamedDecl(currentContext, node->getNode()->getName())) {
-    if (auto varDecl =
+    if (auto fieldDecl =
+          std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
+    // data->reclassify(ExprName::Type::ExpressionName, fieldDecl);
+    node->setValueType(ExprNameLinked::ValueType::ExpressionName);
+    node->getNode()->resolveDeclAndType(fieldDecl, fieldDecl->getType());
+    return fieldDecl;
+    } else if (auto varDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl)) {
       // data->reclassify(ExprName::Type::ExpressionName, varDecl);
       node->setValueType(ExprNameLinked::ValueType::ExpressionName);
       node->getNode()->resolveDeclAndType(varDecl, varDecl->getType());
       return varDecl;
-    } else if (auto fieldDecl =
-                   std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
-      // data->reclassify(ExprName::Type::ExpressionName, fieldDecl);
-      node->setValueType(ExprNameLinked::ValueType::ExpressionName);
-      node->getNode()->resolveDeclAndType(fieldDecl, fieldDecl->getType());
-      return fieldDecl;
     }
   }
   if (auto ctxDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(ctx)) {
@@ -956,7 +960,7 @@ ExprResolver::getMethodParent(std::shared_ptr<ExprNameLinked> method) const {
 }
 
 std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
-    std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string_view name,
+    std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string name,
     const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes,
     bool isConstructor) {
   std::cout << "resolveMethodOverload" << std::endl;

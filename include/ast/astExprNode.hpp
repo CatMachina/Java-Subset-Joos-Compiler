@@ -146,7 +146,7 @@ private:
 
 class MemberName : public ExprValue {
 public:
-  MemberName(std::string_view name) : ExprValue{}, name{name} {}
+  MemberName(std::string name) : ExprValue{}, name{name} {}
 
   std::ostream &print(std::ostream &os) const override {
     os << "(Member name: " << name << ")";
@@ -162,7 +162,7 @@ private:
 
 class MethodName : public MemberName {
 public:
-  MethodName(std::string_view name) : MemberName{name} {}
+  MethodName(std::string name) : MemberName{name} {}
 
   std::ostream &print(std::ostream &os) const override {
     os << "(Method name: " << getName() << ")";
@@ -382,7 +382,7 @@ public:
   }
 };
 
-static uint8_t parseChar(std::string_view value) {
+static uint8_t parseChar(std::string value) {
   // Consume ' first, next value is either \ or a character
   // If it is a character, just return that character
   if (value.at(1) != '\\')
@@ -425,7 +425,7 @@ static uint8_t parseChar(std::string_view value) {
   }
 }
 
-static void unescapeString(std::string_view in, std::string &out) {
+static void unescapeString(std::string in, std::string &out) {
   // minor: String literals are broken for now
   for (size_t i = 1; i < in.length(); i++) {
     char c = in.at(i);
