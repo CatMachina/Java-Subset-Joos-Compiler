@@ -24,6 +24,30 @@
 
 #define EXIT_ERROR 42
 
+// void checkLinked(std::shared_ptr<parsetree::ast::AstNode> node) {
+//   if (!node)
+//     throw std::runtime_error("Node is null when resolving AST");
+
+//   for (auto child : node->getChildren()) {
+//     if (!child)
+//       continue;
+
+//     // Case: Type
+//     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
+//       if (!(type->isResolved())) {
+//         type->print(std::cout);
+//         std::cout << " not resolved" << std::endl;
+//         // throw std::runtime_error(" Type still not resolved after
+//         typeLinking");
+//       }
+//     }
+//     // Case: regular code
+//     else {
+//       checkLinked(child);
+//     }
+//   }
+// }
+
 // hack
 bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
   if (!node)
@@ -106,7 +130,7 @@ int main(int argc, char **argv) {
         return EXIT_ERROR;
       }
 
-      // parse_tree->print(std::cerr);
+      // if (file_number == 1) parse_tree->print(std::cout);
 
       // Build AST from the parse tree
       std::shared_ptr<parsetree::ast::ProgramDecl> ast;
@@ -168,6 +192,10 @@ int main(int argc, char **argv) {
       return EXIT_ERROR;
     }
     std::cout << "Passed hierarchy check\n";
+
+    // for (auto &ast : astManager->getASTs()) {
+    //   checkLinked(ast);
+    // }
 
     // // name disambiguation
     // auto nameDisambiguator =

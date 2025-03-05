@@ -16,11 +16,29 @@ public:
   std::shared_ptr<Type> getType() const { return type_; }
 
   void setResolvedDecl(const std::shared_ptr<Decl> resolvedDecl) {
+    if (!resolvedDecl)
+      throw std::runtime_error("setResolvedDecl Decl cannot be null");
     this->decl_ = resolvedDecl;
+    std::cout << "setResolvedDecl done decl" << std::endl;
+    if (type_) {
+      auto refType = std::dynamic_pointer_cast<ReferenceType>(type_);
+      if (!refType)
+        return;
+      if (!(refType->isResolved()))
+        refType->setResolvedDecl(
+            std::make_shared<static_check::Decl>(resolvedDecl));
+    }
   }
 
   virtual bool isDeclResolved() const { return decl_ != nullptr; }
-  bool isTypeResolved() const { return type_ != nullptr; }
+  bool isTypeResolved() const {
+    if (!type_)
+      return false;
+    if (auto refType = std::dynamic_pointer_cast<ReferenceType>(type_)) {
+      return refType->isResolved();
+    }
+    return true;
+  }
 
   std::ostream &print(std::ostream &os) const override {
     os << "(ExprValue " << type_->toString() << ", " << decl_->getName() << ")";
@@ -29,6 +47,10 @@ public:
 
   void resolveDeclAndType(std::shared_ptr<Decl> decl,
                           std::shared_ptr<Type> type) {
+    if (!decl)
+      throw std::runtime_error("resolveDeclAndType Decl cannot be null");
+    if (!type)
+      throw std::runtime_error("resolveDeclAndType Type cannot be null");
     if (decl_ && decl != decl_)
       throw std::runtime_error("Decl already resolved");
     decl_ = decl;

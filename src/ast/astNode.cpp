@@ -3,7 +3,6 @@
 namespace parsetree::ast {
 
 void Decl::setParent(std::shared_ptr<CodeBody> rawParent) {
-  std::cout << "Decl::setParent" << std::endl;
   if (rawParent == nullptr)
     throw std::runtime_error("parent cannot be null!");
   // if (!this->parent.expired())
@@ -13,7 +12,6 @@ void Decl::setParent(std::shared_ptr<CodeBody> rawParent) {
   //     rawParent
   //         ->weak_from_this(); // Store as weak_ptr to avoid ownership issues
   this->parent = rawParent;
-  std::cout << "Decl::setParent done" << std::endl;
 }
 
 ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,

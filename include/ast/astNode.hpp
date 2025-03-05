@@ -47,7 +47,6 @@ public:
   explicit Decl(std::string name) : name{name} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
   [[nodiscard]] std::shared_ptr<CodeBody> getParent() const noexcept {
-    std::cout << "Decl::getParent()" << std::endl;
     return parent.lock();
   }
 
@@ -278,7 +277,6 @@ public:
   std::ostream &print(std::ostream &os) const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::cout << "ProgramDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(package));
     for (const auto &node : imports) {
@@ -348,7 +346,6 @@ public:
   }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::cout << "ClassDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     for (const auto &node : classBodyDecls) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
@@ -411,7 +408,6 @@ public:
   std::ostream &print(std::ostream &os) const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::cout << "InterfaceDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     for (const auto &node : interfaces) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
@@ -476,7 +472,6 @@ public:
   std::shared_ptr<ScopeID> getScope() const { return scope; }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::cout << "VarDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(type));
     children.push_back(std::dynamic_pointer_cast<AstNode>(initializer));
@@ -529,7 +524,6 @@ public:
   bool hasBody() const { return methodBody != nullptr; };
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::cout << "MethodDecl getChildren" << std::endl;
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(returnType));
     for (const auto &node : params) {
@@ -976,3 +970,20 @@ private:
 };
 
 } // namespace parsetree::ast
+
+namespace static_check {
+class Decl {
+  std::shared_ptr<parsetree::ast::Decl> astNode;
+
+public:
+  explicit Decl(std::shared_ptr<parsetree::ast::Decl> node) : astNode(node) {}
+  void printDecl(int depth = 0) const {
+    for (int i = 0; i < depth; ++i)
+      std::cout << "  ";
+    std::cout << "(Decl: " << astNode->getName() << ")"
+              << "\n";
+  }
+  std::string getName() const { return astNode->getName(); }
+  std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode; }
+};
+} // namespace static_check

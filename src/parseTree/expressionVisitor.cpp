@@ -61,9 +61,6 @@ AstBinOp ParseTreeVisitor::getBinOpType(const std::shared_ptr<Operator> &node) {
 std::shared_ptr<ast::Expr>
 ParseTreeVisitor::visitExpression(const NodePtr &node) {
   // TODO: Code looks repetitive. Will fix later
-  std::cout << "Visiting Expression ";
-  node->print(std::cout);
-  std::cout << std::endl;
   switch (node->get_node_type()) {
   case NodeType::Expression:
     return std::make_shared<ast::Expr>(visitExprNode(node),
@@ -125,9 +122,6 @@ ParseTreeVisitor::visitExpression(const NodePtr &node) {
 
 std::vector<std::shared_ptr<ast::ExprNode>>
 ParseTreeVisitor::visitExprNode(const NodePtr &node) {
-  std::cout << "Visiting ExprNode ";
-  node->print(std::cout);
-  std::cout << std::endl;
   check_node_type(node, NodeType::Expression);
   check_num_children(node, 1, 3);
 

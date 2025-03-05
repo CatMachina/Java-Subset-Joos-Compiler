@@ -141,6 +141,8 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
       auto refType =
           std::make_shared<parsetree::ast::ReferenceType>(currentDecl);
       refType->setResolvedDecl(std::make_shared<Decl>(currentDecl));
+      if (!refType->getResolvedDecl())
+        throw std::runtime_error("resolved decl not sets");
       thisNode->resolveDeclAndType(currentDecl, refType);
     }
 
@@ -286,11 +288,14 @@ ExprResolver::resolveMemberName(std::shared_ptr<ExprNameLinked> expr) {
     }
   }
   auto decl = reclassifyDecl(currentContext, expr);
+  std::cout << "resolveMemberName reclassfy decl done" << std::endl;
   if (decl != nullptr) {
+    std::cout << "resolveMemberName found decl" << std::endl;
     expr->getNode()->setResolvedDecl(decl);
     return expr;
   }
 
+  std::cout << "resolveMemberName resolve import" << std::endl;
   auto &context = typeLinker->getContext(currentProgram);
   auto import = context.find(expr->getNode()->getName()) != context.end()
                     ? context[expr->getNode()->getName()]
@@ -601,20 +606,20 @@ ExprResolver::evalNewObject(std::shared_ptr<parsetree::ast::ClassCreation> &op,
 
   // Check if the type is abstract
   std::cout << "checking if type is abstract" << std::endl;
-  if (std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
+  if (std::dynamic_pointer_cast<parsetree::ast::UnresolvedTypeExpr>(
           expr->getType())) {
-    if (std::dynamic_pointer_cast<parsetree::ast::UnresolvedTypeExpr>(
-            expr->getType())) {
-      std::cout << "UnresolvedTypeExpr..." << std::endl;
-    }
-    throw std::runtime_error("New object should not be unresolved type");
+    std::cout << "UnresolvedTypeExpr..." << std::endl;
   }
   auto rType =
       std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(expr->getType());
   if (!rType) {
     throw std::runtime_error("New object not reference type");
   }
-  std::cout << "rType: " << rType->toString() << std::endl;
+  if (std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(rType)) {
+    std::cout << "rType is unresolved type" << std::endl;
+  }
+  std::cout << "rType: " << rType->toString()
+            << " is resolved? :  " << rType->isResolved() << std::endl;
   auto typeAsDecl = rType->getAsDecl();
   if (!typeAsDecl)
     typeAsDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(
@@ -839,15 +844,16 @@ void ExprResolver::resolveTypeAccess(std::shared_ptr<ExprNameLinked> access) {
   // We note this must be a class type or we have a type error
   auto type = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(typeOrDecl);
   if (!type) {
-    throw std::runtime_error("static member access to non-class type: " +
-                             typeOrDecl->getName());
+    throw std::runtime_error("static member access to non-class type");
   }
   // Now we check if "name" is a field of "decl".
+  std::cout << "checking if name is in decl" << std::endl;
   auto field = lookupNamedDecl(type, name);
   if (!field) {
     throw std::runtime_error("type access failed for " + name);
   }
   // With the additional constraint that the field must be static
+  std::cout << "checking if field is static" << std::endl;
   std::shared_ptr<parsetree::ast::Modifiers> mods;
   if (auto fieldDecl =
           std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(field)) {

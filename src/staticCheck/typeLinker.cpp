@@ -67,9 +67,14 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     // Case: Type
     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
       // if not resolved, resolve.
-      if (!type->isResolved()) {
+      if (!(type->isResolved())) {
         resolveType(type);
+        std::cout << "Resolving type: ";
+        type->print(std::cout);
+        std::cout << std::endl;
       }
+      if (!(type->isResolved()))
+        throw std::runtime_error("Type still not resolved after resolveType");
     }
     // Case: regular code
     else {
