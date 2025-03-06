@@ -168,6 +168,8 @@ int main(int argc, char **argv) {
       }
       astManager->addAST(ast);
       std::cout << "Parsed " << fileName << std::endl;
+      std::cout << "Constructed AST: \n";
+      ast->print(std::cout);
     }
 
     std::cout << "Passed AST constructions\n";

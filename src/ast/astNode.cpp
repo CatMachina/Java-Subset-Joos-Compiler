@@ -365,19 +365,316 @@ FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
   }
 }
 
+std::ostream &AstNode::printIndent(std::ostream &os, int indent) const {
+  for (int i = 0; i < indent; ++i) {
+    os << "  ";
+  }
+  return os;
+}
+
 // Prints
-std::ostream &InterfaceDecl::print(std::ostream &os) const {
+std::ostream &InterfaceDecl::print(std::ostream &os, int indent) const {
   os << "InterfaceDecl {}\n";
   return os;
 }
 
-std::ostream &ProgramDecl::print(std::ostream &os) const {
-  os << "ProgramDecl {}\n";
+std::ostream &ProgramDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(ProgramDecl \n";
+
+  // Print Package (For some reason, we're not using PackageDecl)
+  printIndent(os, indent + 1);
+  os << "(Package \n";
+  package->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << ")\n";
+
+  // Print imports
+  for (auto &importDecl : imports) {
+    importDecl->print(os, indent + 1);
+  }
+
+  // Print Body
+  body->print(os, indent + 1);
+  printIndent(os, indent);
+  os << ")\n";
   return os;
 }
 
-std::ostream &ClassDecl::print(std::ostream &os) const {
-  os << "ClassDecl {}\n";
+std::ostream &ImportDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(ImportDecl \n";
+  qualifiedIdentifier->print(os, indent + 1);
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+// It seems like we never instantiate a PackageDecl...
+std::ostream &PackageDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(PackageDecl \n";
+  qualifiedIdentifier->print(os, indent + 1);
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &ClassDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(ClassDecl \n";
+  // Print Modifiers
+  printIndent(os, indent + 1);
+  os << "modifiers: {\n";
+  printIndent(os, indent + 2);
+  os << *modifiers << "\n";
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print Superclasses
+  printIndent(os, indent + 1);
+  os << "superClasses: {\n";
+  for (auto &superClass : superClasses) {
+    if (superClass) {
+      superClass->print(os, indent + 2);
+    }
+  }
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print Interfaces
+  printIndent(os, indent + 1);
+  os << "interfaces: [";
+  bool interfaceNewline = false;
+  for (auto &interface : interfaces) {
+    if (interface) {
+      os << "\n";
+      interface->print(os, indent + 2);
+      interfaceNewline = true;
+    }
+  }
+  if (interfaceNewline) {
+    os << "\n";
+    printIndent(os, indent + 1);
+  }
+  os << "]\n";
+
+  // Print Object Type
+  if (objectType) {
+    objectType->print(os, indent + 1);
+  }
+
+  // Print Body
+  for (auto &decl : classBodyDecls) {
+    if (decl) {
+      decl->print(os, indent + 1);
+    }
+  }
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &VarDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(VarDecl \n";
+
+  // Print Type
+  type->print(os, indent + 1);
+
+  // Print Scope
+  printIndent(os, indent + 1);
+  os << "ScopeID: " << *scope << "\n";
+
+  // Print Initializer
+  if (initializer) {
+    printIndent(os, indent + 1);
+    os << "Initializer: { \n";
+    initializer->print(os, indent + 2);
+    printIndent(os, indent + 1);
+    os << "}\n";
+  } else {
+    printIndent(os, indent + 1);
+    os << "Initializer: N/A\n";
+  }
+
+  printIndent(os, indent);
+  os << ")\n";
+
+  return os;
+}
+
+std::ostream &MethodDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(MethodDecl \n";
+
+  // Print Modifiers
+  printIndent(os, indent + 1);
+  os << "modifiers: {\n";
+  printIndent(os, indent + 2);
+  os << *modifiers << "\n";
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print Type
+  if (isConstructor_) {
+    printIndent(os, indent + 1);
+    os << "IsConstructor: True\n";
+  } else {
+    printIndent(os, indent + 1);
+    os << "IsConstructor: True\n";
+    printIndent(os, indent + 1);
+    os << "Return Type: ";
+    if (returnType)
+      returnType->print(os);
+    else
+      os << "Void\n";
+  }
+
+  // Print Params
+  printIndent(os, indent + 1);
+  os << "params: [";
+  bool paramsFirst = true;
+  for (auto &param : params) {
+    if (paramsFirst)
+      os << "\n";
+    if (param) {
+      param->print(os, indent + 2);
+    }
+    paramsFirst = false;
+  }
+  if (!paramsFirst)
+    printIndent(os, indent + 1);
+  os << "]\n";
+
+  // Print LocalDecls
+  printIndent(os, indent + 1);
+  os << "localDecls: [";
+  bool localDeclsFirst = true;
+  for (auto &localDecl : localDecls) {
+    if (localDeclsFirst)
+      os << "\n";
+    if (localDecl) {
+      localDecl->print(os, indent + 2);
+    }
+    localDeclsFirst = false;
+  }
+  if (!localDeclsFirst)
+    printIndent(os, indent + 1);
+  os << "]\n";
+
+  // Print Body
+  methodBody->print(os, indent + 1);
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &Block::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(Block \n";
+
+  // Print Statements
+  for (auto &statement : statements) {
+    statement->print(os, indent + 1);
+  };
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &IfStmt::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(IfStmt \n";
+
+  // Print condition
+  printIndent(os, indent + 1);
+  os << "condition: { \n";
+  condition->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print If
+  printIndent(os, indent + 1);
+  os << "ifBody: { \n";
+  ifBody->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print Else
+  if (elseBody) {
+    printIndent(os, indent + 1);
+    os << "elseBody: { \n";
+    ifBody->print(os, indent + 2);
+    printIndent(os, indent + 1);
+    os << "}\n";
+  }
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &WhileStmt::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(WhileStmt \n";
+
+  // Print condition
+  printIndent(os, indent + 1);
+  os << "condition: { \n";
+  condition->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print body
+  printIndent(os, indent + 1);
+  os << "whileBody: { \n";
+  whileBody->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &ForStmt::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(ForStmt \n";
+
+  // Print forInit
+  printIndent(os, indent + 1);
+  os << "forInit: { \n";
+  forInit->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print condition
+  printIndent(os, indent + 1);
+  os << "condition: { \n";
+  condition->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print forUpdate
+  printIndent(os, indent + 1);
+  os << "forUpdate: { \n";
+  forUpdate->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print forBody
+  printIndent(os, indent + 1);
+  os << "forBody: { \n";
+  forBody->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  printIndent(os, indent);
+  os << ")\n";
   return os;
 }
 

@@ -40,8 +40,11 @@ public:
     return true;
   }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(ExprValue " << type_->toString() << ", " << decl_->getName() << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ExprValue ";
+    os << type_->toString() << ", " << decl_->getName();
+    os << ")\n";
     return os;
   }
 
@@ -82,9 +85,10 @@ public:
   //   this->resolvedDecl = resolvedDecl;
   // }
 
-  std::ostream &print(std::ostream &os) const override {
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
     os << "(Simple Name " << name << ", shouldBeStatic: " << shouldBeStatic
-       << ")";
+       << ")\n";
     return os;
   }
 
@@ -117,8 +121,9 @@ public:
     simpleNames.push_back(simpleName);
   }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(QualifiedName: ";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(QualifiedName ";
     bool first = true;
     for (const auto &simpleName : simpleNames) {
       if (first) {
@@ -128,7 +133,7 @@ public:
         os << "." << simpleName->getName();
       }
     }
-    os << ")";
+    os << ")\n";
     return os;
   }
 
@@ -148,8 +153,9 @@ class MemberName : public ExprValue {
 public:
   MemberName(std::string name) : ExprValue{}, name{name} {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(Member name: " << name << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Member name " << name << ")\n";
     return os;
   }
 
@@ -164,8 +170,9 @@ class MethodName : public MemberName {
 public:
   MethodName(std::string name) : MemberName{name} {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(Method name: " << getName() << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Method name " << getName() << ")\n";
     return os;
   }
 };
@@ -173,12 +180,21 @@ public:
 class UnresolvedTypeExpr : public ExprNode, public UnresolvedType {
 public:
   UnresolvedTypeExpr() : UnresolvedType() {}
-  std::ostream &print(std::ostream &os) const override {
-    os << "(UnresolvedTypeExpr: ";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    ExprNode::printIndent(os, indent);
+    os << "(UnresolvedTypeExpr ";
+    bool first = true;
     for (const auto &id : getIdentifiers()) {
-      os << id << ".";
+      {
+        if (first) {
+          os << id;
+          first = false;
+        } else {
+          os << "." << id;
+        }
+      }
+      os << ")\n";
     }
-    os << ")";
     return os;
   }
 };
@@ -189,10 +205,12 @@ class TypeNode : public ExprValue {
 public:
   TypeNode(std::shared_ptr<Type> type) : ExprValue{type} {};
 
-  std::ostream &print(std::ostream &os) const {
-    return os << "(Type: " << getType()->toString() << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const {
+    printIndent(os, indent);
+    return os << "(Type " << getType()->toString() << ")\n";
   }
-  // std::shared_ptr<Type> getUnresolvedType() const { return unresolvedType; }
+  // std::shared_ptr<Type> getUnresolvedType() const { return unresolvedType;
+  // }
 
   // std::vector<std::shared_ptr<AstNode>> getChildren() const override {
   //   std::vector<std::shared_ptr<AstNode>> children;
@@ -205,15 +223,19 @@ public:
 
 class ThisNode : public ExprValue {
 public:
-  std::ostream &print(std::ostream &os) const override {
-    os << "(This)";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(This)\n";
     return os;
   }
 };
 
 class Separator : public ExprNode {
 public:
-  std::ostream &print(std::ostream &os) const { return os << " (|) "; }
+  std::ostream &print(std::ostream &os, int indent = 0) const {
+    // Don't know what this is for, not putting an indent
+    return os << " (|) ";
+  }
 };
 
 // Operators /////////////////////////////////////////////////////////////
@@ -248,8 +270,11 @@ public:
   enum class OpType { Not, Plus, Minus };
   UnOp(OpType op) : ExprOp{1}, op{op} {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(UnOp " << magic_enum::enum_name(op) << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(UnOp ";
+    os << magic_enum::enum_name(op);
+    os << ")\n";
     return os;
   }
 
@@ -284,8 +309,10 @@ public:
   };
   BinOp(OpType op) : ExprOp{2}, op{op} {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(BinOp " << magic_enum::enum_name(op) << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(BinOp ";
+    os << magic_enum::enum_name(op) << ")\n";
     return os;
   }
 
@@ -299,8 +326,9 @@ class Assignment : public ExprOp {
 public:
   Assignment() : ExprOp(2){};
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(Assignment)";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Assignment)\n";
     return os;
   }
 };
@@ -316,17 +344,23 @@ public:
     return qualifiedIdentifier;
   }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(MethodInvocation: ";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(MethodInvocation ";
+    bool first = true;
     for (const auto &qid : qualifiedIdentifier) {
+      if (first)
+        os << "\n";
       if (!qid) {
         os << "null";
       } else {
+        printIndent(os, indent + 1);
         qid->print(os);
       }
-      os << " ";
+      first = false;
     }
-    os << ")";
+    printIndent(os, indent);
+    os << ")\n";
     return os;
   }
 };
@@ -335,8 +369,9 @@ class ClassCreation : public ExprOp {
 public:
   ClassCreation(int num_args) : ExprOp(num_args) {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(ClassCreation)";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ClassCreation)\n";
     return os;
   }
 };
@@ -346,8 +381,9 @@ public:
   // Question: Why 1?
   FieldAccess() : ExprOp(1) {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(FieldAccess)";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(FieldAccess)\n";
     return os;
   }
 };
@@ -356,8 +392,9 @@ class ArrayCreation : public ExprOp {
 public:
   ArrayCreation() : ExprOp(2) {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(ArrayCreation)";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ArrayCreation)\n";
     return os;
   }
 };
@@ -366,8 +403,9 @@ class ArrayAccess : public ExprOp {
 public:
   ArrayAccess() : ExprOp(2) {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(ArrayAccess)";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ArrayAccess)\n";
     return os;
   }
 };
@@ -376,8 +414,9 @@ class Cast : public ExprOp {
 public:
   Cast() : ExprOp(2) {}
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(Cast)";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Cast)\n";
     return os;
   }
 };
@@ -491,12 +530,14 @@ public:
     }
   }
 
-  std::ostream &print(std::ostream &os) const override {
-    // os << "(Literal " << magic_enum::enum_name(type) << ", " << value << ")";
-    // return os;
-    os << "(Literal ";
-    getBasicType()->print(os);
-    os << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    // os << "(Literal " << magic_enum::enum_name(type) << ", " << value <<
+    // ")"; return os;
+    printIndent(os, indent);
+    os << "(Literal \n";
+    getBasicType()->print(os, indent + 1);
+    printIndent(os, indent);
+    os << ")\n";
     return os;
   }
 

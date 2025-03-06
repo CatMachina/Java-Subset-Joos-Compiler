@@ -31,11 +31,16 @@ class ScopeID;
 class CodeBody;
 
 class AstNode {
+protected:
+  std::ostream &printIndent(std::ostream &os, int indent = 0) const;
+
 public:
   virtual ~AstNode() = default;
   virtual std::vector<std::shared_ptr<AstNode>> getChildren() const {
     return std::vector<std::shared_ptr<AstNode>>();
   }
+
+  virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
 };
 
 class Decl : virtual public AstNode {
@@ -90,17 +95,30 @@ public:
     return nullptr;
   }
 
-  std::ostream &print(std::ostream &os) const { return os << toString(); }
+  // std::ostream &print(std::ostream &os, int indent = 0) const override {
+  //   if (!toString().empty())
+  //     printIndent(os, indent);
+  //   return os << toString();
+  // }
 };
 
-class Stmt : public AstNode {};
+class Stmt : public AstNode {
+public:
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    return os << "(Stmt)";
+  }
+};
 
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 
 class ExprNode : public AstNode {
 public:
   virtual ~ExprNode() = default;
-  virtual std::ostream &print(std::ostream &os) const = 0;
+  // virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    return os << "(ExprNode)";
+  }
 };
 
 class Expr : public AstNode {
@@ -133,13 +151,14 @@ public:
     return exprNodes.back();
   }
 
-  std::ostream &print(std::ostream &os) const {
-    os << "(Expr: ";
+  std::ostream &print(std::ostream &os, int indent = 0) const {
+    printIndent(os, indent);
+    os << "(Expr \n";
     for (const auto &exprNode : exprNodes) {
-      exprNode->print(os);
-      os << " ";
+      exprNode->print(os, indent + 1);
     }
-    return os << ")";
+    printIndent(os, indent);
+    return os << ")\n";
   }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
@@ -178,6 +197,12 @@ public:
   }
 
   std::shared_ptr<static_check::Decl> getResolvedDecl() { return resolvedDecl; }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ReferenceType " << toString() << ")\n";
+    return os;
+  }
 };
 
 class UnresolvedType : public ReferenceType {
@@ -221,6 +246,8 @@ public:
   std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
     return qualifiedIdentifier;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class ImportDecl : public AstNode {
@@ -236,6 +263,8 @@ public:
   std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
     return qualifiedIdentifier;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class ProgramDecl : public CodeBody,
@@ -276,7 +305,7 @@ public:
     return pkg->getIdentifiers().size() == 0;
   }
 
-  std::ostream &print(std::ostream &os) const;
+  std::ostream &print(std::ostream &os, int indent = 0) const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
@@ -307,7 +336,7 @@ public:
 
   ClassDecl(std::string name) : Decl{name} {}
 
-  std::ostream &print(std::ostream &os) const;
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 
   std::vector<std::shared_ptr<ReferenceType>> getSuperClasses() {
     return superClasses;
@@ -407,7 +436,7 @@ public:
                 std::shared_ptr<ReferenceType> objectType,
                 std::vector<std::shared_ptr<Decl>> interfaceBody);
 
-  std::ostream &print(std::ostream &os) const;
+  std::ostream &print(std::ostream &os, int indent = 0) const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
@@ -479,6 +508,8 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(initializer));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class FieldDecl final : public VarDecl {
@@ -580,6 +611,8 @@ public:
     return ptr;
     // return std::static_pointer_cast<Decl>(shared_from_this());
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 // Statements /////////////////////////////////////////////////////////////
@@ -604,6 +637,8 @@ public:
     }
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class IfStmt : public Stmt {
@@ -629,6 +664,8 @@ public:
       children.push_back(std::dynamic_pointer_cast<AstNode>(elseBody));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class WhileStmt : public Stmt {
@@ -649,6 +686,8 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(whileBody));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class ForStmt : public Stmt {
@@ -677,6 +716,8 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(forBody));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class ReturnStmt : public Stmt {
@@ -693,6 +734,15 @@ public:
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(returnExpr));
     return children;
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ReturnStmt \n";
+    returnExpr->print(os, indent + 1);
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
   }
 };
 
@@ -711,6 +761,15 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(statementExpr));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ExpressionStmt \n";
+    statementExpr->print(os, indent + 1);
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
 class DeclStmt : virtual public Stmt {
@@ -727,9 +786,24 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(decl));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(DeclStmt \n";
+    decl->print(os, indent + 1);
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
-class NullStmt : public Stmt {};
+class NullStmt : public Stmt {
+public:
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    return os << "(NullStmt)\n";
+  };
+};
 
 // Types /////////////////////////////////////////////////////////////
 
@@ -796,8 +870,9 @@ public:
   }
   bool isBoolean() const override { return type_ == Type::Boolean; }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(BasicType " << magic_enum::enum_name(type_) << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    parsetree::ast::Type::printIndent(os, indent);
+    os << "(BasicType " << magic_enum::enum_name(type_) << ")\n";
     return os;
   }
 
@@ -819,10 +894,12 @@ public:
 
   std::shared_ptr<Type> getElementType() const { return elementType; }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(ArrayType ";
-    elementType->print(os);
-    os << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    Type::printIndent(os, indent);
+    os << "(ArrayType \n";
+    elementType->print(os, indent + 1);
+    Type::printIndent(os, indent);
+    os << ")\n";
     return os;
   }
 
@@ -924,6 +1001,29 @@ public:
   std::shared_ptr<Type> getReturnType() const { return returnType; }
   const std::vector<std::shared_ptr<Type>> &getParamTypes() const {
     return paramTypes;
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(MethodType ";
+    printIndent(os, indent + 1);
+    os << "Return Type: ";
+    returnType->print(os, indent + 2);
+    os << "Param Types: [";
+    bool paramTypesIndent = false;
+    for (auto &paramType : paramTypes) {
+      if (paramType) {
+        os << "\n";
+        paramType->print(os, indent + 2);
+        paramTypesIndent = true;
+      }
+    }
+    if (paramTypesIndent)
+      printIndent(os, indent + 1);
+    os << "]\n";
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
   }
 };
 
