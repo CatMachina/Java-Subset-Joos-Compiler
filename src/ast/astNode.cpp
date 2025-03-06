@@ -565,7 +565,12 @@ std::ostream &MethodDecl::print(std::ostream &os, int indent) const {
   os << "]\n";
 
   // Print Body
-  methodBody->print(os, indent + 1);
+  if (methodBody) {
+    methodBody->print(os, indent + 1);
+  } else {
+    printIndent(os, indent + 1);
+    os << "MethodBody: N/A\n";
+  }
 
   printIndent(os, indent);
   os << ")\n";
