@@ -279,11 +279,21 @@ void MethodDecl::setParent(std::shared_ptr<CodeBody> parent) {
   auto parentDecl = std::dynamic_pointer_cast<Decl>(parent);
   if (!parentDecl)
     throw std::runtime_error("Field Decl Parent must be a Decl");
+  if (!(std::dynamic_pointer_cast<ClassDecl>(parentDecl) ||
+        std::dynamic_pointer_cast<InterfaceDecl>(parentDecl))) {
+    throw std::runtime_error(
+        "Method Decl Parent must be a ClassDecl or InterfaceDecl");
+  }
   if (modifiers->isStatic()) {
     // change name
   }
-  for (auto &local : localDecls)
+
+  for (auto &local : localDecls) {
     local->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
+    if (local->getParent().get() != this) {
+      throw std::runtime_error("child decl set Parent failed at MethodDecl");
+    }
+  }
 }
 
 void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
@@ -523,7 +533,7 @@ std::ostream &MethodDecl::print(std::ostream &os, int indent) const {
     os << "IsConstructor: True\n";
   } else {
     printIndent(os, indent + 1);
-    os << "IsConstructor: True\n";
+    os << "IsConstructor: False\n";
     printIndent(os, indent + 1);
     os << "Return Type: ";
     if (returnType)
@@ -692,6 +702,19 @@ void FieldDecl::setParent(std::shared_ptr<CodeBody> parent) {
   if (modifiers->isStatic()) {
     // change name
   }
+}
+
+bool ReferenceType::operator==(const Type &other) const {
+  const ReferenceType *otherRef = dynamic_cast<const ReferenceType *>(&other);
+  if (!otherRef) {
+    return false;
+  }
+
+  if (resolvedDecl->getAstNode() != otherRef->resolvedDecl->getAstNode()) {
+    return false;
+  }
+
+  return true;
 }
 
 } // namespace parsetree::ast

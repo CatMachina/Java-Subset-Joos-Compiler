@@ -61,15 +61,31 @@ public:
 
 class CodeBody : virtual public AstNode {
 public:
-  std::vector<std::shared_ptr<Decl>> getDecls() const {
+  // temp fix of unknown wrong parent issue
+  virtual void reApplySetParent() { ; };
+
+  std::vector<std::shared_ptr<Decl>> getDecls() {
     std::vector<std::shared_ptr<Decl>> declVector;
+    reApplySetParent();
     for (auto child : getChildren()) {
       if (auto decl = std::dynamic_pointer_cast<Decl>(child)) {
         if (!(decl->getParent().get()))
           throw std::runtime_error("parent null in CodeBody::getDecls");
-        if (!(decl->getParent().get() == this))
+        if (!(decl->getParent().get() == this)) {
+
+          std::cout << "wrong parent decl: ";
+          decl->print(std::cout);
+          std::cout << "\nwith parent: ";
+          if (decl->getParent()) {
+            decl->getParent()->print(std::cout);
+          } else {
+            std::cout << "null\n";
+          };
+
           throw std::runtime_error(
               "child declaration of this context has the wrong parent");
+        }
+
         declVector.push_back(decl);
       }
     }
@@ -94,6 +110,8 @@ public:
   [[nodiscard]] virtual std::shared_ptr<Decl> getAsDecl() const {
     return nullptr;
   }
+
+  virtual bool operator==(const Type &other) const = 0;
 
   // std::ostream &print(std::ostream &os, int indent = 0) const override {
   //   if (!toString().empty())
@@ -203,6 +221,8 @@ public:
     os << "(ReferenceType " << toString() << ")\n";
     return os;
   }
+
+  bool operator==(const Type &other) const override;
 };
 
 class UnresolvedType : public ReferenceType {
@@ -387,13 +407,13 @@ public:
     for (const auto &node : superClasses) {
       children.push_back(std::dynamic_pointer_cast<AstNode>(node));
     }
-    // do we need this
-    for (const auto &node : getFields()) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : getMethods()) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
+    // // do we need this
+    // for (const auto &node : getFields()) {
+    //   children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    // }
+    // for (const auto &node : getMethods()) {
+    //   children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    // }
     return children;
   }
 
@@ -555,6 +575,12 @@ public:
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
   bool isConstructor() const { return isConstructor_; }
   bool hasBody() const { return methodBody != nullptr; };
+
+  void reApplySetParent() override {
+    for (const auto &decl : localDecls) {
+      decl->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
+    }
+  }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
@@ -876,6 +902,17 @@ public:
     return os;
   }
 
+  bool operator==(const parsetree::ast::Type &other) const override {
+    const BasicType *otherBasic = dynamic_cast<const BasicType *>(&other);
+    if (!otherBasic) {
+      return false;
+    }
+    if (type_ != otherBasic->type_) {
+      return false;
+    }
+    return true;
+  }
+
 private:
   Type type_;
 };
@@ -907,6 +944,17 @@ public:
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(elementType));
     return children;
+  }
+
+  bool operator==(const Type &other) const override {
+    const ArrayType *otherArrayType = dynamic_cast<const ArrayType *>(&other);
+    if (!otherArrayType) {
+      return false;
+    }
+    if (*elementType != *(otherArrayType->elementType)) {
+      return false;
+    }
+    return true;
   }
 };
 
@@ -1024,6 +1072,29 @@ public:
     printIndent(os, indent);
     os << ")\n";
     return os;
+  }
+
+  bool operator==(const Type &other) const override {
+    const MethodType *otherMethod = dynamic_cast<const MethodType *>(&other);
+    if (!otherMethod) {
+      return false;
+    }
+
+    if (!(*returnType == *(otherMethod->returnType))) {
+      return false;
+    }
+
+    if (paramTypes.size() != otherMethod->paramTypes.size()) {
+      return false;
+    }
+
+    for (size_t i = 0; i < paramTypes.size(); ++i) {
+      if (!(*(paramTypes[i]) == *(otherMethod->paramTypes[i]))) {
+        return false;
+      }
+    }
+
+    return true;
   }
 };
 

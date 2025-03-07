@@ -37,8 +37,8 @@ static bool isInterface(std::shared_ptr<parsetree::ast::AstNode> decl) {
   return !!std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
 }
 
-static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> child,
-                         std::shared_ptr<parsetree::ast::AstNode> super) {
+static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
+                         std::shared_ptr<parsetree::ast::AstNode> child) {
   if (!child || !super) {
     // std::cout << "Either child or super is a nullptr."
     return false;
@@ -205,7 +205,7 @@ bool TypeResolver::isAssignableTo(
     const std::shared_ptr<parsetree::ast::Type> &lhs,
     const std::shared_ptr<parsetree::ast::Type> &rhs) const {
   std::cout << "typeResolver isAssignableTo" << std::endl;
-  if (lhs == rhs)
+  if (*lhs == *rhs)
     return true;
 
   auto leftPrimitive =
@@ -255,16 +255,16 @@ bool TypeResolver::isAssignableTo(
 
   if (leftRef && rightRef) {
     // 3.2 Class assignability
-    if (auto rightClass =
-            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(rightRef)) {
-      if (auto leftClass =
-              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(leftRef)) {
+    if (auto rightClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+            rightRef->getResolvedDecl()->getAstNode())) {
+      if (auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+              leftRef->getResolvedDecl()->getAstNode())) {
         // TODO: need such API
         return isSuperClass(leftClass, rightClass);
       }
       if (auto leftInterface =
               std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                  leftRef)) {
+                  leftRef->getResolvedDecl()->getAstNode())) {
         // TODO: need such API
         return isSuperInterface(leftInterface, rightClass);
       }
@@ -272,14 +272,14 @@ bool TypeResolver::isAssignableTo(
     // 3.3 Interface assignability
     if (auto rightInterface =
             std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                rightRef)) {
-      if (auto leftClass =
-              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(leftRef)) {
+                rightRef->getResolvedDecl()->getAstNode())) {
+      if (auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+              leftRef->getResolvedDecl()->getAstNode())) {
         return leftClass == astManager->java_lang.Object;
       }
       if (auto leftInterface =
               std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                  leftRef)) {
+                  leftRef->getResolvedDecl()->getAstNode())) {
         return isSuperInterface(leftInterface, rightInterface);
       }
     }
@@ -353,13 +353,15 @@ bool TypeResolver::isValidCast(
       return false;
 
     auto leftInterface =
-        std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(exprRef);
+        std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+            exprRef->getResolvedDecl()->getAstNode());
     auto rightInterface =
-        std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(castRef);
-    auto leftClass =
-        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(exprRef);
-    auto rightClass =
-        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(castRef);
+        std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+            castRef->getResolvedDecl()->getAstNode());
+    auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+        exprRef->getResolvedDecl()->getAstNode());
+    auto rightClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+        castRef->getResolvedDecl()->getAstNode());
 
     if (leftInterface && rightInterface)
       return true;
@@ -487,6 +489,8 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
     throw std::runtime_error("operands are not of the same type");
   }
 
+  // FIXME: Duplicate BinOp? didn't have time to fix
+  case parsetree::ast::BinOp::OpType::Plus:
   case parsetree::ast::BinOp::OpType::Add:
     if (isTypeString(lhs) || isTypeString(rhs)) {
       return op->resolveResultType(
@@ -500,11 +504,34 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
 
   case parsetree::ast::BinOp::OpType::And:
   case parsetree::ast::BinOp::OpType::Or:
+  case parsetree::ast::BinOp::OpType::BitWiseAnd:
+  case parsetree::ast::BinOp::OpType::BitWiseOr:
     if (lhs->isBoolean() && rhs->isBoolean()) {
       return op->resolveResultType(
           envManager->BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
     }
     throw std::runtime_error("logical operation requires boolean operands");
+
+  // FIXME: Duplicate BinOp? didn't have time to fix
+  case parsetree::ast::BinOp::OpType::Minus:
+  case parsetree::ast::BinOp::OpType::Subtract:
+  case parsetree::ast::BinOp::OpType::Multiply:
+  case parsetree::ast::BinOp::OpType::Divide:
+  case parsetree::ast::BinOp::OpType::Modulo: {
+    if (lhs->isNumeric() && rhs->isNumeric()) {
+      return op->resolveResultType(
+          envManager->BuildBasicType(parsetree::ast::BasicType::Type::Int));
+    }
+    throw std::runtime_error("invalid types for arithmetic operation");
+  }
+
+  case parsetree::ast::BinOp::OpType::InstanceOf: {
+    if ((lhs->isNull() || isReferenceOrArrType(lhs)) &&
+        (isReferenceOrArrType(rhs)) && isValidCast(rhs, lhs)) {
+      return op->resolveResultType(
+          envManager->BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
+    }
+  }
 
   default:
     throw std::runtime_error("Invalid binary operation");

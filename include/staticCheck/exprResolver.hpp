@@ -181,6 +181,7 @@ private:
     std::cout << "resolveName: " << node->getName() << std::endl;
     if (auto method =
             std::dynamic_pointer_cast<parsetree::ast::MethodName>(node)) {
+      std::cout << "resolveName found method" << std::endl;
       return std::make_shared<ExprNameLinked>(
           ExprNameLinked::ValueType::MethodName, method, nullptr);
     }

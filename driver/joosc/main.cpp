@@ -168,8 +168,10 @@ int main(int argc, char **argv) {
       }
       astManager->addAST(ast);
       std::cout << "Parsed " << fileName << std::endl;
-      std::cout << "Constructed AST: \n";
-      ast->print(std::cout);
+      // if (file_number == 1) {
+      //   std::cout << "Constructed AST: \n";
+      //   ast->print(std::cout);
+      // }
     }
 
     std::cout << "Passed AST constructions\n";
@@ -206,6 +208,8 @@ int main(int argc, char **argv) {
     //     astManager, typeLinker, hierarchyChecker);
     // nameDisambiguator->resolve();
 
+    astManager->getASTs()[15]->print(std::cout);
+
     auto typeResolver =
         std::make_shared<static_check::TypeResolver>(astManager, env);
 
@@ -215,7 +219,7 @@ int main(int argc, char **argv) {
 
     // // type resolution
 
-    typeResolver->resolve();
+    // typeResolver->resolve();
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

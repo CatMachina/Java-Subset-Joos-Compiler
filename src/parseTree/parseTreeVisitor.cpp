@@ -155,7 +155,6 @@ ParseTreeVisitor::visitFieldDecl(const NodePtr &node) {
 
 std::shared_ptr<ast::MethodDecl>
 ParseTreeVisitor::visitMethodDecl(const NodePtr &node) {
-
   check_node_type(node, NodeType::MethodDecl);
   check_num_children(node, 4, 5);
 

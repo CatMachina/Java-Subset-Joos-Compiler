@@ -177,33 +177,38 @@ public:
   }
 };
 
-class UnresolvedTypeExpr : public ExprNode, public UnresolvedType {
+class TypeExprBase : public ExprValue {
 public:
-  UnresolvedTypeExpr() : UnresolvedType() {}
-  std::ostream &print(std::ostream &os, int indent = 0) const override {
-    ExprNode::printIndent(os, indent);
-    os << "(UnresolvedTypeExpr ";
-    bool first = true;
-    for (const auto &id : getIdentifiers()) {
-      {
-        if (first) {
-          os << id;
-          first = false;
-        } else {
-          os << "." << id;
-        }
-      }
-      os << ")\n";
-    }
-    return os;
-  }
+  TypeExprBase(std::shared_ptr<Type> type = nullptr) : ExprValue{type} {}
 };
 
-class TypeNode : public ExprValue {
+// class UnresolvedTypeExpr : public TypeExprBase, public UnresolvedType {
+// public:
+//   UnresolvedTypeExpr() : TypeExprBase{}, UnresolvedType() {}
+//   std::ostream &print(std::ostream &os, int indent = 0) const override {
+//     ExprNode::printIndent(os, indent);
+//     os << "(UnresolvedTypeExpr ";
+//     bool first = true;
+//     for (const auto &id : getIdentifiers()) {
+//       {
+//         if (first) {
+//           os << id;
+//           first = false;
+//         } else {
+//           os << "." << id;
+//         }
+//       }
+//       os << ")\n";
+//     }
+//     return os;
+//   }
+// };
+
+class TypeNode : public TypeExprBase {
   std::shared_ptr<Type> unresolvedType;
 
 public:
-  TypeNode(std::shared_ptr<Type> type) : ExprValue{type} {};
+  TypeNode(std::shared_ptr<Type> type) : TypeExprBase{type} {};
 
   std::ostream &print(std::ostream &os, int indent = 0) const {
     printIndent(os, indent);
@@ -346,7 +351,7 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(MethodInvocation ";
+    os << "(MethodInvocation: " << getNumArgs();
     bool first = true;
     for (const auto &qid : qualifiedIdentifier) {
       if (first)
@@ -371,7 +376,7 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(ClassCreation)\n";
+    os << "(ClassCreation: " << getNumArgs() << " args)\n";
     return os;
   }
 };

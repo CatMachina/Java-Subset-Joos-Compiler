@@ -48,69 +48,109 @@ public:
     for (const auto &node : list) {
       if (auto value =
               std::dynamic_pointer_cast<parsetree::ast::ExprValue>(node)) {
+        std::cout << "-->Start mapValue with stack size " << op_stack.size()
+                  << std::endl;
         op_stack.push(mapValue(value));
-        std::cout << "Pushed mapValue" << std::endl;
+        std::cout << "-->Pushed mapValue with stack size " << op_stack.size()
+                  << std::endl;
       } else if (auto unary =
                      std::dynamic_pointer_cast<parsetree::ast::UnOp>(node)) {
+        std::cout << "-->Start evalUnOp with stack size " << op_stack.size()
+                  << std::endl;
         auto rhs = popStack();
         op_stack.push(evalUnOp(unary, rhs));
-        std::cout << "Pushed evalUnOp" << std::endl;
+        std::cout << "-->Pushed evalUnOp with stack size " << op_stack.size()
+                  << std::endl;
       } else if (auto binary =
                      std::dynamic_pointer_cast<parsetree::ast::BinOp>(node)) {
+        std::cout << "-->Start evalBinOp with stack size " << op_stack.size()
+                  << std::endl;
         auto rhs = popStack();
         auto lhs = popStack();
         op_stack.push(evalBinOp(binary, lhs, rhs));
-        std::cout << "Pushed evalBinOp" << std::endl;
+        std::cout << "-->Pushed evalBinOp with stack size " << op_stack.size()
+                  << std::endl;
       } else if (auto field =
                      std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(
                          node)) {
+        std::cout << "-->Start evalFieldAccess with stack size "
+                  << op_stack.size() << std::endl;
         auto rhs = popStack();
         auto lhs = popStack();
         op_stack.push(evalFieldAccess(field, lhs, rhs));
-        std::cout << "Pushed evalFieldAccess" << std::endl;
+        std::cout << "-->Pushed evalFieldAccess with stack size "
+                  << op_stack.size() << std::endl;
       } else if (auto method = std::dynamic_pointer_cast<
                      parsetree::ast::MethodInvocation>(node)) {
+        std::cout << "-->Start evalMethodInvocation with stack size "
+                  << op_stack.size() << std::endl;
         // Note: reverse order
         // Q: What happens if there are 3 children (primaryExpr, id, arg)?
+        std::vector<T> args;
+        if (method->getNumArgs() > 1) {
+          for (int i = 0; i < method->getNumArgs() - 1; ++i) {
+            args.push_back(popStack());
+          }
+        }
         auto method_name = popStack();
-        std::vector<T> args(method->getNumArgs() - 1);
-        std::generate(args.rbegin(), args.rend(),
-                      [this] { return popStack(); });
         op_stack.push(evalMethodInvocation(method, method_name, args));
-        std::cout << "Pushed evalMethodInvocation" << std::endl;
+        std::cout << "-->Pushed evalMethodInvocation with stack size "
+                  << op_stack.size() << std::endl;
       } else if (auto newObj =
                      std::dynamic_pointer_cast<parsetree::ast::ClassCreation>(
                          node)) {
-        std::cout << "ClassCreation\n";
-        std::vector<T> args(newObj->getNumArgs() - 1);
-        std::generate(args.rbegin(), args.rend(),
-                      [this] { return popStack(); });
+        std::cout << "-->Start evalNewObject with stack size "
+                  << op_stack.size() << std::endl;
+        std::cout << "ClassCreation with " << newObj->getNumArgs() << " args\n";
+        std::vector<T> args;
+        if (newObj->getNumArgs() > 1) {
+          for (int i = 0; i < newObj->getNumArgs() - 1; ++i) {
+            args.push_back(popStack());
+          }
+        }
         auto type = popStack();
         op_stack.push(evalNewObject(newObj, type, args));
-        std::cout << "Pushed evalNewObject" << std::endl;
+        std::cout << "-->Pushed evalNewObject with stack size "
+                  << op_stack.size() << std::endl;
       } else if (auto array =
                      std::dynamic_pointer_cast<parsetree::ast::ArrayCreation>(
                          node)) {
+        std::cout << "-->Start evalNewArray with stack size " << op_stack.size()
+                  << std::endl;
         auto size = popStack();
         auto type = popStack();
         op_stack.push(evalNewArray(array, type, size));
+        std::cout << "-->Pushed evalNewArray with stack size "
+                  << op_stack.size() << std::endl;
       } else if (auto access =
                      std::dynamic_pointer_cast<parsetree::ast::ArrayAccess>(
                          node)) {
+        std::cout << "-->Start evalArrayAccess with stack size "
+                  << op_stack.size() << std::endl;
         auto index = popStack();
         auto array = popStack();
         op_stack.push(evalArrayAccess(access, array, index));
+        std::cout << "-->Pushed evalArrayAccess with stack size "
+                  << op_stack.size() << std::endl;
       } else if (auto cast =
                      std::dynamic_pointer_cast<parsetree::ast::Cast>(node)) {
+        std::cout << "-->Start evalCast with stack size " << op_stack.size()
+                  << std::endl;
         auto value = popStack();
         auto type = popStack();
         op_stack.push(evalCast(cast, type, value));
+        std::cout << "-->Pushed evalCast with stack size " << op_stack.size()
+                  << std::endl;
       } else if (auto assignment =
                      std::dynamic_pointer_cast<parsetree::ast::Assignment>(
                          node)) {
+        std::cout << "-->Start evalAssignment with stack size "
+                  << op_stack.size() << std::endl;
         auto lhs = popStack();
         auto rhs = popStack();
         op_stack.push(evalAssignment(assignment, lhs, rhs));
+        std::cout << "-->Pushed evalAssignment with stack size "
+                  << op_stack.size() << std::endl;
       }
     }
     std::cout << "Stack size: " << op_stack.size() << std::endl;

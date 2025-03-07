@@ -149,7 +149,7 @@ public:
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitLiteral(const NodePtr &node);
 
-  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  [[nodiscard]] std::shared_ptr<ast::ExprNode>
   visitRegularType(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::ExprNode>
@@ -199,8 +199,8 @@ public:
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitClassCreation(const NodePtr &node);
 
-  void visitArgumentList(const NodePtr &node,
-                         std::vector<std::shared_ptr<ast::ExprNode>> &args);
+  int visitArgumentList(const NodePtr &node,
+                        std::vector<std::shared_ptr<ast::ExprNode>> &args);
 
   // Leaf node visitors
 
