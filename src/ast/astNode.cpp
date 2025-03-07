@@ -523,7 +523,7 @@ std::ostream &MethodDecl::print(std::ostream &os, int indent) const {
     os << "IsConstructor: True\n";
   } else {
     printIndent(os, indent + 1);
-    os << "IsConstructor: True\n";
+    os << "IsConstructor: False\n";
     printIndent(os, indent + 1);
     os << "Return Type: ";
     if (returnType)
