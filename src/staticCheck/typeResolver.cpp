@@ -224,12 +224,14 @@ bool TypeResolver::isAssignableTo(
 
   // astManager->java_lang.String conversions
   if (rhs->isString() && leftRef) {
-    if (auto leftClass =
-            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(leftRef)) {
+    if (auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+            leftRef->getResolvedDecl()->getAstNode())) {
+      std::cout << "left is class" << std::endl;
       return isSuperClass(leftClass, astManager->java_lang.String);
     }
     if (auto leftInterface =
-            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(leftRef)) {
+            std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                leftRef->getResolvedDecl()->getAstNode())) {
       return isSuperInterface(leftInterface, astManager->java_lang.String);
     }
     return false;
@@ -636,9 +638,23 @@ std::shared_ptr<parsetree::ast::Type> TypeResolver::evalNewObject(
   }
 
   for (size_t i = 0; i < args.size(); ++i) {
+    std::cout << "expected " << constructorParams[i]->toString() << " and got "
+              << args[args.size() - 1 - i]->toString() << std::endl;
+  }
+
+  for (size_t i = 0; i < args.size(); ++i) {
+    // std::cout << "expected " << constructorParams[i]->toString() << " and got
+    // " << args[i]->toString() << std::endl;
     if (!isAssignableTo(constructorParams[i], args[args.size() - 1 - i])) {
-      throw std::runtime_error("Invalid argument type for constructor call");
+      throw std::runtime_error("Invalid argument type for constructor call: " +
+                               constructorParams[i]->toString() + " but got " +
+                               args[args.size() - 1 - i]->toString());
     }
+    // if (!isAssignableTo(constructorParams[i], args[i])) {
+    //   throw std::runtime_error("Invalid argument type for constructor call: "
+    //   + constructorParams[i]->toString() + " but got " +
+    //   args[i]->toString());
+    // }
   }
 
   return op->resolveResultType(constructor->getReturnType());
@@ -697,8 +713,8 @@ TypeResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
   }
 
   if (!isValidCast(value, type)) {
-    throw std::runtime_error("Invalid cast from " + value->toString() + " to " +
-                             type->toString());
+    throw std::runtime_error("In evalCast Invalid cast from " +
+                             value->toString() + " to " + type->toString());
   }
 
   return op->resolveResultType(type);

@@ -146,11 +146,14 @@ public:
                          node)) {
         std::cout << "-->Start evalAssignment with stack size "
                   << op_stack.size() << std::endl;
-        auto lhs = popStack();
         auto rhs = popStack();
+        auto lhs = popStack();
         op_stack.push(evalAssignment(assignment, lhs, rhs));
         std::cout << "-->Pushed evalAssignment with stack size "
                   << op_stack.size() << std::endl;
+      } else {
+        node->print(std::cout);
+        throw std::runtime_error("Unknown node type in evalList!");
       }
     }
     std::cout << "Stack size: " << op_stack.size() << std::endl;
@@ -162,11 +165,11 @@ public:
 
 private:
   T popStack() {
-    std::cout << "Popping stack\n";
     if (op_stack.empty()) {
       throw std::runtime_error("Popping an empty stack!");
     }
     T value = op_stack.top();
+    std::cout << "Popping stack:\n";
     op_stack.pop();
     return value;
   }

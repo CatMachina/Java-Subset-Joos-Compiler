@@ -24,6 +24,10 @@ public:
 
   void populateJavaLang();
 
+  void setCurrentProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+    currentProgram = node;
+  }
+
   ////////////////////// Resolvers ////////////////////
   // Second pass
   void resolve();

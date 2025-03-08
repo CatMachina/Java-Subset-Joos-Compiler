@@ -251,10 +251,17 @@ public:
 
   std::shared_ptr<Type> getResultType() const { return resultType; }
   std::shared_ptr<Type> resolveResultType(std::shared_ptr<Type> type) {
-    if (resultType)
-      throw std::runtime_error("Tried to resolve op result type twice");
     if (!type || !type->isResolved())
       throw std::runtime_error("Tried to resolve op with unresolved type");
+    if (resultType && (resultType != type)) {
+      std::cout << "current type decl: ";
+      resultType->print(std::cout);
+      std::cout << " new type decl: ";
+      type->print(std::cout);
+      throw std::runtime_error(
+          "Tried to resolve op result type twice with different decl");
+    }
+
     resultType = type;
     return type;
   }

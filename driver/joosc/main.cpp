@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
     //     astManager, typeLinker, hierarchyChecker);
     // nameDisambiguator->resolve();
 
-    astManager->getASTs()[15]->print(std::cout);
+    astManager->getASTs()[0]->print(std::cout);
 
     auto typeResolver =
         std::make_shared<static_check::TypeResolver>(astManager, env);
@@ -217,8 +217,10 @@ int main(int argc, char **argv) {
         astManager, hierarchyChecker, typeLinker, typeResolver);
     exprResolver->resolve();
 
-    // // type resolution
+    std::cout << "Expr Resolving Done.....\n";
 
+    // // type resolution
+    // std::cout << "Starting type resolution......\n";
     // typeResolver->resolve();
 
     return EXIT_SUCCESS;

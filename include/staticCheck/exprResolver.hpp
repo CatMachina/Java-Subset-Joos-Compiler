@@ -93,7 +93,8 @@ public:
 
   std::shared_ptr<parsetree::ast::Decl>
   prevAsDecl(std::shared_ptr<TypeResolver> TR,
-             std::shared_ptr<parsetree::ast::ASTManager> astManager) const;
+             std::shared_ptr<parsetree::ast::ASTManager> astManager,
+             std::shared_ptr<TypeLinker> typeLinker) const;
 
 private:
   std::shared_ptr<parsetree::ast::MemberName> node_;

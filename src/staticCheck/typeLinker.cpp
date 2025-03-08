@@ -68,7 +68,12 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
       // if not resolved, resolve.
       if (!(type->isResolved())) {
-        resolveType(type);
+        if (auto array =
+                std::dynamic_pointer_cast<parsetree::ast::ArrayType>(type)) {
+          resolveType(array->getElementType());
+        } else {
+          resolveType(type);
+        }
         std::cout << "Resolving type: ";
         type->print(std::cout);
         std::cout << std::endl;
@@ -333,7 +338,7 @@ Package::packageChild TypeLinker::resolveQualifiedName(
       if (std::holds_alternative<std::nullptr_t>(current)) {
         throw std::runtime_error(
             "Could not resolve type at " + id +
-            " due to failed resolveSimpleName at resolveType");
+            " due to failed resolveSimpleName at resolveQualifiedName");
       }
       first = false;
       continue;
