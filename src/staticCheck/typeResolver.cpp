@@ -450,7 +450,10 @@ std::shared_ptr<parsetree::ast::Type>
 TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
                         const std::shared_ptr<parsetree::ast::Type> lhs,
                         const std::shared_ptr<parsetree::ast::Type> rhs) {
-  std::cout << "typeResolver evalBinOp" << std::endl;
+  std::cout << "typeResolver evalBinOp "
+            << std::string(magic_enum::enum_name(op->getOp())) << std::endl;
+  if (!lhs || !rhs)
+    throw std::runtime_error("BinOp operands are null");
   if (auto result = op->getResultType(); result) {
     return result;
   }

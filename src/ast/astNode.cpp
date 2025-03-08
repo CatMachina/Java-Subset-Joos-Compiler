@@ -646,7 +646,8 @@ std::ostream &WhileStmt::print(std::ostream &os, int indent) const {
   // Print condition
   printIndent(os, indent + 1);
   os << "condition: { \n";
-  condition->print(os, indent + 2);
+  if (condition)
+    condition->print(os, indent + 2);
   printIndent(os, indent + 1);
   os << "}\n";
 
@@ -669,21 +670,24 @@ std::ostream &ForStmt::print(std::ostream &os, int indent) const {
   // Print forInit
   printIndent(os, indent + 1);
   os << "forInit: { \n";
-  forInit->print(os, indent + 2);
+  if (forInit)
+    forInit->print(os, indent + 2);
   printIndent(os, indent + 1);
   os << "}\n";
 
   // Print condition
   printIndent(os, indent + 1);
   os << "condition: { \n";
-  condition->print(os, indent + 2);
+  if (condition)
+    condition->print(os, indent + 2);
   printIndent(os, indent + 1);
   os << "}\n";
 
   // Print forUpdate
   printIndent(os, indent + 1);
   os << "forUpdate: { \n";
-  forUpdate->print(os, indent + 2);
+  if (forUpdate)
+    forUpdate->print(os, indent + 2);
   printIndent(os, indent + 1);
   os << "}\n";
 

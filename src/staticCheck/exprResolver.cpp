@@ -856,8 +856,14 @@ std::shared_ptr<parsetree::ast::Decl> ExprNameLinked::prevAsDecl(
     std::shared_ptr<parsetree::ast::ASTManager> astManager,
     std::shared_ptr<TypeLinker> typeLinker) const {
   std::cout << "prevAsDecl" << std::endl;
-  if (auto p = prevAsLinked())
+  if (auto p = prevAsLinked()) {
+    std::cout << "prev is ";
+    p->getNode()->print(std::cout);
+    std::cout << "with resolved decl ";
+    if (p->getNode()->getResolvedDecl())
+      p->getNode()->getResolvedDecl()->print(std::cout);
     return p->getNode()->getResolvedDecl();
+  }
   std::cout << "prevAsDecl complex case" << std::endl;
   // Complex case, the previous node is an expression list
   if (!prev_.has_value())
@@ -1074,6 +1080,8 @@ ExprResolver::getMethodParent(std::shared_ptr<ExprNameLinked> method) const {
                                declOrType->getName());
     }
     auto typeAsDecl = GetTypeAsDecl(type, astManager);
+    if (!typeAsDecl)
+      throw std::runtime_error("method call to non-reference type");
     ty = typeAsDecl->asCodeBody();
     if (!ty) {
       throw std::runtime_error("method call to non-reference type: " +

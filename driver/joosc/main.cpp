@@ -131,8 +131,8 @@ int main(int argc, char **argv) {
         return EXIT_ERROR;
       }
 
-      if (file_number == 1)
-        parse_tree->print(std::cout);
+      // if (file_number == 1)
+      //   parse_tree->print(std::cout);
 
       // Build AST from the parse tree
       std::shared_ptr<parsetree::ast::ProgramDecl> ast;
