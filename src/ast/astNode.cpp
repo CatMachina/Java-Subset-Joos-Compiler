@@ -108,7 +108,7 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
 }
 
 void ClassDecl::setParent(std::shared_ptr<CodeBody> parent) {
-  std::cout << "ClassDecl::setParent" << std::endl;
+  // std::cout << "ClassDecl::setParent" << std::endl;
   auto program = std::dynamic_pointer_cast<ProgramDecl>(parent);
   Decl::setParent(parent);
   if (!(program->isDefaultPackage())) {
@@ -175,7 +175,7 @@ InterfaceDecl::InterfaceDecl(
 }
 
 void InterfaceDecl::setParent(std::shared_ptr<CodeBody> parent) {
-  std::cout << "InterfaceDecl::setParent" << std::endl;
+  // std::cout << "InterfaceDecl::setParent" << std::endl;
   auto program = std::dynamic_pointer_cast<ProgramDecl>(parent);
   Decl::setParent(parent);
   if (!program->isDefaultPackage()) {
@@ -274,7 +274,7 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
 }
 
 void MethodDecl::setParent(std::shared_ptr<CodeBody> parent) {
-  std::cout << "MethodDecl::setParent" << std::endl;
+  // std::cout << "MethodDecl::setParent" << std::endl;
   Decl::setParent(parent);
   auto parentDecl = std::dynamic_pointer_cast<Decl>(parent);
   if (!parentDecl)
@@ -302,12 +302,16 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
   }
   std::shared_ptr<MethodInvocation> methodToCheck;
   for (auto statement : block->getStatements()) {
+    if (!statement)
+      continue;
     if (auto nestedBlock = std::dynamic_pointer_cast<Block>(statement)) {
       checkSuperThisCalls(nestedBlock);
       continue;
     }
     if (auto expressionStmt =
             std::dynamic_pointer_cast<ExpressionStmt>(statement)) {
+      if (!(expressionStmt->getStatementExpr()))
+        continue;
       auto opNode = expressionStmt->getStatementExpr()->getLastExprNode();
       if (auto methodInvocation =
               std::dynamic_pointer_cast<MethodInvocation>(opNode)) {
@@ -315,6 +319,8 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
       }
     } else if (auto returnStmt =
                    std::dynamic_pointer_cast<ReturnStmt>(statement)) {
+      if (!(returnStmt->getReturnExpr()))
+        continue;
       auto opNode = returnStmt->getReturnExpr()->getLastExprNode();
       if (auto methodInvocation =
               std::dynamic_pointer_cast<MethodInvocation>(opNode)) {
@@ -694,7 +700,7 @@ std::ostream &ForStmt::print(std::ostream &os, int indent) const {
 }
 
 void FieldDecl::setParent(std::shared_ptr<CodeBody> parent) {
-  std::cout << "FieldDecl::setParent" << std::endl;
+  // std::cout << "FieldDecl::setParent" << std::endl;
   Decl::setParent(parent);
   auto parentDecl = std::dynamic_pointer_cast<Decl>(parent);
   if (!parentDecl)

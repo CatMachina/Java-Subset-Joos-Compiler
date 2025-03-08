@@ -131,7 +131,8 @@ int main(int argc, char **argv) {
         return EXIT_ERROR;
       }
 
-      // if (file_number == 1) parse_tree->print(std::cout);
+      if (file_number == 1)
+        parse_tree->print(std::cout);
 
       // Build AST from the parse tree
       std::shared_ptr<parsetree::ast::ProgramDecl> ast;
@@ -191,7 +192,7 @@ int main(int argc, char **argv) {
     // hierarchy checking
     auto hierarchyChecker =
         std::make_shared<static_check::HierarchyCheck>(rootPackage);
-    std::cout << "Starting hierarchy check\n";
+    std::cout << "Starting hierarchy check" << std::endl;
     if (!hierarchyChecker->check()) {
       std::cout << "Did not pass hierarchy check\n";
       return EXIT_ERROR;
@@ -218,10 +219,6 @@ int main(int argc, char **argv) {
     exprResolver->resolve();
 
     std::cout << "Expr Resolving Done.....\n";
-
-    // // type resolution
-    // std::cout << "Starting type resolution......\n";
-    // typeResolver->resolve();
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

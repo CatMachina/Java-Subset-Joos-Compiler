@@ -212,7 +212,7 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const {
     printIndent(os, indent);
-    return os << "(Type " << getType()->toString() << ")\n";
+    return os << "(TypeNode " << getType()->toString() << ")\n";
   }
   // std::shared_ptr<Type> getUnresolvedType() const { return unresolvedType;
   // }
@@ -251,8 +251,15 @@ public:
 
   std::shared_ptr<Type> getResultType() const { return resultType; }
   std::shared_ptr<Type> resolveResultType(std::shared_ptr<Type> type) {
-    if (!type || !type->isResolved())
+    if (!type) {
+      std::cout << "Tried to resolve op with null type\n";
+      return nullptr;
+    }
+    if (!type->isResolved()) {
+      type->print(std::cout);
       throw std::runtime_error("Tried to resolve op with unresolved type");
+    }
+
     if (resultType && (resultType != type)) {
       std::cout << "current type decl: ";
       resultType->print(std::cout);

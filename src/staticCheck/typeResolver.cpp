@@ -400,15 +400,11 @@ bool TypeResolver::isValidCast(
 
 std::shared_ptr<parsetree::ast::Type>
 TypeResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
-  std::cout << "typeResolver mapValue " << std::endl;
-  if (auto lit = std::dynamic_pointer_cast<parsetree::ast::Literal>(value)) {
-    lit->print(std::cout);
-  } else if (auto t = std::dynamic_pointer_cast<parsetree::ast::Type>(value)) {
-    t->print(std::cout);
-  }
+  std::cout << "typeResolver mapValue ";
+  value->print(std::cout);
 
   if (!(value->isDeclResolved()))
-    throw std::runtime_error("ExprValue at mapValue not resolved");
+    throw std::runtime_error("ExprValue at mapValue not decl resolved");
   if (auto method = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
           value->getResolvedDecl())) {
     auto type = std::make_shared<parsetree::ast::MethodType>(method);
@@ -419,11 +415,17 @@ TypeResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       retType->setResolvedDecl(
           std::make_shared<Decl>(method->getParent()->asDecl()));
       type->setReturnType(retType);
+      std::cout << "constructor set return type: ";
+      type->print(std::cout);
     }
     return type;
   } else {
     if (!(value->isTypeResolved()))
       throw std::runtime_error("ExprValue at mapValue not type resolved");
+
+    std::cout << "mapvalue return type: ";
+    value->getType()->print(std::cout);
+    std::cout << " resolved? " << value->getType()->isResolved() << std::endl;
     return value->getType();
   }
 }
@@ -674,6 +676,10 @@ TypeResolver::evalNewArray(std::shared_ptr<parsetree::ast::ArrayCreation> &op,
   if (!size->isNumeric()) {
     throw std::runtime_error("Invalid type for array size, non-numeric");
   }
+
+  std::cout << "typeResolver evalNewArray type resule: ";
+  type->print(std::cout);
+  std::cout << " resolved? " << type->isResolved() << std::endl;
 
   return op->resolveResultType(type);
 }

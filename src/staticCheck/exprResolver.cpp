@@ -97,7 +97,32 @@ void ExprResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
   auto nodes = expr->getExprNodes();
   auto ret = evaluateList(nodes);
   auto resolved = resolveExprNode(ret);
+
+  std::cout << "-------- start type resolution\n";
+  // FIXME: rm this when type linker works
+  for (auto &node : resolved) {
+    if (auto typeNode =
+            std::dynamic_pointer_cast<parsetree::ast::TypeNode>(node)) {
+      if (!(typeNode->getType()->isResolved())) {
+        auto type = typeNode->getType();
+        if (!type)
+          throw std::runtime_error("TypeNode Type cannot be null");
+        if (auto array =
+                std::dynamic_pointer_cast<parsetree::ast::ArrayType>(type)) {
+          typeLinker->resolveType(array->getElementType());
+        } else {
+          typeLinker->resolveType(type);
+        }
+        if (!(type->isResolved())) {
+          type->print(std::cout);
+          throw std::runtime_error("Type still not resolved after resolveType "
+                                   "in ExprResolver::evaluate");
+        }
+      }
+    }
+  }
   expr->setExprNodes(resolved);
+  typeResolver->EvalList(resolved);
   // expr->setExprNodes(resolveExprNode(ret));
   //   if (std::holds_alternative<
   //           std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(ret)) {

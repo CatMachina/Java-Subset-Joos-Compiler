@@ -152,7 +152,7 @@ public:
 
   // Getter
   // right now we return a copy, inefficient i know...
-  std::vector<std::shared_ptr<ExprNode>> getExprNodes() { return exprNodes; }
+  std::vector<std::shared_ptr<ExprNode>> &getExprNodes() { return exprNodes; }
 
   std::shared_ptr<ScopeID> getScope() { return scope; }
 
@@ -765,7 +765,8 @@ public:
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(ReturnStmt \n";
-    returnExpr->print(os, indent + 1);
+    if (returnExpr)
+      returnExpr->print(os, indent + 1);
     printIndent(os, indent);
     os << ")\n";
     return os;
@@ -892,7 +893,8 @@ public:
   bool isPrimitive() const override { return type_ != Type::String; }
   bool isNull() const override { return type_ == Type::Void; }
   bool isNumeric() const override {
-    return type_ == Type::Int || type_ == Type::Char;
+    return type_ == Type::Int || type_ == Type::Char || type_ == Type::Short ||
+           type_ == Type::Byte;
   }
   bool isBoolean() const override { return type_ == Type::Boolean; }
 
@@ -1110,14 +1112,14 @@ public:
 
   bool canView(std::shared_ptr<ScopeID> other) const {
     assert(other != nullptr && "Can't view the null scope");
-    std::cout << "canView: this=" << toString()
-              << " other=" << other->toString() << std::endl;
+    // std::cout << "canView: this=" << toString() << " other=" <<
+    // other->toString() << std::endl;
     if (this->parent_ == other->parent_) {
       return this->pos_ >= other->pos_;
     }
     if (this->parent_) {
-      std::cout << "canView: this_parent=" << this->parent_->toString()
-                << std::endl;
+      // std::cout << "canView: this_parent=" << this->parent_->toString() <<
+      // std::endl;
       return this->parent_->canView(other);
     }
     return false;
