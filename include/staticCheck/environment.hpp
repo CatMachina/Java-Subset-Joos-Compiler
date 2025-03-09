@@ -18,21 +18,27 @@ class Method;
 class Field;
 class Variable;
 
-class Decl {
-  std::shared_ptr<parsetree::ast::Decl> astNode;
+// class Decl {
+//   std::shared_ptr<parsetree::ast::Decl> astNode;
 
-public:
-  explicit Decl(std::shared_ptr<parsetree::ast::Decl> node)
-      : astNode(std::move(node)) {}
-  virtual void printDecl(int depth = 0) const = 0;
-  std::string getName() const { return astNode->getName(); }
-  std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode; }
-};
+// public:
+//   explicit Decl(std::shared_ptr<parsetree::ast::Decl> node)
+//       : astNode(node) {}
+//   void printDecl(int depth = 0) const {
+//     for (int i = 0; i < depth; ++i)
+//       std::cout << "  ";
+//     std::cout << "(Decl: " << astNode->getName() << ")"
+//               << "\n";
+//   }
+//   std::string getName() const { return astNode->getName(); }
+//   std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode;
+//   }
+// };
 
 // trie tree structure
 class Package {
 
-  std::string_view name;
+  std::string name;
 
 public:
   using packageChild = std::variant<std::shared_ptr<Package>,
@@ -42,13 +48,13 @@ public:
   std::unordered_map<std::string, packageChild> children;
 
   explicit Package() {} // for root
-  explicit Package(std::string_view packageName) : name(packageName) {}
+  explicit Package(std::string packageName) : name(packageName) {}
 
-  bool hasChild(std::string_view childName) {
+  bool hasChild(std::string childName) {
     return children.find(std::string(childName)) != children.end();
   }
 
-  std::shared_ptr<Package> addPackage(std::string_view childName) {
+  std::shared_ptr<Package> addPackage(std::string childName) {
     if (!hasChild(childName)) {
       children[std::string(childName)] = std::make_shared<Package>(childName);
     }
@@ -60,7 +66,7 @@ public:
     return std::get<std::shared_ptr<Package>>(children[std::string(childName)]);
   }
 
-  packageChild getChild(std::string_view childName) {
+  packageChild getChild(std::string childName) {
     auto it = children.find(std::string(childName));
     return (it != children.end()) ? it->second : nullptr;
   }
@@ -82,7 +88,7 @@ public:
 class Body : public Decl {
 public:
   explicit Body(std::shared_ptr<parsetree::ast::Decl> body) : Decl{body} {}
-  void printDecl(int depth = 0) const override {
+  void printDecl(int depth = 0) const {
     for (int i = 0; i < depth; ++i)
       std::cout << "  ";
     std::cout << "(Body: " << getAstNode()->getName() << ")"
@@ -90,48 +96,27 @@ public:
   }
 };
 
-// class Class : public Decl {
-//   std::string name;
-//   std::unordered_set<std::shared_ptr<Method>> methods;
-//   std::unordered_set<std::shared_ptr<Field>> fields;
-//   std::unordered_set<std::shared_ptr<Class>> superclasses;
-//   std::unordered_set<std::shared_ptr<Interface>> extendedInterfaces;
-//   std::unordered_set<std::string> modifiers;
-
-// public:
-//   explicit Class(std::string name) : name{name} {}
-
-//   void addMethod(std::shared_ptr<Method> method) { methods.insert(method); }
-//   void addField(std::shared_ptr<Field> field) { fields.insert(field); }
-//   void addSuperclass(std::shared_ptr<Class> superclass) {
-//     superclasses.insert(superclass);
-//   }
-//   void addExtendedInterface(std::shared_ptr<Interface> interface) {
-//     extendedInterfaces.insert(interface);
-//   }
-//   void addModifier(const std::string &modifier) { modifiers.insert(modifier);
-//   }
-
-//   const std::string &getName() const { return name; }
-// };
+class Class : public Decl {
+public:
+  explicit Class(std::shared_ptr<parsetree::ast::ClassDecl> cls) : Decl{cls} {}
+  void printDecl(int depth = 0) const {
+    for (int i = 0; i < depth; ++i)
+      std::cout << "  ";
+    std::cout << "(Class: " << getAstNode()->getName() << ")"
+              << "\n";
+  }
+};
 
 // class Interface : public Decl {
-//   std::string name;
-//   std::unordered_set<std::shared_ptr<Method>> methods;
-//   std::unordered_set<std::shared_ptr<Interface>> extendedInterfaces;
-//   std::unordered_set<std::string> modifiers;
-
 // public:
-//   explicit Interface(std::string name) : name{name} {}
-
-//   void addMethod(std::shared_ptr<Method> method) { methods.insert(method); }
-//   void addExtendedInterface(std::shared_ptr<Interface> interface) {
-//     extendedInterfaces.insert(interface);
+//   explicit Interface(std::shared_ptr<parsetree::ast::InterfaceDecl> itf)
+//       : Decl{itf} {}
+//   void printDecl(int depth = 0) const override {
+//     for (int i = 0; i < depth; ++i)
+//       std::cout << "  ";
+//     std::cout << "(Interface: " << getAstNode()->getName() << ")"
+//               << "\n";
 //   }
-//   void addModifier(const std::string &modifier) { modifiers.insert(modifier);
-//   }
-
-//   const std::string &getName() const { return name; }
 // };
 
 // class Method : public Decl {

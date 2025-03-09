@@ -16,8 +16,8 @@ namespace parsetree::ast {
 
 // Base class for all AST nodes //////////////////////////////////////////////
 
-class QualifiedIdentifier;
 class ReferenceType;
+class Expr;
 class ExprOp;
 class ExprNode;
 class Modifiers;
@@ -27,58 +27,140 @@ class VarDecl;
 class StatementExpr;
 class Block;
 class UnresolvedType;
+class ScopeID;
+class CodeBody;
 
 class AstNode {
+protected:
+  std::ostream &printIndent(std::ostream &os, int indent = 0) const;
+
 public:
   virtual ~AstNode() = default;
   virtual std::vector<std::shared_ptr<AstNode>> getChildren() const {
     return std::vector<std::shared_ptr<AstNode>>();
   }
+
+  virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
 };
 
-class Decl : public AstNode {
+class Decl : virtual public AstNode {
+protected:
   std::string name;
+  std::weak_ptr<CodeBody> parent;
 
 public:
   explicit Decl(std::string name) : name{name} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
+  [[nodiscard]] std::shared_ptr<CodeBody> getParent() const noexcept {
+    return parent.lock();
+  }
+
+  virtual void setParent(std::shared_ptr<CodeBody> rawParent);
+  virtual std::shared_ptr<CodeBody> asCodeBody() const { return nullptr; }
 };
 
-class CodeBody : public AstNode {};
+class CodeBody : virtual public AstNode {
+public:
+  // temp fix of unknown wrong parent issue
+  virtual void reApplySetParent() { ; };
+
+  std::vector<std::shared_ptr<Decl>> getDecls() {
+    std::vector<std::shared_ptr<Decl>> declVector;
+    reApplySetParent();
+    for (auto child : getChildren()) {
+      if (auto decl = std::dynamic_pointer_cast<Decl>(child)) {
+        if (!(decl->getParent().get()))
+          throw std::runtime_error("parent null in CodeBody::getDecls");
+        if (!(decl->getParent().get() == this)) {
+
+          std::cout << "wrong parent decl: ";
+          decl->print(std::cout);
+          std::cout << "\nwith parent: ";
+          if (decl->getParent()) {
+            decl->getParent()->print(std::cout);
+          } else {
+            std::cout << "null\n";
+          };
+
+          throw std::runtime_error(
+              "child declaration of this context has the wrong parent");
+        }
+
+        declVector.push_back(decl);
+      }
+    }
+    return declVector;
+  }
+
+  virtual std::shared_ptr<Decl> asDecl() const { return nullptr; }
+};
 
 class Type : public AstNode {
 public:
   ~Type() override = default;
   [[nodiscard]] virtual std::string toString() const = 0;
   [[nodiscard]] virtual bool isResolved() const = 0;
+  [[nodiscard]] virtual bool isString() const { return false; };
+  [[nodiscard]] virtual bool isPrimitive() const { return false; };
+  [[nodiscard]] virtual bool isNull() const { return false; };
+  [[nodiscard]] virtual bool isNumeric() const { return false; }
+  [[nodiscard]] virtual bool isBoolean() const { return false; }
+  [[nodiscard]] virtual bool isArray() const { return false; }
 
-  std::ostream &print(std::ostream &os) const { return os << toString(); }
+  [[nodiscard]] virtual std::shared_ptr<Decl> getAsDecl() const {
+    return nullptr;
+  }
+
+  virtual bool operator==(const Type &other) const = 0;
+
+  // std::ostream &print(std::ostream &os, int indent = 0) const override {
+  //   if (!toString().empty())
+  //     printIndent(os, indent);
+  //   return os << toString();
+  // }
 };
 
-class Stmt : public AstNode {};
+class Stmt : public AstNode {
+public:
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    return os << "(Stmt)";
+  }
+};
 
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
 
 class ExprNode : public AstNode {
 public:
   virtual ~ExprNode() = default;
-  virtual std::ostream &print(std::ostream &os) const = 0;
+  // virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    return os << "(ExprNode)";
+  }
 };
 
 class Expr : public AstNode {
   // Reverse Polish Notation
   // TODO: We use vector for now
   std::vector<std::shared_ptr<ExprNode>> exprNodes;
+  std::shared_ptr<ScopeID> scope;
 
 public:
-  Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes)
-      : exprNodes{exprNodes} {}
+  Expr(std::vector<std::shared_ptr<ExprNode>> exprNodes,
+       std::shared_ptr<ScopeID> scope)
+      : exprNodes{exprNodes}, scope{scope} {}
 
   // Getter
   // right now we return a copy, inefficient i know...
-  std::vector<std::shared_ptr<ExprNode>> getExprNodes() const {
-    return exprNodes;
+  std::vector<std::shared_ptr<ExprNode>> &getExprNodes() { return exprNodes; }
+
+  std::shared_ptr<ScopeID> getScope() { return scope; }
+
+  void setExprNodes(std::vector<std::shared_ptr<ExprNode>> exprNodes) {
+    this->exprNodes = exprNodes;
   }
+
+  void setScope(std::shared_ptr<ScopeID> scope) { this->scope = scope; }
 
   const std::shared_ptr<ExprNode> getLastExprNode() const {
     if (exprNodes.empty()) {
@@ -87,13 +169,14 @@ public:
     return exprNodes.back();
   }
 
-  std::ostream &print(std::ostream &os) const {
-    os << "(Expr: ";
+  std::ostream &print(std::ostream &os, int indent = 0) const {
+    printIndent(os, indent);
+    os << "(Expr \n";
     for (const auto &exprNode : exprNodes) {
-      exprNode->print(os);
-      os << " ";
+      exprNode->print(os, indent + 1);
     }
-    return os << ")";
+    printIndent(os, indent);
+    return os << ")\n";
   }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
@@ -118,8 +201,13 @@ public:
   virtual std::string toString() const override { return "ReferenceType"; }
 
   bool isResolved() const override { return resolvedDecl != nullptr; }
+  std::shared_ptr<Decl> getAsDecl() const override {
+    if (!decl && !isResolved())
+      throw std::runtime_error("Decl not resolved");
+    return decl;
+  }
 
-  void setResolveDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
+  void setResolvedDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
     if (isResolved() && resolvedDecl != this->resolvedDecl) {
       throw std::runtime_error("Decl already resolved");
     }
@@ -127,6 +215,14 @@ public:
   }
 
   std::shared_ptr<static_check::Decl> getResolvedDecl() { return resolvedDecl; }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ReferenceType " << toString() << ")\n";
+    return os;
+  }
+
+  bool operator==(const Type &other) const override;
 };
 
 class UnresolvedType : public ReferenceType {
@@ -170,6 +266,8 @@ public:
   std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
     return qualifiedIdentifier;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class ImportDecl : public AstNode {
@@ -185,9 +283,12 @@ public:
   std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
     return qualifiedIdentifier;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
-class ProgramDecl : public CodeBody {
+class ProgramDecl : public CodeBody,
+                    public std::enable_shared_from_this<ProgramDecl> {
   std::shared_ptr<ReferenceType> package;
   std::vector<std::shared_ptr<ImportDecl>> imports;
   std::shared_ptr<CodeBody> body;
@@ -199,16 +300,32 @@ public:
 
   std::shared_ptr<CodeBody> getBody() const { return body; }
   std::shared_ptr<ReferenceType> getPackage() const { return package; }
+  std::string getPackageName() const { return package->toString(); }
   std::vector<std::shared_ptr<ImportDecl>> &getImports() { return imports; }
 
+  // should only be called once
+  void setAllParent() {
+    auto decl = std::dynamic_pointer_cast<Decl>(body);
+    if (decl) {
+      auto ptr = std::const_pointer_cast<ProgramDecl>(shared_from_this());
+      if (!ptr)
+        throw std::runtime_error("Failed to cast to ProgramDecl");
+      decl->setParent(std::dynamic_pointer_cast<CodeBody>(ptr));
+    } else {
+      throw std::runtime_error("Body wrong type in program decl!");
+    }
+  }
+
   bool isDefaultPackage() const {
+    if (!package)
+      return true;
     auto pkg = std::dynamic_pointer_cast<UnresolvedType>(package);
     if (!pkg)
       throw std::runtime_error("Package wrong type in program decl!");
     return pkg->getIdentifiers().size() == 0;
   }
 
-  std::ostream &print(std::ostream &os) const;
+  std::ostream &print(std::ostream &os, int indent = 0) const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
@@ -221,7 +338,9 @@ public:
   }
 };
 
-class ClassDecl : public CodeBody, public Decl {
+class ClassDecl : virtual public CodeBody,
+                  virtual public Decl,
+                  public std::enable_shared_from_this<ClassDecl> {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> superClasses;
   std::vector<std::shared_ptr<ReferenceType>> interfaces;
@@ -237,21 +356,7 @@ public:
 
   ClassDecl(std::string name) : Decl{name} {}
 
-  std::ostream &print(std::ostream &os) const;
-
-  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::vector<std::shared_ptr<AstNode>> children;
-    for (const auto &node : classBodyDecls) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : interfaces) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : superClasses) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    return children;
-  }
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 
   std::vector<std::shared_ptr<ReferenceType>> getSuperClasses() {
     return superClasses;
@@ -267,7 +372,19 @@ public:
 
   std::shared_ptr<Modifiers> getModifiers() { return modifiers; }
 
-  std::vector<std::shared_ptr<MethodDecl>> getMethods() {
+  std::vector<std::shared_ptr<FieldDecl>> getFields() const {
+    std::vector<std::shared_ptr<FieldDecl>> fields;
+
+    for (const auto &decl : classBodyDecls) {
+      if (auto fieldDecl = std::dynamic_pointer_cast<FieldDecl>(decl)) {
+        fields.push_back(fieldDecl);
+      }
+    }
+
+    return fields;
+  }
+
+  std::vector<std::shared_ptr<MethodDecl>> getMethods() const {
     std::vector<std::shared_ptr<MethodDecl>> methods;
 
     for (const auto &decl : classBodyDecls) {
@@ -279,13 +396,55 @@ public:
     return methods;
   }
 
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &node : classBodyDecls) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : interfaces) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : superClasses) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    // // do we need this
+    // for (const auto &node : getFields()) {
+    //   children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    // }
+    // for (const auto &node : getMethods()) {
+    //   children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    // }
+    return children;
+  }
+
+  void setParent(std::shared_ptr<CodeBody> parent) override;
+
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 
   // WARNING - ONLY USE FOR java.lang.Object
   void clearSuperClasses() { superClasses.clear(); }
+
+  std::shared_ptr<CodeBody> asCodeBody() const override {
+    auto ptr1 = std::const_pointer_cast<ClassDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<CodeBody>(shared_from_this());
+  }
+  std::shared_ptr<Decl> asDecl() const override {
+    auto ptr1 = std::const_pointer_cast<ClassDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<Decl>(shared_from_this());
+  }
 };
 
-class InterfaceDecl : public CodeBody, public Decl {
+class InterfaceDecl : virtual public CodeBody,
+                      virtual public Decl,
+                      public std::enable_shared_from_this<InterfaceDecl> {
   std::shared_ptr<Modifiers> modifiers;
   std::vector<std::shared_ptr<ReferenceType>> interfaces;
   std::vector<std::shared_ptr<Decl>> interfaceBodyDecls;
@@ -297,7 +456,7 @@ public:
                 std::shared_ptr<ReferenceType> objectType,
                 std::vector<std::shared_ptr<Decl>> interfaceBody);
 
-  std::ostream &print(std::ostream &os) const;
+  std::ostream &print(std::ostream &os, int indent = 0) const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
@@ -325,22 +484,43 @@ public:
   std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
     return interfaces;
   }
+
+  void setParent(std::shared_ptr<CodeBody> parent) override;
+
+  std::shared_ptr<CodeBody> asCodeBody() const override {
+    auto ptr1 = std::const_pointer_cast<InterfaceDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<CodeBody>(shared_from_this());
+  }
+  std::shared_ptr<Decl> asDecl() const override {
+    // return std::static_pointer_cast<Decl>(shared_from_this());
+    auto ptr1 = std::const_pointer_cast<InterfaceDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+  }
 };
 
 class VarDecl : public Decl {
   std::shared_ptr<Type> type;
   std::shared_ptr<Expr> initializer;
+  std::shared_ptr<ScopeID> scope;
 
 public:
   VarDecl(std::shared_ptr<Type> type, std::string name,
-          std::shared_ptr<Expr> initializer)
-      : Decl{name}, type{type}, initializer{initializer} {}
+          std::shared_ptr<Expr> initializer, std::shared_ptr<ScopeID> scope)
+      : Decl{name}, type{type}, initializer{initializer}, scope{scope} {}
 
   bool hasInit() const { return initializer != nullptr; }
 
   // Getters
   std::shared_ptr<Type> getType() const { return type; }
   std::shared_ptr<Expr> getInitializer() const { return initializer; }
+  std::shared_ptr<ScopeID> getScope() const { return scope; }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
@@ -348,39 +528,27 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(initializer));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
-class FieldDecl : public VarDecl {
+class FieldDecl final : public VarDecl {
   std::shared_ptr<Modifiers> modifiers;
 
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
-            std::string name, std::shared_ptr<Expr> initializer);
+            std::string name, std::shared_ptr<Expr> initializer,
+            std::shared_ptr<ScopeID> scope, bool allowFinal = false);
 
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
+
+  void setParent(std::shared_ptr<CodeBody> parent) override;
 };
 
-class Param : public AstNode {
-  std::shared_ptr<Type> type;
-  std::string name;
-
-public:
-  Param(std::shared_ptr<Type> type, std::string name)
-      : type{type}, name{name} {}
-
-  // Getters
-  std::shared_ptr<Type> getType() const { return type; }
-  const std::string &getName() const { return name; }
-
-  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::vector<std::shared_ptr<AstNode>> children;
-    children.push_back(std::dynamic_pointer_cast<AstNode>(type));
-    return children;
-  }
-};
-
-class MethodDecl : public Decl {
+class MethodDecl : public Decl,
+                   public CodeBody,
+                   public std::enable_shared_from_this<MethodDecl> {
   std::shared_ptr<Modifiers> modifiers;
   std::shared_ptr<Type> returnType;
   std::vector<std::shared_ptr<VarDecl>> params;
@@ -407,6 +575,12 @@ public:
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
   bool isConstructor() const { return isConstructor_; }
   bool hasBody() const { return methodBody != nullptr; };
+
+  void reApplySetParent() override {
+    for (const auto &decl : localDecls) {
+      decl->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
+    }
+  }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
@@ -441,7 +615,30 @@ public:
     return signature;
   }
 
+  void setParent(std::shared_ptr<CodeBody> parent) override;
+
   std::shared_ptr<Type> getReturnType() { return returnType; }
+  std::shared_ptr<Block> getMethodBody() { return methodBody; }
+
+  std::vector<std::shared_ptr<VarDecl>> &getParams() { return params; }
+  std::shared_ptr<CodeBody> asCodeBody() const override {
+    auto ptr1 = std::const_pointer_cast<MethodDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<CodeBody>(shared_from_this());
+  }
+  std::shared_ptr<Decl> asDecl() const override {
+    auto ptr1 = std::const_pointer_cast<MethodDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<Decl>(shared_from_this());
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 // Statements /////////////////////////////////////////////////////////////
@@ -466,6 +663,8 @@ public:
     }
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class IfStmt : public Stmt {
@@ -491,6 +690,8 @@ public:
       children.push_back(std::dynamic_pointer_cast<AstNode>(elseBody));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class WhileStmt : public Stmt {
@@ -511,6 +712,8 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(whileBody));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class ForStmt : public Stmt {
@@ -539,6 +742,8 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(forBody));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 class ReturnStmt : public Stmt {
@@ -555,6 +760,16 @@ public:
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(returnExpr));
     return children;
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ReturnStmt \n";
+    if (returnExpr)
+      returnExpr->print(os, indent + 1);
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
   }
 };
 
@@ -573,9 +788,18 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(statementExpr));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ExpressionStmt \n";
+    statementExpr->print(os, indent + 1);
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
-class DeclStmt : public Stmt {
+class DeclStmt : virtual public Stmt {
   std::shared_ptr<VarDecl> decl;
 
 public:
@@ -589,47 +813,30 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(decl));
     return children;
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(DeclStmt \n";
+    decl->print(os, indent + 1);
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
-class NullStmt : public Stmt {};
+class NullStmt : public Stmt {
+public:
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    return os << "(NullStmt)\n";
+  };
+};
 
 // Types /////////////////////////////////////////////////////////////
 
-class QualifiedIdentifier : public ExprNode {
-  std::vector<std::string> identifiers;
-
-public:
-  const std::vector<std::string> &getIdentifiers() const {
-    return identifiers;
-  };
-
-  void addIdentifier(std::string identifier) {
-    identifiers.emplace_back(identifier);
-  }
-
-  [[nodiscard]] std::string toString() const {
-    if (identifiers.empty())
-      return "";
-
-    std::string result;
-    for (const auto &identifier : identifiers) {
-      result += identifier + '.';
-    }
-    result.pop_back();
-    return result;
-  }
-
-  std::ostream &print(std::ostream &os) const { return os << toString(); }
-
-  friend std::ostream &
-  operator<<(std::ostream &os, const QualifiedIdentifier &qualifiedIdentifier) {
-    return os << qualifiedIdentifier.toString();
-  }
-};
-
 class BasicType : public Type, public ExprNode {
 public:
-  enum class Type { Int, Boolean, Short, Char, Void, Byte };
+  enum class Type { Int, Boolean, Short, Char, Void, Byte, String };
 
   BasicType(Type type) : type_{type} {}
   BasicType(parsetree::BasicType::Type type) {
@@ -654,16 +861,58 @@ public:
     }
   }
 
+  BasicType(parsetree::Literal::Type type) {
+    switch (type) {
+    case parsetree::Literal::Type::String:
+      type_ = Type::String;
+      break;
+    case parsetree::Literal::Type::Null:
+      type_ = Type::Void;
+      break;
+    case parsetree::Literal::Type::Integer:
+      type_ = Type::Int;
+      break;
+    case parsetree::Literal::Type::Character:
+      type_ = Type::Char;
+      break;
+    case parsetree::Literal::Type::Boolean:
+      type_ = Type::Boolean;
+      break;
+    default:
+      break;
+    }
+  }
+
   Type getType() const { return type_; }
   std::string toString() const override {
     return std::string(magic_enum::enum_name(type_));
   }
 
   bool isResolved() const override { return true; }
+  bool isString() const override { return type_ == Type::String; }
+  bool isPrimitive() const override { return type_ != Type::String; }
+  bool isNull() const override { return type_ == Type::Void; }
+  bool isNumeric() const override {
+    return type_ == Type::Int || type_ == Type::Char || type_ == Type::Short ||
+           type_ == Type::Byte;
+  }
+  bool isBoolean() const override { return type_ == Type::Boolean; }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(BasicType " << magic_enum::enum_name(type_) << ")";
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    parsetree::ast::Type::printIndent(os, indent);
+    os << "(BasicType " << magic_enum::enum_name(type_) << ")\n";
     return os;
+  }
+
+  bool operator==(const parsetree::ast::Type &other) const override {
+    const BasicType *otherBasic = dynamic_cast<const BasicType *>(&other);
+    if (!otherBasic) {
+      return false;
+    }
+    if (type_ != otherBasic->type_) {
+      return false;
+    }
+    return true;
   }
 
 private:
@@ -680,11 +929,16 @@ public:
   }
 
   bool isResolved() const override { return elementType->isResolved(); }
+  bool isArray() const override { return true; }
 
-  std::ostream &print(std::ostream &os) const override {
-    os << "(ArrayType ";
-    elementType->print(os);
-    os << ")";
+  std::shared_ptr<Type> getElementType() const { return elementType; }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    Type::printIndent(os, indent);
+    os << "(ArrayType \n";
+    elementType->print(os, indent + 1);
+    Type::printIndent(os, indent);
+    os << ")\n";
     return os;
   }
 
@@ -692,6 +946,17 @@ public:
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(elementType));
     return children;
+  }
+
+  bool operator==(const Type &other) const override {
+    const ArrayType *otherArrayType = dynamic_cast<const ArrayType *>(&other);
+    if (!otherArrayType) {
+      return false;
+    }
+    if (*elementType != *(otherArrayType->elementType)) {
+      return false;
+    }
+    return true;
   }
 };
 
@@ -765,4 +1030,135 @@ public:
   }
 };
 
+class MethodType : public Type {
+  std::shared_ptr<Type> returnType;
+  std::vector<std::shared_ptr<Type>> paramTypes;
+
+public:
+  MethodType(std::shared_ptr<MethodDecl> method)
+      : Type{}, returnType{method->getReturnType()}, paramTypes{} {
+    for (auto param : method->getParams()) {
+      paramTypes.push_back(param->getType());
+    }
+  }
+
+  bool isResolved() const override { return true; }
+  std::string toString() const override { return "MethodType"; }
+
+  void setReturnType(std::shared_ptr<Type> returnType) {
+    this->returnType = returnType;
+  }
+  std::shared_ptr<Type> getReturnType() const { return returnType; }
+  const std::vector<std::shared_ptr<Type>> &getParamTypes() const {
+    return paramTypes;
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(MethodType ";
+    printIndent(os, indent + 1);
+    os << "Return Type: ";
+    returnType->print(os, indent + 2);
+    os << "Param Types: [";
+    bool paramTypesIndent = false;
+    for (auto &paramType : paramTypes) {
+      if (paramType) {
+        os << "\n";
+        paramType->print(os, indent + 2);
+        paramTypesIndent = true;
+      }
+    }
+    if (paramTypesIndent)
+      printIndent(os, indent + 1);
+    os << "]\n";
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
+
+  bool operator==(const Type &other) const override {
+    const MethodType *otherMethod = dynamic_cast<const MethodType *>(&other);
+    if (!otherMethod) {
+      return false;
+    }
+
+    if (!(*returnType == *(otherMethod->returnType))) {
+      return false;
+    }
+
+    if (paramTypes.size() != otherMethod->paramTypes.size()) {
+      return false;
+    }
+
+    for (size_t i = 0; i < paramTypes.size(); ++i) {
+      if (!(*(paramTypes[i]) == *(otherMethod->paramTypes[i]))) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+class ScopeID final {
+public:
+  ScopeID(const std::shared_ptr<ScopeID> &parent, int pos)
+      : parent_{parent}, pos_{pos} {}
+
+public:
+  std::shared_ptr<ScopeID> next(std::shared_ptr<ScopeID> parent) const {
+    return std::make_shared<ScopeID>(parent, pos_ + 1);
+  }
+
+  bool canView(std::shared_ptr<ScopeID> other) const {
+    assert(other != nullptr && "Can't view the null scope");
+    // std::cout << "canView: this=" << toString() << " other=" <<
+    // other->toString() << std::endl;
+    if (this->parent_ == other->parent_) {
+      return this->pos_ >= other->pos_;
+    }
+    if (this->parent_) {
+      // std::cout << "canView: this_parent=" << this->parent_->toString() <<
+      // std::endl;
+      return this->parent_->canView(other);
+    }
+    return false;
+  }
+
+  std::shared_ptr<ScopeID> parent() const { return parent_; }
+
+  static std::shared_ptr<ScopeID> New() {
+    return std::make_shared<ScopeID>(nullptr, 0);
+  }
+
+  std::string toString() const {
+    return (parent_ ? parent_->toString() + "." : "") + std::to_string(pos_);
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const ScopeID &id) {
+    return os << id.toString();
+  }
+
+private:
+  std::shared_ptr<ScopeID> parent_;
+  const int pos_;
+};
+
 } // namespace parsetree::ast
+
+namespace static_check {
+class Decl {
+  std::shared_ptr<parsetree::ast::Decl> astNode;
+
+public:
+  explicit Decl(std::shared_ptr<parsetree::ast::Decl> node) : astNode(node) {}
+  void printDecl(int depth = 0) const {
+    for (int i = 0; i < depth; ++i)
+      std::cout << "  ";
+    std::cout << "(Decl: " << astNode->getName() << ")"
+              << "\n";
+  }
+  std::string getName() const { return astNode->getName(); }
+  std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode; }
+};
+} // namespace static_check

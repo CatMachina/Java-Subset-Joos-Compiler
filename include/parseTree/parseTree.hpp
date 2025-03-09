@@ -209,6 +209,7 @@ public:
 
   Type getType() const { return type; }
   std::string getValue() const { return value; }
+  bool isNegativeVal() const { return isNegative; }
 
 private:
   Type type;
@@ -225,7 +226,7 @@ class Identifier : public Node {
 
 public:
   Identifier(std::string name)
-      : Node{loc, Node::Type::Identifier}, name{std::move(name)} {}
+      : Node{loc, Node::Type::Identifier}, name{name} {}
 
   const char *get_name() const { return name.c_str(); }
 

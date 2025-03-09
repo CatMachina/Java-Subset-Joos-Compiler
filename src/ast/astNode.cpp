@@ -2,11 +2,30 @@
 
 namespace parsetree::ast {
 
+void Decl::setParent(std::shared_ptr<CodeBody> rawParent) {
+  if (rawParent == nullptr)
+    throw std::runtime_error("parent cannot be null!");
+  // if (!this->parent.expired())
+  //   throw std::runtime_error("parent already set!");
+  // // std::shared_ptr<CodeBody> parentShared = rawParent->weak_from_this();
+  // this->parent =
+  //     rawParent
+  //         ->weak_from_this(); // Store as weak_ptr to avoid ownership issues
+  this->parent = rawParent;
+}
+
 ProgramDecl::ProgramDecl(std::shared_ptr<ReferenceType> package,
                          std::vector<std::shared_ptr<ImportDecl>> imports,
                          std::shared_ptr<CodeBody> body)
     : package{package}, imports{imports}, body{body} {
   std::unordered_map<std::string, std::string> existingImports;
+
+  auto decl = std::dynamic_pointer_cast<Decl>(body);
+  if (decl) {
+    // decl->setParent(this);
+  } else {
+    throw std::runtime_error("Body must be a Decl.");
+  }
 
   for (const auto &importDecl : imports) {
     if (importDecl->hasStar()) {
@@ -88,6 +107,20 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
   }
 }
 
+void ClassDecl::setParent(std::shared_ptr<CodeBody> parent) {
+  // std::cout << "ClassDecl::setParent" << std::endl;
+  auto program = std::dynamic_pointer_cast<ProgramDecl>(parent);
+  Decl::setParent(parent);
+  if (!(program->isDefaultPackage())) {
+    // change name
+  }
+
+  for (auto &field : getFields())
+    field->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
+  for (auto &method : getMethods())
+    method->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
+}
+
 InterfaceDecl::InterfaceDecl(
     std::shared_ptr<Modifiers> modifiers, std::string name,
     std::vector<std::shared_ptr<ReferenceType>> interfaces,
@@ -139,6 +172,17 @@ InterfaceDecl::InterfaceDecl(
       }
     }
   }
+}
+
+void InterfaceDecl::setParent(std::shared_ptr<CodeBody> parent) {
+  // std::cout << "InterfaceDecl::setParent" << std::endl;
+  auto program = std::dynamic_pointer_cast<ProgramDecl>(parent);
+  Decl::setParent(parent);
+  if (!program->isDefaultPackage()) {
+    // change name
+  }
+  for (auto &method : getMethods())
+    method->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
 }
 
 MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
@@ -229,18 +273,45 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
   checkSuperThisCalls(methodBody);
 }
 
+void MethodDecl::setParent(std::shared_ptr<CodeBody> parent) {
+  // std::cout << "MethodDecl::setParent" << std::endl;
+  Decl::setParent(parent);
+  auto parentDecl = std::dynamic_pointer_cast<Decl>(parent);
+  if (!parentDecl)
+    throw std::runtime_error("Field Decl Parent must be a Decl");
+  if (!(std::dynamic_pointer_cast<ClassDecl>(parentDecl) ||
+        std::dynamic_pointer_cast<InterfaceDecl>(parentDecl))) {
+    throw std::runtime_error(
+        "Method Decl Parent must be a ClassDecl or InterfaceDecl");
+  }
+  if (modifiers->isStatic()) {
+    // change name
+  }
+
+  for (auto &local : localDecls) {
+    local->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
+    if (local->getParent().get() != this) {
+      throw std::runtime_error("child decl set Parent failed at MethodDecl");
+    }
+  }
+}
+
 void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
   if (!block) {
     return;
   }
   std::shared_ptr<MethodInvocation> methodToCheck;
   for (auto statement : block->getStatements()) {
+    if (!statement)
+      continue;
     if (auto nestedBlock = std::dynamic_pointer_cast<Block>(statement)) {
       checkSuperThisCalls(nestedBlock);
       continue;
     }
     if (auto expressionStmt =
             std::dynamic_pointer_cast<ExpressionStmt>(statement)) {
+      if (!(expressionStmt->getStatementExpr()))
+        continue;
       auto opNode = expressionStmt->getStatementExpr()->getLastExprNode();
       if (auto methodInvocation =
               std::dynamic_pointer_cast<MethodInvocation>(opNode)) {
@@ -248,6 +319,8 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
       }
     } else if (auto returnStmt =
                    std::dynamic_pointer_cast<ReturnStmt>(statement)) {
+      if (!(returnStmt->getReturnExpr()))
+        continue;
       auto opNode = returnStmt->getReturnExpr()->getLastExprNode();
       if (auto methodInvocation =
               std::dynamic_pointer_cast<MethodInvocation>(opNode)) {
@@ -257,39 +330,41 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
     if (!methodToCheck) {
       continue;
     }
-    auto qid = methodToCheck->getQualifiedIdentifier();
-    if (qid.empty()) {
-      // TODO: This is the primary DOT ID case. Need to check whether the
-      // primary (i.e. expr) is a this() or super() method invocation.
-      continue;
-    }
-    for (const auto &expr : qid) {
-      auto memberName = std::dynamic_pointer_cast<MemberName>(expr);
-      if (!memberName) {
-        continue; // will it happen?
-      }
-      auto id = memberName->getName();
-      if (id == "this") {
-        throw std::runtime_error("A method or constructor must not contain "
-                                 "explicit this() calls for method " +
-                                 getName());
-      } else if (id == "super") {
-        throw std::runtime_error("A method or constructor must not contain "
-                                 "explicit super() calls for method " +
-                                 getName());
-      }
-    }
+    // TODO
+    // auto qid = methodToCheck->getQualifiedIdentifier();
+    // if (qid.empty()) {
+    //   // TODO: This is the primary DOT ID case. Need to check whether the
+    //   // primary (i.e. expr) is a this() or super() method invocation.
+    //   continue;
+    // }
+    // for (const auto &expr : qid) {
+    //   auto memberName = std::dynamic_pointer_cast<MemberName>(expr);
+    //   if (!memberName) {
+    //     continue; // will it happen?
+    //   }
+    //   auto id = memberName->getName();
+    //   if (id == "this") {
+    //     throw std::runtime_error("A method or constructor must not contain "
+    //                              "explicit this() calls for method " +
+    //                              getName());
+    //   } else if (id == "super") {
+    //     throw std::runtime_error("A method or constructor must not contain "
+    //                              "explicit super() calls for method " +
+    //                              getName());
+    //   }
+    // }
   }
 }
 
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
                      std::shared_ptr<Type> type, std::string name,
-                     std::shared_ptr<Expr> initializer)
-    : modifiers{modifiers}, VarDecl{type, name, initializer} {
+                     std::shared_ptr<Expr> initializer,
+                     std::shared_ptr<ScopeID> scope, bool allowFinal)
+    : modifiers{modifiers}, VarDecl{type, name, initializer, scope} {
   if (!modifiers) {
     throw std::runtime_error("Field Decl Invalid modifiers.");
   }
-  if (modifiers->isFinal()) {
+  if (!allowFinal && modifiers->isFinal()) {
     throw std::runtime_error("A field cannot be final");
   }
   if (modifiers->isAbstract()) {
@@ -306,20 +381,350 @@ FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
   }
 }
 
+std::ostream &AstNode::printIndent(std::ostream &os, int indent) const {
+  for (int i = 0; i < indent; ++i) {
+    os << "  ";
+  }
+  return os;
+}
+
 // Prints
-std::ostream &InterfaceDecl::print(std::ostream &os) const {
+std::ostream &InterfaceDecl::print(std::ostream &os, int indent) const {
   os << "InterfaceDecl {}\n";
   return os;
 }
 
-std::ostream &ProgramDecl::print(std::ostream &os) const {
-  os << "ProgramDecl {}\n";
+std::ostream &ProgramDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(ProgramDecl \n";
+
+  // Print Package (For some reason, we're not using PackageDecl)
+  printIndent(os, indent + 1);
+  os << "(Package \n";
+  package->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << ")\n";
+
+  // Print imports
+  for (auto &importDecl : imports) {
+    importDecl->print(os, indent + 1);
+  }
+
+  // Print Body
+  body->print(os, indent + 1);
+  printIndent(os, indent);
+  os << ")\n";
   return os;
 }
 
-std::ostream &ClassDecl::print(std::ostream &os) const {
-  os << "ProgramDecl {}\n";
+std::ostream &ImportDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(ImportDecl \n";
+  qualifiedIdentifier->print(os, indent + 1);
+  printIndent(os, indent);
+  os << ")\n";
   return os;
+}
+
+// It seems like we never instantiate a PackageDecl...
+std::ostream &PackageDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(PackageDecl \n";
+  qualifiedIdentifier->print(os, indent + 1);
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &ClassDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(ClassDecl \n";
+  // Print Modifiers
+  printIndent(os, indent + 1);
+  os << "modifiers: {\n";
+  printIndent(os, indent + 2);
+  os << *modifiers << "\n";
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print Superclasses
+  printIndent(os, indent + 1);
+  os << "superClasses: {\n";
+  for (auto &superClass : superClasses) {
+    if (superClass) {
+      superClass->print(os, indent + 2);
+    }
+  }
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print Interfaces
+  printIndent(os, indent + 1);
+  os << "interfaces: [";
+  bool interfaceNewline = false;
+  for (auto &interface : interfaces) {
+    if (interface) {
+      os << "\n";
+      interface->print(os, indent + 2);
+      interfaceNewline = true;
+    }
+  }
+  if (interfaceNewline) {
+    os << "\n";
+    printIndent(os, indent + 1);
+  }
+  os << "]\n";
+
+  // Print Object Type
+  if (objectType) {
+    objectType->print(os, indent + 1);
+  }
+
+  // Print Body
+  for (auto &decl : classBodyDecls) {
+    if (decl) {
+      decl->print(os, indent + 1);
+    }
+  }
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &VarDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(VarDecl \n";
+
+  // Print Type
+  type->print(os, indent + 1);
+
+  // Print Scope
+  printIndent(os, indent + 1);
+  os << "ScopeID: " << *scope << "\n";
+
+  // Print Initializer
+  if (initializer) {
+    printIndent(os, indent + 1);
+    os << "Initializer: { \n";
+    initializer->print(os, indent + 2);
+    printIndent(os, indent + 1);
+    os << "}\n";
+  } else {
+    printIndent(os, indent + 1);
+    os << "Initializer: N/A\n";
+  }
+
+  printIndent(os, indent);
+  os << ")\n";
+
+  return os;
+}
+
+std::ostream &MethodDecl::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(MethodDecl \n";
+
+  // Print Modifiers
+  printIndent(os, indent + 1);
+  os << "modifiers: {\n";
+  printIndent(os, indent + 2);
+  os << *modifiers << "\n";
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print Type
+  if (isConstructor_) {
+    printIndent(os, indent + 1);
+    os << "IsConstructor: True\n";
+  } else {
+    printIndent(os, indent + 1);
+    os << "IsConstructor: False\n";
+    printIndent(os, indent + 1);
+    os << "Return Type: ";
+    if (returnType)
+      returnType->print(os);
+    else
+      os << "Void\n";
+  }
+
+  // Print Params
+  printIndent(os, indent + 1);
+  os << "params: [";
+  bool paramsFirst = true;
+  for (auto &param : params) {
+    if (paramsFirst)
+      os << "\n";
+    if (param) {
+      param->print(os, indent + 2);
+    }
+    paramsFirst = false;
+  }
+  if (!paramsFirst)
+    printIndent(os, indent + 1);
+  os << "]\n";
+
+  // Print LocalDecls
+  printIndent(os, indent + 1);
+  os << "localDecls: [";
+  bool localDeclsFirst = true;
+  for (auto &localDecl : localDecls) {
+    if (localDeclsFirst)
+      os << "\n";
+    if (localDecl) {
+      localDecl->print(os, indent + 2);
+    }
+    localDeclsFirst = false;
+  }
+  if (!localDeclsFirst)
+    printIndent(os, indent + 1);
+  os << "]\n";
+
+  // Print Body
+  if (methodBody) {
+    methodBody->print(os, indent + 1);
+  } else {
+    printIndent(os, indent + 1);
+    os << "MethodBody: N/A\n";
+  }
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &Block::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(Block \n";
+
+  // Print Statements
+  for (auto &statement : statements) {
+    statement->print(os, indent + 1);
+  };
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &IfStmt::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(IfStmt \n";
+
+  // Print condition
+  printIndent(os, indent + 1);
+  os << "condition: { \n";
+  condition->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print If
+  printIndent(os, indent + 1);
+  os << "ifBody: { \n";
+  ifBody->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print Else
+  if (elseBody) {
+    printIndent(os, indent + 1);
+    os << "elseBody: { \n";
+    ifBody->print(os, indent + 2);
+    printIndent(os, indent + 1);
+    os << "}\n";
+  }
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &WhileStmt::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(WhileStmt \n";
+
+  // Print condition
+  printIndent(os, indent + 1);
+  os << "condition: { \n";
+  if (condition)
+    condition->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print body
+  printIndent(os, indent + 1);
+  os << "whileBody: { \n";
+  whileBody->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+std::ostream &ForStmt::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  os << "(ForStmt \n";
+
+  // Print forInit
+  printIndent(os, indent + 1);
+  os << "forInit: { \n";
+  if (forInit)
+    forInit->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print condition
+  printIndent(os, indent + 1);
+  os << "condition: { \n";
+  if (condition)
+    condition->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print forUpdate
+  printIndent(os, indent + 1);
+  os << "forUpdate: { \n";
+  if (forUpdate)
+    forUpdate->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  // Print forBody
+  printIndent(os, indent + 1);
+  os << "forBody: { \n";
+  forBody->print(os, indent + 2);
+  printIndent(os, indent + 1);
+  os << "}\n";
+
+  printIndent(os, indent);
+  os << ")\n";
+  return os;
+}
+
+void FieldDecl::setParent(std::shared_ptr<CodeBody> parent) {
+  // std::cout << "FieldDecl::setParent" << std::endl;
+  Decl::setParent(parent);
+  auto parentDecl = std::dynamic_pointer_cast<Decl>(parent);
+  if (!parentDecl)
+    throw std::runtime_error("Field Decl Parent must be a Decl");
+  if (modifiers->isStatic()) {
+    // change name
+  }
+}
+
+bool ReferenceType::operator==(const Type &other) const {
+  const ReferenceType *otherRef = dynamic_cast<const ReferenceType *>(&other);
+  if (!otherRef) {
+    return false;
+  }
+
+  if (resolvedDecl->getAstNode() != otherRef->resolvedDecl->getAstNode()) {
+    return false;
+  }
+
+  return true;
 }
 
 } // namespace parsetree::ast

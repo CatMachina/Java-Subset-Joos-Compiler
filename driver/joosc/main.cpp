@@ -15,11 +15,38 @@
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
+// #include "staticCheck/nameDisambiguator.hpp"
+#include "staticCheck/exprResolver.hpp"
 #include "staticCheck/typeLinker.hpp"
+#include "staticCheck/typeResolver.hpp"
 
 #include <memory>
 
 #define EXIT_ERROR 42
+
+// void checkLinked(std::shared_ptr<parsetree::ast::AstNode> node) {
+//   if (!node)
+//     throw std::runtime_error("Node is null when resolving AST");
+
+//   for (auto child : node->getChildren()) {
+//     if (!child)
+//       continue;
+
+//     // Case: Type
+//     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
+//       if (!(type->isResolved())) {
+//         type->print(std::cout);
+//         std::cout << " not resolved" << std::endl;
+//         // throw std::runtime_error(" Type still not resolved after
+//         typeLinking");
+//       }
+//     }
+//     // Case: regular code
+//     else {
+//       checkLinked(child);
+//     }
+//   }
+// }
 
 // hack
 bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
@@ -44,7 +71,10 @@ int main(int argc, char **argv) {
     }
 
     source::SourceManager sm = source::SourceManager();
-    auto astManager = std::make_unique<parsetree::ast::ASTManager>();
+    auto astManager = std::make_shared<parsetree::ast::ASTManager>();
+    auto env = std::make_shared<static_check::EnvManager>();
+
+    std::cout << "Starting compilation..." << std::endl;
 
     // First pass: AST construction
     for (int file_number = 1; file_number < argc; ++file_number) {
@@ -101,15 +131,16 @@ int main(int argc, char **argv) {
         return EXIT_ERROR;
       }
 
-      // parse_tree->print(std::cerr);
+      // if (file_number == 1)
+      //   parse_tree->print(std::cout);
 
       // Build AST from the parse tree
       std::shared_ptr<parsetree::ast::ProgramDecl> ast;
-      static_check::EnvManager env;
       parsetree::ParseTreeVisitor visitor{env};
       try {
         if (parse_tree->is_corrupted())
           throw std::runtime_error("Parse tree is invalid");
+        std::cout << "Visiting parse tree..." << std::endl;
         ast = visitor.visitProgramDecl(parse_tree);
       } catch (const std::exception &ex) {
         std::cerr << "Runtime error: " << ex.what() << std::endl;
@@ -136,23 +167,58 @@ int main(int argc, char **argv) {
         std::cerr << "File name: " << fileName << std::endl;
         return EXIT_ERROR;
       }
-
       astManager->addAST(ast);
+      std::cout << "Parsed " << fileName << std::endl;
+      // if (file_number == 1) {
+      //   std::cout << "Constructed AST: \n";
+      //   ast->print(std::cout);
+      // }
     }
 
-    // Second pass: environment (symbol table) building + type linking
-    static_check::TypeLinker linker{std::move(astManager)};
+    std::cout << "Passed AST constructions\n";
+
+    // environment (symbol table) building + type linking
+    auto typeLinker =
+        std::make_shared<static_check::TypeLinker>(astManager, env);
     std::shared_ptr<static_check::Package> rootPackage =
-        linker.getRootPackage();
+        typeLinker->getRootPackage();
     rootPackage->printStructure();
-    linker.resolve();
-    static_check::HierarchyCheck hierarchyChecker{rootPackage};
-    std::cout << "Starting hierarchy check\n";
-    if (!hierarchyChecker.check()) {
+    std::cout << "Starting type linking\n";
+    typeLinker->resolve();
+    std::cout << "Populating java.lang\n";
+    typeLinker->populateJavaLang();
+    std::cout << "Passed type linking\n";
+
+    // hierarchy checking
+    auto hierarchyChecker =
+        std::make_shared<static_check::HierarchyCheck>(rootPackage);
+    std::cout << "Starting hierarchy check" << std::endl;
+    if (!hierarchyChecker->check()) {
       std::cout << "Did not pass hierarchy check\n";
       return EXIT_ERROR;
     }
     std::cout << "Passed hierarchy check\n";
+
+    // for (auto &ast : astManager->getASTs()) {
+    //   checkLinked(ast);
+    // }
+
+    // // name disambiguation
+    // auto nameDisambiguator =
+    // std::make_shared<static_check::NameDisambiguator>(
+    //     astManager, typeLinker, hierarchyChecker);
+    // nameDisambiguator->resolve();
+
+    astManager->getASTs()[0]->print(std::cout);
+
+    auto typeResolver =
+        std::make_shared<static_check::TypeResolver>(astManager, env);
+
+    auto exprResolver = std::make_shared<static_check::ExprResolver>(
+        astManager, hierarchyChecker, typeLinker, typeResolver);
+    exprResolver->resolve();
+
+    std::cout << "Expr Resolving Done.....\n";
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

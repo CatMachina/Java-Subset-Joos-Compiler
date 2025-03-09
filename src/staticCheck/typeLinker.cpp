@@ -67,9 +67,19 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     // Case: Type
     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
       // if not resolved, resolve.
-      if (!type->isResolved()) {
-        resolveType(type);
+      if (!(type->isResolved())) {
+        if (auto array =
+                std::dynamic_pointer_cast<parsetree::ast::ArrayType>(type)) {
+          resolveType(array->getElementType());
+        } else {
+          resolveType(type);
+        }
+        std::cout << "Resolving type: ";
+        type->print(std::cout);
+        std::cout << std::endl;
       }
+      if (!(type->isResolved()))
+        throw std::runtime_error("Type still not resolved after resolveType");
     }
     // Case: regular code
     else {
@@ -90,9 +100,8 @@ void TypeLinker::resolve() {
 
 void TypeLinker::initContext(
     std::shared_ptr<parsetree::ast::ProgramDecl> node) {
-  // clear the current context and single type imports
-  context.clear();
-  // singleTypeImports.clear();
+  auto &context = contextMap[node];
+  currentProgram = node;
   auto packageAstNode =
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(
           node->getPackage());
@@ -204,7 +213,6 @@ void TypeLinker::initContext(
                                decl->getName());
     }
 
-    // singleTypeImports[typeName] = Package::packageChild{decl};
     context[typeName] = Package::packageChild{decl};
   }
 
@@ -239,23 +247,25 @@ TypeLinker::resolveImport(const std::vector<std::string> &identifiers) {
   if (identifiers.size() == 0) {
     return rootPackage->children[DEFAULT_PACKAGE_NAME];
   }
-  Package::packageChild currentPkg = rootPackage;
+  Package::packageChild current = rootPackage;
   for (auto &id : identifiers) {
-    if (std::holds_alternative<std::shared_ptr<Decl>>(currentPkg)) {
+    if (std::holds_alternative<std::shared_ptr<Decl>>(current)) {
       throw std::runtime_error("internal node should not be decl");
     }
-    auto pkg = std::get<std::shared_ptr<Package>>(currentPkg);
+    auto pkg = std::get<std::shared_ptr<Package>>(current);
     if (pkg->children.find(id) == pkg->children.end()) {
       throw std::runtime_error("Could not resolve " + id +
                                " since this is not found");
     }
-    currentPkg = pkg->children.at(id);
+    current = pkg->children.at(id);
   }
-  // return the leaf nodes
-  return currentPkg;
+  // return the leaf node
+  return current;
 }
 
-void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
+void TypeLinker::resolveType(
+    std::shared_ptr<parsetree::ast::Type> type,
+    std::shared_ptr<parsetree::ast::ProgramDecl> program) {
   // only resolve if not resolved
   auto unresolvedType =
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(type);
@@ -271,9 +281,11 @@ void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
   bool first = true;
   for (auto &id : unresolvedType->getIdentifiers()) {
     if (first) {
-      currentType = resolveSimpleName(id);
+      currentType = resolveSimpleName(id, program);
       if (std::holds_alternative<std::nullptr_t>(currentType)) {
-        throw std::runtime_error("Could not resolve type at " + id);
+        throw std::runtime_error(
+            "Could not resolve type at " + id +
+            " due to failed resolveSimpleName at resolveType");
       }
       first = false;
     } else {
@@ -294,21 +306,178 @@ void TypeLinker::resolveType(std::shared_ptr<parsetree::ast::Type> type) {
   if (!std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
     throw std::runtime_error("resolved type should be decl");
   }
-  unresolvedType->setResolveDecl(std::get<std::shared_ptr<Decl>>(currentType));
+  unresolvedType->setResolvedDecl(std::get<std::shared_ptr<Decl>>(currentType));
 }
 
-/*
-Simple names have no . in their names.
-We traverse the namespaces in the following priority order:
-  1. Enclosing class/interface
-  2. Single-type imports (e.g. import a.b.c)
-  3. Type in same package
-  4. Import-on-demand package (e.g. import a.b.*)
-*/
-Package::packageChild
-TypeLinker::resolveSimpleName(const std::string &simpleName) {
+Package::packageChild TypeLinker::resolveSimpleName(
+    const std::string &simpleName,
+    std::shared_ptr<parsetree::ast::ProgramDecl> program) {
+  if (!program) {
+    program = currentProgram;
+  }
+  auto &context = contextMap[program];
   return context.find(simpleName) != context.end() ? context[simpleName]
                                                    : nullptr;
+}
+
+Package::packageChild TypeLinker::resolveQualifiedName(
+    const std::vector<std::string> &identifiers,
+    std::shared_ptr<parsetree::ast::ProgramDecl> program) {
+  if (identifiers.empty()) {
+    return nullptr;
+  }
+  if (!program) {
+    program = currentProgram;
+  }
+  auto &context = contextMap[program];
+  Package::packageChild current;
+  bool first = true;
+  for (auto &id : identifiers) {
+    if (first) {
+      current = resolveSimpleName(id, program);
+      if (std::holds_alternative<std::nullptr_t>(current)) {
+        throw std::runtime_error(
+            "Could not resolve type at " + id +
+            " due to failed resolveSimpleName at resolveQualifiedName");
+      }
+      first = false;
+      continue;
+    }
+    // interior nodes in the tree should not be decl
+    if (std::holds_alternative<std::shared_ptr<Decl>>(current)) {
+      throw std::runtime_error(
+          "resolving package should not be decl when resolving type");
+    }
+    auto pkg = std::get<std::shared_ptr<Package>>(current);
+    if (pkg->children.find(id) == pkg->children.end()) {
+      // not found
+      return nullptr;
+    }
+    current = pkg->children.at(id);
+  }
+  return current;
+}
+
+void TypeLinker::populateJavaLang() {
+  auto javaPackage =
+      std::get<std::shared_ptr<Package>>(rootPackage->children["java"]);
+  if (!javaPackage) {
+    throw std::runtime_error("Could not resolve java package");
+  }
+  auto langPackage =
+      std::get<std::shared_ptr<Package>>(javaPackage->children["lang"]);
+  if (!langPackage) {
+    throw std::runtime_error("Could not resolve lang package");
+  }
+  auto ioPackage =
+      std::get<std::shared_ptr<Package>>(javaPackage->children["io"]);
+  if (!ioPackage) {
+    throw std::runtime_error("Could not resolve io package");
+  }
+
+  auto getClassDecl =
+      [](const auto &package,
+         const std::string &key) -> std::shared_ptr<parsetree::ast::ClassDecl> {
+    return std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+        std::get<std::shared_ptr<Decl>>(package->children.at(key))
+            ->getAstNode());
+  };
+
+  auto getInterfaceDecl = [](const auto &package, const std::string &key)
+      -> std::shared_ptr<parsetree::ast::InterfaceDecl> {
+    return std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+        std::get<std::shared_ptr<Decl>>(package->children.at(key))
+            ->getAstNode());
+  };
+
+  astManager->java_lang.Boolean = getClassDecl(langPackage, "Boolean");
+  if (!astManager->java_lang.Boolean) {
+    throw std::runtime_error("Could not resolve java.lang.Boolean");
+  }
+
+  astManager->java_lang.Byte = getClassDecl(langPackage, "Byte");
+  if (!astManager->java_lang.Byte) {
+    throw std::runtime_error("Could not resolve java.lang.Byte");
+  }
+
+  astManager->java_lang.Character = getClassDecl(langPackage, "Character");
+  if (!astManager->java_lang.Character) {
+    throw std::runtime_error("Could not resolve java.lang.Character");
+  }
+
+  astManager->java_lang.Class = getClassDecl(langPackage, "Class");
+  if (!astManager->java_lang.Class) {
+    throw std::runtime_error("Could not resolve java.lang.Class");
+  }
+
+  astManager->java_lang.Cloneable = getInterfaceDecl(langPackage, "Cloneable");
+  if (!astManager->java_lang.Cloneable) {
+    throw std::runtime_error("Could not resolve java.lang.Cloneable");
+  }
+
+  astManager->java_lang.Integer = getClassDecl(langPackage, "Integer");
+  if (!astManager->java_lang.Integer) {
+    throw std::runtime_error("Could not resolve java.lang.Integer");
+  }
+
+  astManager->java_lang.Number = getClassDecl(langPackage, "Number");
+  if (!astManager->java_lang.Number) {
+    throw std::runtime_error("Could not resolve java.lang.Number");
+  }
+
+  astManager->java_lang.Object = getClassDecl(langPackage, "Object");
+  if (!astManager->java_lang.Object) {
+    throw std::runtime_error("Could not resolve java.lang.Object");
+  }
+
+  astManager->java_lang.Short = getClassDecl(langPackage, "Short");
+  if (!astManager->java_lang.Short) {
+    throw std::runtime_error("Could not resolve java.lang.Short");
+  }
+
+  astManager->java_lang.String = getClassDecl(langPackage, "String");
+  if (!astManager->java_lang.String) {
+    throw std::runtime_error("Could not resolve java.lang.String");
+  }
+
+  astManager->java_lang.System = getClassDecl(langPackage, "System");
+  if (!astManager->java_lang.System) {
+    throw std::runtime_error("Could not resolve java.lang.System");
+  }
+
+  astManager->java_lang.Serializable =
+      getInterfaceDecl(ioPackage, "Serializable");
+  if (!astManager->java_lang.Serializable) {
+    throw std::runtime_error("Could not resolve java.io.Serializable");
+  }
+
+  // Add Hardcoded array
+  std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> interfaces{};
+  std::vector<std::shared_ptr<parsetree::ast::Decl>> body{};
+  std::vector<std::shared_ptr<parsetree::ast::VarDecl>> emptyParams{};
+  std::vector<std::shared_ptr<parsetree::ast::ImportDecl>> emptyImports{};
+
+  auto lengthModifier = std::make_shared<parsetree::ast::Modifiers>();
+  auto publicModifier = std::make_shared<parsetree::ast::Modifiers>();
+
+  lengthModifier->set(parsetree::Modifier::Type::Public);
+  lengthModifier->set(parsetree::Modifier::Type::Final);
+  publicModifier->set(parsetree::Modifier::Type::Public);
+
+  auto type = std::make_shared<parsetree::ast::BasicType>(
+      parsetree::BasicType::Type::Int);
+  auto length =
+      envManager->BuildFieldDecl(lengthModifier, type, "length", nullptr, true);
+  auto nullBlock = std::make_shared<parsetree::ast::Block>();
+  auto constructor =
+      envManager->BuildMethodDecl(publicModifier, "_hardcoded_array", nullptr,
+                                  emptyParams, true, nullBlock);
+  body.push_back(length);
+  body.push_back(constructor);
+  astManager->java_lang.Array = envManager->BuildClassDecl(
+      publicModifier, "_hardcoded_array", nullptr, interfaces, body);
+  (void)envManager->BuildProgramDecl(nullptr, emptyImports,
+                                     astManager->java_lang.Array);
 }
 
 } // namespace static_check

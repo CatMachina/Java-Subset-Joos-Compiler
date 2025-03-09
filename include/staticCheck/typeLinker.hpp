@@ -1,17 +1,18 @@
 #pragma once
 
 #include "ast/ast.hpp"
+#include "envManager.hpp"
 #include "environment.hpp"
 #include <memory>
-#include <stack>
 
 namespace static_check {
 
 class TypeLinker {
 public:
-  TypeLinker(std::unique_ptr<parsetree::ast::ASTManager> astManager)
-      : astManager(std::move(astManager)) {
-    rootPackage = std::make_unique<Package>();
+  TypeLinker(std::shared_ptr<parsetree::ast::ASTManager> astManager,
+             std::shared_ptr<EnvManager> envManager)
+      : astManager(astManager), envManager(envManager) {
+    rootPackage = std::make_shared<Package>();
     // add the default package
     rootPackage->addPackage(DEFAULT_PACKAGE_NAME);
     buildSymbolTable();
@@ -20,6 +21,12 @@ public:
   std::shared_ptr<Package> getRootPackage() { return rootPackage; }
 
   void initContext(std::shared_ptr<parsetree::ast::ProgramDecl> node);
+
+  void populateJavaLang();
+
+  void setCurrentProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+    currentProgram = node;
+  }
 
   ////////////////////// Resolvers ////////////////////
   // Second pass
@@ -31,9 +38,26 @@ public:
   Package::packageChild
   resolveImport(const std::vector<std::string> &identifiers);
 
-  void resolveType(std::shared_ptr<parsetree::ast::Type> type);
+  void
+  resolveType(std::shared_ptr<parsetree::ast::Type> type,
+              std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
 
-  Package::packageChild resolveSimpleName(const std::string &simpleName);
+  Package::packageChild resolveSimpleName(
+      const std::string &simpleName,
+      std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
+
+  Package::packageChild resolveQualifiedName(
+      const std::vector<std::string> &identifiers,
+      std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
+
+  std::unordered_map<std::string, Package::packageChild> &
+  getContext(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+    auto it = contextMap.find(node);
+    if (it == contextMap.end()) {
+      throw std::runtime_error("Could not find context for node");
+    }
+    return it->second;
+  }
 
 private:
   // First pass?
@@ -41,11 +65,13 @@ private:
   // Second pass recursive helper
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> ast);
 
-  // std::vector<std::shared_ptr<Environment>> envs;
-  std::unique_ptr<parsetree::ast::ASTManager> astManager;
+  std::shared_ptr<parsetree::ast::ASTManager> astManager;
+  std::shared_ptr<EnvManager> envManager;
   std::shared_ptr<Package> rootPackage; // no decl
-  std::unordered_map<std::string, Package::packageChild>
-      context; // for each AST
+  std::unordered_map<std::shared_ptr<parsetree::ast::ProgramDecl>,
+                     std::unordered_map<std::string, Package::packageChild>>
+      contextMap;
+  std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram; // for each AST
 
   static const std::string DEFAULT_PACKAGE_NAME;
 };

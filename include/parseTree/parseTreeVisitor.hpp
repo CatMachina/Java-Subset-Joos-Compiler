@@ -16,7 +16,7 @@ using NodePtr = std::shared_ptr<Node>;
 class ParseTreeVisitor {
 
 public:
-  ParseTreeVisitor(static_check::EnvManager &envManager)
+  ParseTreeVisitor(std::shared_ptr<static_check::EnvManager> envManager)
       : envManager{envManager} {}
 
 private:
@@ -149,7 +149,7 @@ public:
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitLiteral(const NodePtr &node);
 
-  [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
+  [[nodiscard]] std::shared_ptr<ast::ExprNode>
   visitRegularType(const NodePtr &node);
 
   [[nodiscard]] std::shared_ptr<ast::ExprNode>
@@ -159,7 +159,7 @@ public:
   visitArrayTypeInExpr(const NodePtr &node);
 
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
-  visitQualifiedIdentifierInExpr(const NodePtr &node);
+  visitQualifiedIdentifierInExpr(const NodePtr &node, bool isMethod = false);
 
   [[nodiscard]] std::vector<std::string>
   visitUnresolvedTypeExpr(const NodePtr &node);
@@ -199,8 +199,8 @@ public:
   [[nodiscard]] std::vector<std::shared_ptr<ast::ExprNode>>
   visitClassCreation(const NodePtr &node);
 
-  void visitArgumentList(const NodePtr &node,
-                         std::vector<std::shared_ptr<ast::ExprNode>> &args);
+  int visitArgumentList(const NodePtr &node,
+                        std::vector<std::shared_ptr<ast::ExprNode>> &args);
 
   // Leaf node visitors
 
@@ -215,6 +215,6 @@ public:
   [[nodiscard]] std::shared_ptr<ast::Type> visitType(const NodePtr &node);
 
 private:
-  static_check::EnvManager envManager;
+  std::shared_ptr<static_check::EnvManager> envManager;
 };
 } // namespace parsetree

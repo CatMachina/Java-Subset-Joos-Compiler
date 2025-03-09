@@ -6,6 +6,14 @@
 
 namespace static_check {
 
+struct InheritedMethodsResult {
+  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
+      abstractMethods;
+  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::MethodDecl>>
+      methods;
+  bool success;
+};
+
 class HierarchyCheck {
   std::shared_ptr<Package> rootPackage;
 
@@ -403,6 +411,30 @@ class HierarchyCheck {
       }
     }
     return true;
+  }
+
+  void getInheritedFields(
+      std::shared_ptr<parsetree::ast::Decl> astNode,
+      std::unordered_map<std::string,
+                         std::shared_ptr<parsetree::ast::FieldDecl>> &fieldMap,
+      bool isCurrentClass) {
+    auto classDecl =
+        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
+    // An interface cannot have fields
+    if (!classDecl)
+      return;
+    for (auto &superClass : sanitizedSuperClasses(classDecl)) {
+      getInheritedFields(superClass, fieldMap, false);
+    }
+    if (isCurrentClass) {
+      return;
+    }
+    for (auto &field : classDecl->getFields()) {
+      if (!field)
+        continue;
+      if (!fieldMap.contains(field->getName()))
+        fieldMap[field->getName()] = field;
+    }
   }
 
   bool checkInheritence(std::shared_ptr<Decl> decl) {
@@ -1105,6 +1137,31 @@ public:
     resolveJavaLangObject();
     // Traverse tree and validate each node
     return traverseTree(rootPackage);
+  }
+
+  // Wrapper
+  std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>>
+  getInheritedFields(std::shared_ptr<parsetree::ast::Decl> astNode) {
+    std::unordered_map<std::string, std::shared_ptr<parsetree::ast::FieldDecl>>
+        fields;
+    getInheritedFields(astNode, fields, true);
+    return fields;
+  }
+
+  InheritedMethodsResult
+  getAllInheritedMethods(std::shared_ptr<parsetree::ast::Decl> astNode) {
+    InheritedMethodsResult result;
+
+    if (!astNode) {
+      result.success = false;
+      return result;
+    }
+
+    std::unordered_set<std::string> implements;
+    bool success = getInheritedMethods(astNode, result.abstractMethods,
+                                       result.methods, implements);
+    result.success = success;
+    return result;
   }
 };
 

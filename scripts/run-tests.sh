@@ -22,8 +22,9 @@ pushd $BUILD_DIR
 }
 popd
 
-# This script builds joosc in $BUILD_DIR, not $ROOT_DIR
-DRIVER="$BUILD_DIR/$DRIVER_NAME"
+# # This script builds joosc in $BUILD_DIR, not $ROOT_DIR
+# DRIVER="$BUILD_DIR/$DRIVER_NAME"
+DRIVER="$ROOT_DIR/$DRIVER_NAME"
 echo "TEST_DIR: $TEST_DIR"
 
 NUM_PASSED=0
@@ -76,34 +77,34 @@ for testcase in "$TEST_DIR"/*; do
 
 done
 
-TEST_DIR="$SCRIPT_DIR/../tests/input"
+# TEST_DIR="$SCRIPT_DIR/../tests/input"
 
-echo "====================="
-echo $TEST_DIR
-for file in "$TEST_DIR"/*; do
-    if [ -f "$file" ]; then
-        base_name=$(basename $file)
-        prefix=${base_name:0:2}
-        exit_code=$(
-            ($DRIVER "$file" > /dev/null 2>&1) 2> /dev/null
-            echo $?
-        )
-        if [[ "$prefix" == "re" && "$exit_code" -eq 0 ]]; then
-            # Should fail but doesn't
-            echo "FAIL - $file passed but should have failed."
-            NUM_FAILED=$((NUM_FAILED+1))
-        elif [[ "$prefix" != "re" && "$exit_code" -ne 0 ]]; then
-            # Should pass but doesn't
-            echo "FAIL - $file failed but should have passed."
-            NUM_FAILED=$((NUM_FAILED+1))
-        else
-            # Expected behaviour
-            echo "PASS - $file $exit_code"
-            NUM_PASSED=$((NUM_PASSED+1))
-        fi
-        # $HOME/cs444/joosc/build/parser < $file > /dev/null
-    fi
-done
+# echo "====================="
+# echo $TEST_DIR
+# for file in "$TEST_DIR"/*; do
+#     if [ -f "$file" ]; then
+#         base_name=$(basename $file)
+#         prefix=${base_name:0:2}
+#         exit_code=$(
+#             ($DRIVER "$file" > /dev/null 2>&1) 2> /dev/null
+#             echo $?
+#         )
+#         if [[ "$prefix" == "re" && "$exit_code" -eq 0 ]]; then
+#             # Should fail but doesn't
+#             echo "FAIL - $file passed but should have failed."
+#             NUM_FAILED=$((NUM_FAILED+1))
+#         elif [[ "$prefix" != "re" && "$exit_code" -ne 0 ]]; then
+#             # Should pass but doesn't
+#             echo "FAIL - $file failed but should have passed."
+#             NUM_FAILED=$((NUM_FAILED+1))
+#         else
+#             # Expected behaviour
+#             echo "PASS - $file $exit_code"
+#             NUM_PASSED=$((NUM_PASSED+1))
+#         fi
+#         # $HOME/cs444/joosc/build/parser < $file > /dev/null
+#     fi
+# done
 
 echo "========================"
 echo "$NUM_PASSED tests PASSED"

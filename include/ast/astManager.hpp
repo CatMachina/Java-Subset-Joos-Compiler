@@ -6,25 +6,31 @@ namespace parsetree::ast {
 
 class ASTManager {
 private:
-  struct PackageClasses {
-    std::string packageName;
-    std::vector<std::string> classes;
-  };
-
-  std::vector<PackageClasses> predefinedPackages = {
-      {"lang",
-       {"Object", "Number", "String", "Integer", "Thread", "Cloneable"}},
-      {"util", {"Vector"}},
-      {"io", {"PrintStream", "Serializable"}}};
-
   std::vector<std::shared_ptr<parsetree::ast::ProgramDecl>> asts;
 
 public:
   void addAST(std::shared_ptr<ProgramDecl> ast) { asts.push_back(ast); }
+
   const std::vector<std::shared_ptr<parsetree::ast::ProgramDecl>> &
   getASTs() const {
     return asts;
   }
+
+  struct {
+    std::shared_ptr<ClassDecl> Array;
+    std::shared_ptr<ClassDecl> Boolean;
+    std::shared_ptr<ClassDecl> Byte;
+    std::shared_ptr<ClassDecl> Character;
+    std::shared_ptr<ClassDecl> Class;
+    std::shared_ptr<InterfaceDecl> Cloneable;
+    std::shared_ptr<ClassDecl> Integer;
+    std::shared_ptr<ClassDecl> Number;
+    std::shared_ptr<ClassDecl> Object;
+    std::shared_ptr<ClassDecl> Short;
+    std::shared_ptr<ClassDecl> String;
+    std::shared_ptr<ClassDecl> System;
+    std::shared_ptr<InterfaceDecl> Serializable;
+  } java_lang;
 };
 
 } // namespace parsetree::ast
