@@ -403,9 +403,9 @@ ParseTreeVisitor::visitForStatement(const NodePtr &node) {
     throw std::runtime_error("Invalid for statement");
   }
 
-  std::shared_ptr<ast::AstNode> init = nullptr;
+  std::shared_ptr<ast::Stmt> init = nullptr;
   std::shared_ptr<ast::Expr> condition = nullptr;
-  std::shared_ptr<ast::Expr> update = nullptr;
+  std::shared_ptr<ast::Stmt> update = nullptr;
   std::shared_ptr<ast::Stmt> body = nullptr;
 
   auto scope = envManager->EnterNewScope();
@@ -417,14 +417,14 @@ ParseTreeVisitor::visitForStatement(const NodePtr &node) {
           decl.type, decl.name, envManager->NextScopeID(), decl.init);
       init = envManager->BuildDeclStmt(varDecl);
     } else {
-      init = visitExpression(initNode);
+      init = visitStatement(initNode);
     }
   }
   if (auto conditionNode = node->child_at(1)) {
     condition = visitExpression(conditionNode);
   }
   if (auto updateNode = node->child_at(2)) {
-    update = visitExpression(updateNode);
+    update = visitStatement(updateNode);
   }
   // body is always not null
   body = visitStatement(node->child_at(3));

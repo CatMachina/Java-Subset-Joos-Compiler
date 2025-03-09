@@ -458,13 +458,13 @@ for_statement_no_short_if:
 
 for_init_opt:
     %empty { $$ = nullptr; }
-    | local_decl
-    | statement_expr
+    | local_decl { $$ = lexer.make_node(@$, NodeType::LocalDeclStatement, std::move($1)); }
+    | statement_expr { $$ = lexer.make_node(@$, NodeType::ExprStatement, std::move($1)); }
 ;
 
 for_update_opt:
     %empty { $$ = nullptr; }
-    | statement_expr 
+    | statement_expr { $$ = lexer.make_node(@$, NodeType::ExprStatement, std::move($1)); }
 ;
 
 //////////////////// Expressions ////////////////////
