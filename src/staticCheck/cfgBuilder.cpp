@@ -1,10 +1,10 @@
-#include "cfgBuilder.hpp"
+#include "staticCheck/cfgBuilder.hpp"
 
 namespace static_check {
 
 std::shared_ptr<CFGNode>
 CFGBuilder::visitIfStmt(std::shared_ptr<parsetree::ast::IfStmt> stmt,
-                        std::shared_ptr<CFGNode> successor = nullptr) {
+                        std::shared_ptr<CFGNode> successor) {
   if (!stmt) {
     std::cout << "CFGBuilder::visitIfStmt: stmt is null" << std::endl;
     return nullptr;
@@ -37,7 +37,7 @@ CFGBuilder::visitIfStmt(std::shared_ptr<parsetree::ast::IfStmt> stmt,
 
 std::shared_ptr<CFGNode>
 CFGBuilder::visitWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> stmt,
-                           std::shared_ptr<CFGNode> successor = nullptr) {
+                           std::shared_ptr<CFGNode> successor) {
   if (!stmt) {
     std::cout << "CFGBuilder::visitWhileStmt: stmt is null" << std::endl;
     return nullptr;
@@ -58,7 +58,7 @@ CFGBuilder::visitWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> stmt,
 
 std::shared_ptr<CFGNode>
 CFGBuilder::visitForStmt(std::shared_ptr<parsetree::ast::ForStmt> stmt,
-                         std::shared_ptr<CFGNode> successor = nullptr) {
+                         std::shared_ptr<CFGNode> successor) {
   if (!stmt) {
     std::cout << "CFGBuilder::visitForStmt: stmt is null" << std::endl;
     return nullptr;
@@ -99,7 +99,7 @@ CFGBuilder::visitReturnStmt(std::shared_ptr<parsetree::ast::ReturnStmt> stmt) {
 
 std::shared_ptr<CFGNode>
 CFGBuilder::visitStmt(std::shared_ptr<parsetree::ast::Stmt> stmt,
-                      std::shared_ptr<CFGNode> successor = nullptr) {
+                      std::shared_ptr<CFGNode> successor) {
   if (!stmt) {
     std::cout << "CFGBuilder::visitStmt: stmt is null" << std::endl;
     return nullptr;
@@ -129,7 +129,7 @@ CFGBuilder::visitStmt(std::shared_ptr<parsetree::ast::Stmt> stmt,
 
 std::shared_ptr<CFGNode>
 CFGBuilder::visitBlock(std::shared_ptr<parsetree::ast::Block> block,
-                       std::shared_ptr<CFGNode> successor = nullptr) {
+                       std::shared_ptr<CFGNode> successor) {
   if (!block) {
     throw std::runtime_error("CFGBuilder::visitBlock: block is null");
   }

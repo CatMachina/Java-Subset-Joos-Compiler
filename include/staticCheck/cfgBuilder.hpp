@@ -6,10 +6,13 @@ namespace static_check {
 
 class CFGBuilder {
 public:
-  std::shared_ptr<CFG>
-  buildCFG(std::shared_ptr<parsetree::ast::Block> methodBody);
+  CFGBuilder(std::shared_ptr<parsetree::ast::MethodDecl> method)
+      : method{method} {}
+
+  void buildCFG();
 
 private:
+  int id;
   std::shared_ptr<CFG> cfg;
   std::shared_ptr<parsetree::ast::MethodDecl> method;
 
