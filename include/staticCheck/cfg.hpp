@@ -10,7 +10,7 @@ class ReachabilityAnalysisInfo;
 
 class CFGNode {
   int id;
-  std::shared_ptr<parsetree::ast::Stmt> stmt;
+  std::shared_ptr<parsetree::ast::Stmt> statement;
   std::shared_ptr<parsetree::ast::Expr> condition;
   std::vector<std::shared_ptr<CFGNode>> predecessors;
   std::vector<std::shared_ptr<CFGNode>> successors;
@@ -18,22 +18,28 @@ class CFGNode {
   std::shared_ptr<ReachabilityAnalysisInfo> rsaInfo;
 
 public:
-  CFGNode(int id, std::shared_ptr<parsetree::ast::Stmt> stmt,
-          std::shared_ptr<parsetree::ast::Expr> conditon = nullptr)
-      : id{id}, stmt{stmt}, condition{condition} {}
+  CFGNode(int id, std::shared_ptr<parsetree::ast::Stmt> statement,
+          std::shared_ptr<parsetree::ast::Expr> condition = nullptr)
+      : id{id}, statement{statement}, condition{condition} {}
 
   // Getters / Setters
   int getId() const { return id; }
-  std::shared_ptr<parsetree::ast::Stmt> getStmt() const { return stmt; }
+  std::shared_ptr<parsetree::ast::Stmt> getStatement() const {
+    return statement;
+  }
   std::shared_ptr<parsetree::ast::Expr> getCondition() const {
     return condition;
   }
   bool isBranchNode() const { return condition != nullptr; }
 
-  std::shared_ptr<CFGNode> getPredecessor(int i) const {
+  std::vector<std::shared_ptr<CFGNode>> &getPredecessors() {
+    return predecessors;
+  }
+  std::vector<std::shared_ptr<CFGNode>> &getSuccessors() { return successors; }
+  std::shared_ptr<CFGNode> getPredecessorAt(int i) const {
     return predecessors[i];
   }
-  std::shared_ptr<CFGNode> getSuccessor(int i) const { return successors[i]; }
+  std::shared_ptr<CFGNode> getSuccessorAt(int i) const { return successors[i]; }
 
   bool hasPredecessor() const { return !predecessors.empty(); }
   bool hasSuccessor() const { return !successors.empty(); }
@@ -63,27 +69,17 @@ class CFG {
   std::unordered_map<int, std::shared_ptr<CFGNode>> nodes;
 
 public:
-  CFG(std::shared_ptr<CFGNode> entryNode) : entryNode{entryNode} {}
-
   std::shared_ptr<CFGNode> getEntryNode() const { return entryNode; }
   void setEntryNode(std::shared_ptr<CFGNode> entryNode) {
     this->entryNode = entryNode;
   }
 
   void addNode(std::shared_ptr<CFGNode> node) {
+    std::cout << "Adding node " << node->getId() << std::endl;
     nodes.insert({node->getId(), node});
   }
 
-  void addEdge(std::shared_ptr<CFGNode> src, std::shared_ptr<CFGNode> dest) {
-    if (!src) {
-      std::cout << "addEdge: src is null" << std::endl;
-      return;
-    }
-    if (!dest) {
-      std::cout << "addEdge: dest is null" << std::endl;
-      return;
-    }
-    src->addSuccessor(dest);
-    dest->addPredecessor(src);
-  }
+  void addEdge(std::shared_ptr<CFGNode> src, std::shared_ptr<CFGNode> dst);
+
+  std::ostream &print(std::ostream &os);
 };

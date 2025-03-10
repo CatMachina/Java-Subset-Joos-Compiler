@@ -71,6 +71,7 @@ add_library(CompilerLib
     # "src/staticCheck/nameDisambiguator.cpp"
     "src/staticCheck/exprResolver.cpp"
     "src/staticCheck/typeResolver.cpp"
+    "src/staticCheck/cfg.cpp"
     "src/staticCheck/cfgBuilder.cpp"
 
 )

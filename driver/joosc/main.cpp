@@ -16,6 +16,7 @@
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
 // #include "staticCheck/nameDisambiguator.hpp"
+#include "staticCheck/cfgBuilder.hpp"
 #include "staticCheck/exprResolver.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
@@ -199,16 +200,6 @@ int main(int argc, char **argv) {
     }
     std::cout << "Passed hierarchy check\n";
 
-    // for (auto &ast : astManager->getASTs()) {
-    //   checkLinked(ast);
-    // }
-
-    // // name disambiguation
-    // auto nameDisambiguator =
-    // std::make_shared<static_check::NameDisambiguator>(
-    //     astManager, typeLinker, hierarchyChecker);
-    // nameDisambiguator->resolve();
-
     astManager->getASTs()[0]->print(std::cout);
 
     auto typeResolver =
@@ -217,8 +208,28 @@ int main(int argc, char **argv) {
     auto exprResolver = std::make_shared<static_check::ExprResolver>(
         astManager, hierarchyChecker, typeLinker, typeResolver);
     exprResolver->resolve();
-
     std::cout << "Expr Resolving Done.....\n";
+
+    auto cfgBuilder = std::make_shared<static_check::CFGBuilder>();
+    std::cout << "Start building CFGs....\n";
+    for (auto ast : astManager->getASTs()) {
+      for (auto decl : ast->getBody()->getDecls()) {
+        if (auto method =
+                std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl)) {
+          std::cout << "=== Start building CFG for method " << method->getName()
+                    << " ===" << std::endl;
+          std::shared_ptr<CFG> cfg = cfgBuilder->buildCFG(method);
+          std::cout << "=== Done building CFG for method " << method->getName()
+                    << " ===" << std::endl;
+          if (cfg) {
+            cfg->print(std::cout);
+          } else {
+            std::cout << "Method is null or has no body." << std::endl;
+          }
+        }
+      }
+    }
+    std::cout << "Done building CFGs....\n";
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

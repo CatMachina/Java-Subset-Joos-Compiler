@@ -318,7 +318,7 @@ ParseTreeVisitor::visitStatement(const NodePtr &node) {
   case NodeType::LocalDeclStatement:
     return visitLocalDeclStatement(node);
   case NodeType::Statement:
-    return std::make_shared<ast::Stmt>();
+    return std::make_shared<ast::NullStmt>();
   default:
     throw std::runtime_error("Invalid Statement");
   }
