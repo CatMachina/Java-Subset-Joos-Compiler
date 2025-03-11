@@ -225,8 +225,9 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
       bool sameName = decl->getName() == name;
       bool sameContext = decl->getParent() == currentContext;
       bool checkScope =
-          !(std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) &&
-          currentScope;
+          (!(std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) &&
+           (std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl)) &&
+           currentScope);
       bool scopeVisible = true;
       if (sameContext && checkScope)
         scopeVisible = currentScope->canView(typedDecl->getScope());

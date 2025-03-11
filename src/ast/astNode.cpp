@@ -97,6 +97,15 @@ ClassDecl::ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
         "Every class must contain at least one explicit constructor");
   }
 
+  for (const auto &decl : classBodyDecls) {
+    auto method = std::dynamic_pointer_cast<MethodDecl>(decl);
+    if (!method || !(method->isConstructor()))
+      continue;
+    if (name != method->getName()) {
+      throw std::runtime_error("Constructor name must match class name.");
+    }
+  }
+
   std::unordered_set<std::string> interfaceNames;
   for (const auto &interface : interfaces) {
     const auto &interfaceName = interface->toString();
