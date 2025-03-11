@@ -342,6 +342,7 @@ private:
 };
 
 class Assignment : public ExprOp {
+  std::shared_ptr<VarDecl> assignedVariable; // only for assignment
 public:
   Assignment() : ExprOp(2){};
 
@@ -349,6 +350,15 @@ public:
     printIndent(os, indent);
     os << "(Assignment)\n";
     return os;
+  }
+
+  std::shared_ptr<VarDecl> getAssignedVariable() const {
+    return assignedVariable;
+  }
+  void setAssignedVariable(std::shared_ptr<VarDecl> var) {
+    if (assignedVariable && assignedVariable != var)
+      throw std::runtime_error("Assignment already set");
+    assignedVariable = var;
   }
 };
 

@@ -71,13 +71,30 @@ void ExprResolver::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   if (!node)
     throw std::runtime_error("Node is null when resolving AST");
 
-  if (auto programDecl =
-          std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(node)) {
-    BeginProgram(programDecl);
-  }
   if (auto codeBody =
           std::dynamic_pointer_cast<parsetree::ast::CodeBody>(node)) {
     BeginContext(codeBody);
+  }
+
+  staticState.isInstFieldInitializer = false;
+  staticState.fieldScope = nullptr;
+
+  if (auto programDecl =
+          std::dynamic_pointer_cast<parsetree::ast::ProgramDecl>(node)) {
+    BeginProgram(programDecl);
+  } else if (auto classDecl =
+                 std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
+    staticState.currentClass = classDecl;
+  } else if (auto field =
+                 std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
+    staticState.isStaticContext = field->isStatic();
+    if (field->hasInit()) {
+      staticState.isInstFieldInitializer = !(field->isStatic());
+      staticState.fieldScope = field->getInitializer()->getScope();
+    }
+  } else if (auto method =
+                 std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
+    staticState.isStaticContext = method->isStatic();
   }
 
   // only check Expr
@@ -123,6 +140,7 @@ void ExprResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
   }
   expr->setExprNodes(resolved);
   typeResolver->EvalList(resolved);
+  staticResolver->evaluate(expr, staticState);
   // expr->setExprNodes(resolveExprNode(ret));
   //   if (std::holds_alternative<
   //           std::vector<std::shared_ptr<parsetree::ast::ExprNode>>>(ret)) {

@@ -5,6 +5,7 @@
 #include "environment.hpp"
 #include "evaluator.hpp"
 #include "hierarchyCheck.hpp"
+#include "staticResolver.hpp"
 #include "typeLinker.hpp"
 #include "typeResolver.hpp"
 
@@ -113,7 +114,10 @@ public:
                std::shared_ptr<TypeLinker> typeLinker,
                std::shared_ptr<TypeResolver> typeResolver)
       : astManager(astManager), hierarchyChecker(hierarchyChecker),
-        typeLinker(typeLinker), typeResolver(typeResolver) {}
+        typeLinker(typeLinker), typeResolver(typeResolver) {
+    staticResolver = std::make_shared<static_check::StaticResolver>();
+    staticState = StaticResolverState();
+  }
   void BeginProgram(std::shared_ptr<parsetree::ast::ProgramDecl> programDecl) {
     currentProgram = programDecl;
   }
@@ -211,9 +215,11 @@ private:
   std::shared_ptr<HierarchyCheck> hierarchyChecker;
   std::shared_ptr<TypeLinker> typeLinker;
   std::shared_ptr<TypeResolver> typeResolver;
+  std::shared_ptr<StaticResolver> staticResolver;
   std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
   std::shared_ptr<parsetree::ast::ScopeID> currentScope;
+  StaticResolverState staticState;
 };
 
 } // namespace static_check
