@@ -35,6 +35,10 @@ private:
   buildReturnStmt(std::shared_ptr<parsetree::ast::ReturnStmt> stmt);
 
   std::shared_ptr<CFGNode>
+  buildOtherStmt(std::shared_ptr<parsetree::ast::Stmt> stmt,
+                 std::shared_ptr<CFGNode> successor = nullptr);
+
+  std::shared_ptr<CFGNode>
   buildStmt(std::shared_ptr<parsetree::ast::Stmt> stmt,
             std::shared_ptr<CFGNode> successor = nullptr);
 
