@@ -1,12 +1,12 @@
 #pragma once
 
 #include "ast/astNode.hpp"
+#include "staticCheck/reachabilityAnalysisInfo.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
 
 class LiveVariableAnalysisInfo;
-class ReachabilityAnalysisInfo;
 
 class CFGNode {
   int id;
@@ -15,12 +15,12 @@ class CFGNode {
   std::vector<std::shared_ptr<CFGNode>> predecessors;
   std::vector<std::shared_ptr<CFGNode>> successors;
   std::shared_ptr<LiveVariableAnalysisInfo> lvaInfo;
-  std::shared_ptr<ReachabilityAnalysisInfo> rsaInfo;
+  std::shared_ptr<static_check::ReachabilityAnalysisInfo> rsaInfo;
 
 public:
   CFGNode(int id, std::shared_ptr<parsetree::ast::Stmt> statement,
           std::shared_ptr<parsetree::ast::Expr> condition = nullptr)
-      : id{id}, statement{statement}, condition{condition} {}
+      : id{id}, statement{statement}, condition{condition}, rsaInfo{std::make_shared<static_check::ReachabilityAnalysisInfo>()} {}
 
   // Getters / Setters
   int getId() const { return id; }
@@ -58,7 +58,7 @@ public:
   getLiveVariableAnalysisInfo() const {
     return lvaInfo;
   }
-  std::shared_ptr<ReachabilityAnalysisInfo>
+  std::shared_ptr<static_check::ReachabilityAnalysisInfo>
   getReachabilityAnalysisInfo() const {
     return rsaInfo;
   }
@@ -80,6 +80,16 @@ public:
   }
 
   void addEdge(std::shared_ptr<CFGNode> src, std::shared_ptr<CFGNode> dst);
+
+  std::vector<std::shared_ptr<CFGNode>> getNodes()
+  {
+    std::vector<std::shared_ptr<CFGNode>> ret;
+    for (const auto &[id, node] : nodes)
+    {
+      ret.push_back(node);
+    }
+    return ret;
+  }
 
   std::ostream &print(std::ostream &os);
 };
