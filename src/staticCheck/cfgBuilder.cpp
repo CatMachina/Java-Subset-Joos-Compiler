@@ -4,35 +4,131 @@
 
 namespace static_check {
 
-bool evaluateBoolConstantExpr(std::shared_ptr<parsetree::ast::Expr> expr) {
+static bool canConstantFold(std::shared_ptr<parsetree::ast::Expr> expr) {
+  if (!expr) {
+    throw std::runtime_error("canConstantFold: erpr is null");
+  }
+  for (auto node : expr->getExprNodes()) {
+    auto literal = std::dynamic_pointer_cast<parsetree::ast::Literal>(node);
+    auto unOp = std::dynamic_pointer_cast<parsetree::ast::UnOp>(node);
+    auto binOp = std::dynamic_pointer_cast<parsetree::ast::BinOp>(node);
+    bool isBooleanUnOp =
+        (unOp && unOp->getOp() == parsetree::ast::UnOp::OpType::Not);
+    bool isBooleanBinOp = false;
+    if (binOp) {
+      switch (binOp->getOp()) {
+      case parsetree::ast::BinOp::OpType::And:
+      case parsetree::ast::BinOp::OpType::Or:
+      case parsetree::ast::BinOp::OpType::BitWiseAnd:
+      case parsetree::ast::BinOp::OpType::BitWiseOr:
+      case parsetree::ast::BinOp::OpType::Equal:
+      case parsetree::ast::BinOp::OpType::NotEqual:
+      case parsetree::ast::BinOp::OpType::GreaterThan:
+      case parsetree::ast::BinOp::OpType::GreaterThanOrEqual:
+      case parsetree::ast::BinOp::OpType::LessThan:
+      case parsetree::ast::BinOp::OpType::LessThanOrEqual:
+        isBooleanBinOp = true;
+        break;
+      }
+    }
+    if (!literal && !isBooleanUnOp && !isBooleanBinOp)
+      return false;
+  }
+  return true;
+}
+
+// TODO: may need to handle char/string literals as well?
+static std::variant<bool, u_int32_t>
+evaluateBoolConstantExpr(std::shared_ptr<parsetree::ast::Expr> expr) {
   auto exprNodes = expr->getExprNodes();
-  std::stack<bool> st;
+  std::stack<std::variant<bool, u_int32_t>> st;
   for (auto exprNode : exprNodes) {
-    if (auto binOp = std::dynamic_pointer_cast<parsetree::ast::BinOp>(exprNode)) {
+    if (auto binOp =
+            std::dynamic_pointer_cast<parsetree::ast::BinOp>(exprNode)) {
       auto binOpType = binOp->getOp();
-      bool rhs = st.top(); st.pop();
-      bool lhs = st.top(); st.pop();
-      if (binOpType == parsetree::ast::BinOp::OpType::And || binOpType == parsetree::ast::BinOp::OpType::BitWiseAnd)
-      {
-        st.push(lhs && rhs);
+      auto rhs = st.top();
+      st.pop();
+      auto lhs = st.top();
+      st.pop();
+      auto lhsBool = std::get_if<bool>(&lhs);
+      auto rhsBool = std::get_if<bool>(&rhs);
+      auto lhsNum = std::get_if<u_int32_t>(&lhs);
+      auto rhsNum = std::get_if<u_int32_t>(&rhs);
+      switch (binOpType) {
+      case parsetree::ast::BinOp::OpType::And:
+      case parsetree::ast::BinOp::OpType::BitWiseAnd:
+        st.push(std::variant<bool, u_int32_t>(*lhsBool && *rhsBool));
+        break;
+      case parsetree::ast::BinOp::OpType::Or:
+      case parsetree::ast::BinOp::OpType::BitWiseOr:
+        st.push(std::variant<bool, u_int32_t>(*lhsBool || *rhsBool));
+        break;
+      case parsetree::ast::BinOp::OpType::Equal:
+        if (lhsBool) {
+          st.push(std::variant<bool, u_int32_t>(*lhsBool == *rhsBool));
+        } else {
+          st.push(std::variant<bool, u_int32_t>(*lhsNum == *rhsNum));
+        }
+        break;
+      case parsetree::ast::BinOp::OpType::NotEqual:
+        if (lhsBool) {
+          st.push(std::variant<bool, u_int32_t>(*lhsBool != *rhsBool));
+        } else {
+          st.push(std::variant<bool, u_int32_t>(*lhsNum != *rhsNum));
+        }
+        break;
+      case parsetree::ast::BinOp::OpType::Plus:
+        st.push(std::variant<bool, u_int32_t>(*lhsNum + *rhsNum));
+        break;
+      case parsetree::ast::BinOp::OpType::Minus:
+        st.push(std::variant<bool, u_int32_t>(*lhsNum - *rhsNum));
+        break;
+      case parsetree::ast::BinOp::OpType::Multiply:
+        st.push(std::variant<bool, u_int32_t>(*lhsNum * *rhsNum));
+        break;
+      case parsetree::ast::BinOp::OpType::Subtract:
+        st.push(std::variant<bool, u_int32_t>(*lhsNum / *rhsNum));
+        break;
+      case parsetree::ast::BinOp::OpType::Modulo:
+        st.push(std::variant<bool, u_int32_t>(*lhsNum % *rhsNum));
+        break;
+      default:
+        throw std::runtime_error(
+            "evaluateBoolConstantExpr: not a boolean/numeric binary op");
+        ;
       }
-      else if (binOpType == parsetree::ast::BinOp::OpType::Or || binOpType == parsetree::ast::BinOp::OpType::BitWiseOr)
-      {
-        st.push(lhs || rhs);
+    } else if (auto unOp =
+                   std::dynamic_pointer_cast<parsetree::ast::UnOp>(exprNode)) {
+      auto unOpType = unOp->getOp();
+      auto operand = st.top();
+      st.pop();
+      auto operandBool = std::get_if<bool>(&operand);
+      auto operandNum = std::get_if<u_int32_t>(&operand);
+      if (unOpType == parsetree::ast::UnOp::OpType::Not) {
+        st.push(std::variant<bool, u_int32_t>(!(*operandBool)));
+      } else if (unOpType == parsetree::ast::UnOp::OpType::Minus) {
+        st.push(std::variant<bool, u_int32_t>(-(*operandNum)));
       } else {
-        return false;
+        throw std::runtime_error(
+            "evaluateBoolConstantExpr: not a boolean/numeric unary op");
       }
-    } else if (auto literal = std::dynamic_pointer_cast<parsetree::ast::Literal>(exprNode)) {
+    } else if (auto literal =
+                   std::dynamic_pointer_cast<parsetree::ast::Literal>(
+                       exprNode)) {
       u_int32_t val = literal->getAsInt();
-      auto type = literal->getBasicType()->getType();
-      if (val == 0 && type == parsetree::ast::BasicType::Type::Boolean) st.push(false);
-      else if (val == 1 && type == parsetree::ast::BasicType::Type::Boolean)
-        st.push(true);
-      else {
-        return false;
+      if (literal->getBasicType()->isNumeric()) {
+        st.push(std::variant<bool, u_int32_t>(val));
+      } else if (val == 1) {
+        st.push(std::variant<bool, u_int32_t>(true));
+      } else if (val == 0) {
+        st.push(std::variant<bool, u_int32_t>(false));
+      } else {
+        throw std::runtime_error(
+            "evaluateBoolConstantExpr: not a boolean/numeric literal");
       }
     } else {
-      return false;
+      throw std::runtime_error(
+          "evaluateBoolConstantExpr: not a boolean/numeric literal or op");
     }
   }
   return st.top();
@@ -83,8 +179,26 @@ CFGBuilder::buildWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> stmt,
       std::make_shared<CFGNode>(getNextId(), stmt, condition);
   cfg->addNode(branchNode);
   std::shared_ptr<CFGNode> bodyNode = buildStmt(whileBody, branchNode);
-  cfg->addEdge(branchNode, bodyNode);  // true branch
-  cfg->addEdge(branchNode, successor); // false branch
+
+  if (!canConstantFold(condition)) {
+    cfg->addEdge(branchNode, bodyNode);  // true branch
+    cfg->addEdge(branchNode, successor); // false branch
+    return branchNode;
+  }
+
+  auto eval = evaluateBoolConstantExpr(condition);
+  auto evalResult = std::get_if<bool>(&eval);
+  if (evalResult == nullptr) {
+    throw std::runtime_error(
+        "CFGBuilder::buildWhileStmt: eval result is not a boolean");
+  }
+
+  if (*evalResult) {
+    cfg->addEdge(branchNode, bodyNode); // true branch
+  } else {
+    cfg->addEdge(branchNode, successor); // false branch
+  }
+
   return branchNode;
 }
 
@@ -110,8 +224,26 @@ CFGBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> stmt,
   std::shared_ptr<CFGNode> initNode = buildStmt(forInit, branchNode);
   std::shared_ptr<CFGNode> updateNode = buildStmt(forUpdate, branchNode);
   std::shared_ptr<CFGNode> bodyNode = buildStmt(forBody, updateNode);
-  cfg->addEdge(branchNode, bodyNode);  // true branch
-  cfg->addEdge(branchNode, successor); // false banch
+
+  if (!canConstantFold(condition)) {
+    cfg->addEdge(branchNode, bodyNode);  // true branch
+    cfg->addEdge(branchNode, successor); // false banch
+    return initNode;
+  }
+
+  auto eval = evaluateBoolConstantExpr(condition);
+  auto evalResult = std::get_if<bool>(&eval);
+  if (evalResult == nullptr) {
+    throw std::runtime_error(
+        "CFGBuilder::buildForStmt: eval result is not a boolean");
+  }
+
+  if (*evalResult) {
+    cfg->addEdge(branchNode, bodyNode); // true branch
+  } else {
+    cfg->addEdge(branchNode, successor); // false branch
+  }
+
   return initNode;
 }
 

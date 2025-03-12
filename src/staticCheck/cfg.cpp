@@ -21,6 +21,7 @@ std::ostream &CFG::print(std::ostream &os) {
     return os;
   }
   std::cout << "CFG has " << nodes.size() << " nodes" << std::endl;
+  std::cout << "Entry node: " << entryNode->getId() << std::endl;
   for (auto it : nodes) {
     auto node = it.second;
     os << "Node " << node->getId() << std::endl;
