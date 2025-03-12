@@ -65,9 +65,13 @@ for testcase in "$TEST_DIR"/*; do
             echo "FAILED command: $DRIVER ${files_to_test[@]}"
             echo "FAIL - $testcase_name should have failed with exit code 42 but passed/exited with exit code $exit_code."
             NUM_FAILED=$((NUM_FAILED+1))
+        elif [[ "$prefix" == "Jw" && exit_code -ne 43 ]]; then
+            echo "FAILED command: $DRIVER ${files_to_test[@]}"
+            echo "FAIL - $testcase_name should have passed with exit code 43 but passed/failed with exit code $exit_code."
+            NUM_FAILED=$((NUM_FAILED+1))
         elif [[ "$prefix" != "Je" && exit_code -ne 0 ]]; then
             echo "FAILED command: $DRIVER ${files_to_test[@]}"
-            echo "FAIL - $testcase_name should have passed but failed with exit code $exit_code."
+            echo "FAIL - $testcase_name should have passed with exit code 0 but failed with exit code $exit_code."
             NUM_FAILED=$((NUM_FAILED+1))
         else
             echo "PASSED - $testcase_name $exit_code"
