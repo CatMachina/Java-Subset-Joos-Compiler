@@ -18,9 +18,9 @@
 // #include "staticCheck/nameDisambiguator.hpp"
 #include "staticCheck/cfgBuilder.hpp"
 #include "staticCheck/exprResolver.hpp"
+#include "staticCheck/reachabilityAnalysis.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
-#include "staticCheck/reachabilityAnalysis.hpp"
 
 #include <memory>
 
@@ -224,8 +224,9 @@ int main(int argc, char **argv) {
                     << " ===" << std::endl;
           if (cfg) {
             cfg->print(std::cout);
-            if(!static_check::ReachabilityAnalysis::run(cfg)) {
-              std::cerr << "Method " << method->getName() <<  " failed reachability analysis" << std::endl;
+            if (!static_check::ReachabilityAnalysis::run(cfg)) {
+              std::cerr << "Method " << method->getName()
+                        << " failed reachability analysis" << std::endl;
               return EXIT_ERROR;
             }
           } else {
