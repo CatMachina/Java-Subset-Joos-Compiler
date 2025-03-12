@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 
 ASSIGNMENT_ARG=$1
-ASSIGNMENT=${ASSIGNMENT_ARG:="a3"}
+ASSIGNMENT=${ASSIGNMENT_ARG:="a4"}
 TEST_DIR="/u/cs444/pub/assignment_testcases/$ASSIGNMENT"
-STDLIB="/u/cs444/pub/stdlib/3.0"
+STDLIB="/u/cs444/pub/stdlib/4.0"
 
 ROOT_DIR="$HOME/cs444/joosc"
 BUILD_DIR="$ROOT_DIR/build"
