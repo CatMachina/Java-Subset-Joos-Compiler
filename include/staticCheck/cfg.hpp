@@ -67,6 +67,7 @@ public:
 
 class CFG {
   std::shared_ptr<CFGNode> entryNode;
+  std::shared_ptr<CFGNode> endNode; // Sentinel node
   std::unordered_map<int, std::shared_ptr<CFGNode>> nodes;
 
 public:
@@ -74,6 +75,9 @@ public:
   void setEntryNode(std::shared_ptr<CFGNode> entryNode) {
     this->entryNode = entryNode;
   }
+
+  std::shared_ptr<CFGNode> getEndNode() const { return endNode; }
+  void setEndNode(std::shared_ptr<CFGNode> endNode) { this->endNode = endNode; }
 
   void addNode(std::shared_ptr<CFGNode> node) {
     std::cout << "Adding node " << node->getId() << std::endl;

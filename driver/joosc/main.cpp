@@ -224,9 +224,18 @@ int main(int argc, char **argv) {
                     << " ===" << std::endl;
           if (cfg) {
             cfg->print(std::cout);
-            if (!static_check::ReachabilityAnalysis::run(cfg)) {
+            if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
+                    cfg)) {
               std::cerr << "Method " << method->getName()
-                        << " failed reachability analysis" << std::endl;
+                        << " has unreachable statements" << std::endl;
+              return EXIT_ERROR;
+            }
+            if (!static_check::ReachabilityAnalysis::checkFiniteLengthReturn(
+                    cfg, method)) {
+              std::cerr
+                  << "Method " << method->getName()
+                  << " finite-length execution paths do not all end in return"
+                  << std::endl;
               return EXIT_ERROR;
             }
           } else {

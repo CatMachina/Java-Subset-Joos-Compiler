@@ -8,7 +8,10 @@ namespace static_check {
 class ReachabilityAnalysis {
 
 public:
-  static bool run(std::shared_ptr<CFG> cfg);
+  static bool checkUnreachableStatements(std::shared_ptr<CFG> cfg);
+  static bool
+  checkFiniteLengthReturn(std::shared_ptr<CFG> cfg,
+                          std::shared_ptr<parsetree::ast::MethodDecl> method);
 };
 
 } // namespace static_check

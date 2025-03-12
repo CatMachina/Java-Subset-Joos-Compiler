@@ -8,7 +8,8 @@ bool isReturnStatement(std::shared_ptr<parsetree::ast::Stmt> stmt) {
          !!std::dynamic_pointer_cast<parsetree::ast::ReturnStmt>(stmt);
 }
 
-bool ReachabilityAnalysis::run(std::shared_ptr<CFG> cfg) {
+bool ReachabilityAnalysis::checkUnreachableStatements(
+    std::shared_ptr<CFG> cfg) {
   std::shared_ptr<CFGNode> entry = cfg->getEntryNode();
   // If no entry, then method is empty, no reachability analysis needed
   if (!entry)
@@ -44,13 +45,28 @@ bool ReachabilityAnalysis::run(std::shared_ptr<CFG> cfg) {
     }
   }
 
-  // Check in[n] for all nodes n
+  // Check in[n] for all nodes n for unreachable statements
   for (const auto &node : cfg->getNodes()) {
-    if (!node->getReachabilityAnalysisInfo()->in()) {
+    if (node != cfg->getEndNode() &&
+        !node->getReachabilityAnalysisInfo()->in()) {
+      // When checking, sentinel end node is not included
       return false;
     }
   }
 
+  return true;
+}
+
+bool ReachabilityAnalysis::checkFiniteLengthReturn(
+    std::shared_ptr<CFG> cfg,
+    std::shared_ptr<parsetree::ast::MethodDecl> method) {
+  // Check if finite-length execution results in explicit return by checking
+  // sentinel node
+  if (cfg->getEndNode() &&
+      cfg->getEndNode()->getReachabilityAnalysisInfo()->in() &&
+      method->getReturnType() && !method->getReturnType()->isNull()) {
+    return false;
+  }
   return true;
 }
 
