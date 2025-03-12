@@ -73,7 +73,7 @@ add_library(CompilerLib
     "src/staticCheck/typeResolver.cpp"
     "src/staticCheck/cfg.cpp"
     "src/staticCheck/cfgBuilder.cpp"
-
+    "src/staticCheck/reachabilityAnalysis.cpp"
 )
 target_include_directories(
     CompilerLib
