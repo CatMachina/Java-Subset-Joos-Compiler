@@ -466,12 +466,13 @@ void TypeLinker::populateJavaLang() {
 
   auto type = std::make_shared<parsetree::ast::BasicType>(
       parsetree::BasicType::Type::Int);
-  auto length =
-      envManager->BuildFieldDecl(lengthModifier, type, "length", nullptr, true);
+  source::SourceRange loc;
+  auto length = envManager->BuildFieldDecl(lengthModifier, type, "length",
+                                           nullptr, loc, true);
   auto nullBlock = std::make_shared<parsetree::ast::Block>();
   auto constructor =
       envManager->BuildMethodDecl(publicModifier, "_hardcoded_array", nullptr,
-                                  emptyParams, true, nullBlock);
+                                  emptyParams, true, nullBlock, loc);
   body.push_back(length);
   body.push_back(constructor);
   astManager->java_lang.Array = envManager->BuildClassDecl(

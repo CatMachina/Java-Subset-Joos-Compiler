@@ -197,9 +197,10 @@ void InterfaceDecl::setParent(std::shared_ptr<CodeBody> parent) {
 MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
                        std::shared_ptr<Type> returnType,
                        std::vector<std::shared_ptr<VarDecl>> params,
-                       bool isConstructor, std::shared_ptr<Block> methodBody)
-    : Decl{name}, modifiers{modifiers}, returnType{returnType}, params{params},
-      isConstructor_{isConstructor}, methodBody{methodBody} {
+                       bool isConstructor, std::shared_ptr<Block> methodBody,
+                       const source::SourceRange loc)
+    : Decl{name, loc}, modifiers{modifiers}, returnType{returnType},
+      params{params}, isConstructor_{isConstructor}, methodBody{methodBody} {
   // Check for valid modifiers
   if (!modifiers || modifiers->isInvalid()) {
     throw std::runtime_error("Method Decl Invalid modifiers for method " +
@@ -368,8 +369,9 @@ void MethodDecl::checkSuperThisCalls(std::shared_ptr<Block> block) const {
 FieldDecl::FieldDecl(std::shared_ptr<Modifiers> modifiers,
                      std::shared_ptr<Type> type, std::string name,
                      std::shared_ptr<Expr> initializer,
-                     std::shared_ptr<ScopeID> scope, bool allowFinal)
-    : modifiers{modifiers}, VarDecl{type, name, initializer, scope} {
+                     std::shared_ptr<ScopeID> scope,
+                     const source::SourceRange &loc, bool allowFinal)
+    : modifiers{modifiers}, VarDecl{type, name, initializer, scope, loc} {
   if (!modifiers) {
     throw std::runtime_error("Field Decl Invalid modifiers.");
   }
@@ -503,7 +505,11 @@ std::ostream &ClassDecl::print(std::ostream &os, int indent) const {
 
 std::ostream &VarDecl::print(std::ostream &os, int indent) const {
   printIndent(os, indent);
-  os << "(VarDecl \n";
+  if (dynamic_cast<const FieldDecl *>(this)) {
+    os << "(FieldDecl \n";
+  } else {
+    os << "(VarDecl \n";
+  }
 
   // Print Type
   type->print(os, indent + 1);

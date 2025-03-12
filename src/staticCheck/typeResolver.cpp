@@ -204,7 +204,6 @@ isWiderThan(const std::shared_ptr<parsetree::ast::BasicType> &type,
 bool TypeResolver::isAssignableTo(
     const std::shared_ptr<parsetree::ast::Type> &lhs,
     const std::shared_ptr<parsetree::ast::Type> &rhs) const {
-  std::cout << "typeResolver isAssignableTo" << std::endl;
   if (*lhs == *rhs)
     return true;
 
@@ -217,13 +216,6 @@ bool TypeResolver::isAssignableTo(
   auto leftArr = std::dynamic_pointer_cast<parsetree::ast::ArrayType>(lhs);
   auto rightArr = std::dynamic_pointer_cast<parsetree::ast::ArrayType>(rhs);
 
-  if (leftArr) {
-    std::cout << "lhs: " << std::endl;
-    lhs->print(std::cout);
-    std::cout << ", rhs: " << std::endl;
-    rhs->print(std::cout);
-  }
-
   // Identity conversion: Java astManager->java_lang.String <-> primitive
   // astManager->java_lang.String
   if (isTypeString(lhs) && isTypeString(rhs))
@@ -233,7 +225,6 @@ bool TypeResolver::isAssignableTo(
   if (rhs->isString() && leftRef) {
     if (auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
             leftRef->getResolvedDecl()->getAstNode())) {
-      std::cout << "left is class" << std::endl;
       return isSuperClass(leftClass, astManager->java_lang.String);
     }
     if (auto leftInterface =
@@ -296,7 +287,6 @@ bool TypeResolver::isAssignableTo(
 
   // 3.4 Array assignment rules
   if (rightArr) {
-    std::cout << "****************rightArr" << std::endl;
     if (leftArr) {
       auto leftElem = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
           leftArr->getElementType());

@@ -151,28 +151,32 @@ private:
 
 class MemberName : public ExprValue {
 public:
-  MemberName(std::string name) : ExprValue{}, name{name} {}
+  MemberName(std::string name, const source::SourceRange loc)
+      : ExprValue{}, name{name}, loc{loc} {}
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Member name " << name << ")\n";
+    os << "(Member name " << name << ", loc: " << loc << ")\n";
     return os;
   }
 
   // Getters
   std::string getName() const { return name; }
+  const source::SourceRange getLoc() const { return loc; }
 
 private:
   std::string name;
+  const source::SourceRange loc;
 };
 
 class MethodName : public MemberName {
 public:
-  MethodName(std::string name) : MemberName{name} {}
+  MethodName(std::string name, const source::SourceRange loc)
+      : MemberName{name, loc} {}
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Method name " << getName() << ")\n";
+    os << "(Method name " << getName() << ", loc: " << getLoc() << ")\n";
     return os;
   }
 };

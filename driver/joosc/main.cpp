@@ -13,10 +13,10 @@
 #include "parseTree/parseTreeVisitor.hpp"
 #include "parseTree/sourceNode.hpp"
 #include "parser/myBisonParser.hpp"
+#include "staticCheck/astValidator.hpp"
 #include "staticCheck/envManager.hpp"
-#include "staticCheck/hierarchyCheck.hpp"
-// #include "staticCheck/nameDisambiguator.hpp"
 #include "staticCheck/exprResolver.hpp"
+#include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
 
@@ -111,6 +111,7 @@ int main(int argc, char **argv) {
       // Parse the input
       std::shared_ptr<parsetree::Node> parse_tree;
       myBisonParser parser{fileContent};
+      parser.setFileID(file_number);
       int result = parser.parse(parse_tree);
 
       // Validate parse result
@@ -203,12 +204,6 @@ int main(int argc, char **argv) {
     //   checkLinked(ast);
     // }
 
-    // // name disambiguation
-    // auto nameDisambiguator =
-    // std::make_shared<static_check::NameDisambiguator>(
-    //     astManager, typeLinker, hierarchyChecker);
-    // nameDisambiguator->resolve();
-
     astManager->getASTs()[0]->print(std::cout);
 
     auto typeResolver =
@@ -217,6 +212,10 @@ int main(int argc, char **argv) {
     auto exprResolver = std::make_shared<static_check::ExprResolver>(
         astManager, hierarchyChecker, typeLinker, typeResolver);
     exprResolver->resolve();
+
+    auto astValidator =
+        std::make_shared<static_check::ASTValidator>(typeResolver);
+    astValidator->validate(astManager);
 
     std::cout << "Expr Resolving Done.....\n";
 

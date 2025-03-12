@@ -172,7 +172,7 @@ private:
 
   std::shared_ptr<parsetree::ast::Decl>
   lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
-                  std::string name);
+                  std::string name, const source::SourceRange loc);
 
   std::shared_ptr<parsetree::ast::Decl>
   reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
@@ -203,7 +203,7 @@ private:
   std::shared_ptr<parsetree::ast::MethodDecl> resolveMethodOverload(
       std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string name,
       const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes,
-      bool isConstructor);
+      const source::SourceRange loc, bool isConstructor);
   bool areParameterTypesApplicable(
       std::shared_ptr<parsetree::ast::MethodDecl> decl,
       const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes) const;

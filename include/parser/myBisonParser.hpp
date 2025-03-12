@@ -22,6 +22,8 @@ public:
     return yyparse(&ret, lexer);
   }
 
+  void setFileID(int id) { lexer.setFileID(id); }
+
 private:
   myFlexLexer lexer;
   std::shared_ptr<yy_buffer_state> buffer;

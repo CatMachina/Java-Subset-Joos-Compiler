@@ -217,8 +217,9 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
 
 std::shared_ptr<parsetree::ast::Decl>
 ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
-                              std::string name) {
-  auto condition = [name, this](std::shared_ptr<parsetree::ast::Decl> decl) {
+                              std::string name, const source::SourceRange loc) {
+  auto condition = [loc, name,
+                    this](std::shared_ptr<parsetree::ast::Decl> decl) {
     if (auto typedDecl =
             std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl);
         typedDecl) {
@@ -226,7 +227,6 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
       bool sameContext = decl->getParent() == currentContext;
       bool checkScope =
           (!(std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) &&
-           (std::dynamic_pointer_cast<parsetree::ast::VarDecl>(decl)) &&
            currentScope);
       bool scopeVisible = true;
       if (sameContext && checkScope)
@@ -260,6 +260,10 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
     auto declaredFields = classDecl->getFields();
     for (const auto decl : declaredFields) {
       if (condition(decl)) {
+        // std::cout << "current decl: " << loc << std::endl;
+        // std::cout << "found decl: " << decl->getLoc() << std::endl;
+        // if (loc < decl->getLoc()) throw std::runtime_error("Forward
+        // declaration of field: " + name);
         std::cout << "found declared field " << decl->getName() << std::endl;
         return decl;
       }
@@ -291,8 +295,14 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
     // Search for the unique local variable
     for (auto decl : ctx->getDecls()) {
       std::cout << "checking decl " << decl->getName() << std::endl;
-      if (condition(decl))
+      if (condition(decl)) {
+        // if (loc < decl->getLoc()) {
+        //   std::cout << "current decl: " << loc << std::endl;
+        //   std::cout << "found decl: " << decl->getLoc() << std::endl;
+        //   throw std::runtime_error("Forward declaration of decl: " + name);
+        // }
         return decl;
+      }
     }
   }
   return nullptr;
@@ -302,7 +312,8 @@ std::shared_ptr<parsetree::ast::Decl>
 ExprResolver::reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
                              std::shared_ptr<ExprNameLinked> node) {
   std::cout << "reclassifyDecl" << std::endl;
-  if (auto decl = lookupNamedDecl(ctx, node->getNode()->getName())) {
+  auto astNode = node->getNode();
+  if (auto decl = lookupNamedDecl(ctx, astNode->getName(), astNode->getLoc())) {
     if (auto fieldDecl =
             std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
       // data->reclassify(ExprName::Type::ExpressionName, fieldDecl);
@@ -628,8 +639,9 @@ exprResolveType ExprResolver::evalMethodInvocation(
   // Begin resolution of the method call
   std::cout << "resolving method call" << std::endl;
   auto ctx = getMethodParent(unresolved);
-  auto methodDecl = resolveMethodOverload(ctx, unresolved->getNode()->getName(),
-                                          argTypes, false);
+  auto methodDecl =
+      resolveMethodOverload(ctx, unresolved->getNode()->getName(), argTypes,
+                            unresolved->getNode()->getLoc(), false);
 
   // Check if the method call is legal
   std::cout << "checking method call" << std::endl;
@@ -760,7 +772,9 @@ ExprResolver::evalNewObject(std::shared_ptr<parsetree::ast::ClassCreation> &op,
 
   // Begin resolution of the method call
   std::cout << "begin resolution of method call" << std::endl;
-  auto methodDecl = resolveMethodOverload(ctx, "", argType, true);
+  auto loc = source::SourceRange();
+  loc.fileID = INT_MAX;
+  auto methodDecl = resolveMethodOverload(ctx, "", argType, loc, true);
   // override
   expr->setResolvedDecl(methodDecl);
 
@@ -966,8 +980,10 @@ void ExprResolver::resolveFieldAccess(std::shared_ptr<ExprNameLinked> access) {
     }
   }
   // Now we check if "name" is a field of "decl"
-  std::cout << "checking if name is in decl" << std::endl;
-  auto field = lookupNamedDecl(refType, name);
+  std::cout << "checking if name is in decl at field access" << std::endl;
+  auto loc = source::SourceRange();
+  loc.fileID = INT_MAX;
+  auto field = lookupNamedDecl(refType, name, loc);
   if (!field) {
     throw std::runtime_error("field access failed for " + name);
   }
@@ -1005,8 +1021,8 @@ void ExprResolver::resolveTypeAccess(std::shared_ptr<ExprNameLinked> access) {
                              name);
   }
   // Now we check if "name" is a field of "decl".
-  std::cout << "checking if name is in decl" << std::endl;
-  auto field = lookupNamedDecl(type, name);
+  std::cout << "checking if name is in decl at type access" << std::endl;
+  auto field = lookupNamedDecl(type, name, access->getNode()->getLoc());
   if (!field) {
     throw std::runtime_error("type access failed for " + name);
   }
@@ -1115,7 +1131,7 @@ ExprResolver::getMethodParent(std::shared_ptr<ExprNameLinked> method) const {
 std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
     std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string name,
     const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes,
-    bool isConstructor) {
+    const source::SourceRange loc, bool isConstructor) {
   std::cout << "resolveMethodOverload" << std::endl;
   // Set the name to the constructor name if isConstructor is true
   if (isConstructor)
@@ -1212,8 +1228,16 @@ std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
     }
   }
   // If there's only one maximally specific method, return it
-  if (maxSpecific.size() == 1)
+  if (maxSpecific.size() == 1) {
+    // if (loc < maxSpecific[0]->getLoc()) {
+    //   std::cout << "found decl: ";
+    //   maxSpecific[0]->print(std::cout);
+    //   std::cout << ", " << maxSpecific[0]->getLoc() << std::endl;
+    //   std::cout << "currently at " << loc <<std::endl;
+    //   throw std::runtime_error("Forward declare of method " + name);
+    // }
     return maxSpecific[0];
+  }
   // There are more conditions i.e., abstract...
   // Otherwise, we have an ambiguity error
   throw std::runtime_error("ambiguous method found for " + std::string(name));

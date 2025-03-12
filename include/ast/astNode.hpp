@@ -1,6 +1,7 @@
 #pragma once
 
 #include "parseTree/parseTree.hpp"
+#include "parseTree/sourceNode.hpp"
 #include <iostream>
 #include <list>
 #include <memory>
@@ -47,13 +48,18 @@ class Decl : virtual public AstNode {
 protected:
   std::string name;
   std::weak_ptr<CodeBody> parent;
+  source::SourceRange loc;
 
 public:
-  explicit Decl(std::string name) : name{name} {}
+  explicit Decl(std::string name,
+                const source::SourceRange loc = source::SourceRange())
+      : name{name}, loc{loc} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
   [[nodiscard]] std::shared_ptr<CodeBody> getParent() const noexcept {
     return parent.lock();
   }
+
+  [[nodiscard]] const source::SourceRange getLoc() const { return loc; }
 
   virtual bool isStatic() const { return false; }
 
@@ -127,6 +133,8 @@ public:
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     return os << "(Stmt)";
   }
+
+  virtual std::vector<std::shared_ptr<Expr>> getExprs() const = 0;
 };
 
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
@@ -262,8 +270,9 @@ class PackageDecl : public Decl {
 
 public:
   PackageDecl(std::string name,
-              std::shared_ptr<ReferenceType> qualifiedIdentifier)
-      : Decl{name}, qualifiedIdentifier{qualifiedIdentifier} {}
+              std::shared_ptr<ReferenceType> qualifiedIdentifier,
+              const source::SourceRange loc)
+      : Decl{name, loc}, qualifiedIdentifier{qualifiedIdentifier} {}
 
   std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
     return qualifiedIdentifier;
@@ -582,8 +591,9 @@ class VarDecl : public Decl {
 
 public:
   VarDecl(std::shared_ptr<Type> type, std::string name,
-          std::shared_ptr<Expr> initializer, std::shared_ptr<ScopeID> scope)
-      : Decl{name}, type{type}, initializer{initializer}, scope{scope} {}
+          std::shared_ptr<Expr> initializer, std::shared_ptr<ScopeID> scope,
+          const source::SourceRange &loc)
+      : Decl{name, loc}, type{type}, initializer{initializer}, scope{scope} {}
 
   bool hasInit() const { return initializer != nullptr; }
 
@@ -608,7 +618,8 @@ class FieldDecl final : public VarDecl {
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
             std::string name, std::shared_ptr<Expr> initializer,
-            std::shared_ptr<ScopeID> scope, bool allowFinal = false);
+            std::shared_ptr<ScopeID> scope, const source::SourceRange &loc,
+            bool allowFinal = false);
 
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
@@ -635,7 +646,7 @@ public:
   MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
              std::shared_ptr<Type> returnType,
              std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
-             std::shared_ptr<Block> methodBody);
+             std::shared_ptr<Block> methodBody, const source::SourceRange loc);
 
   template <std::ranges::range T>
   requires std::same_as<std::ranges::range_value_t<T>, std::shared_ptr<VarDecl>>
@@ -737,6 +748,8 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const { return {}; }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
@@ -764,6 +777,12 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(condition);
+    return exprs;
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
@@ -784,6 +803,12 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(condition));
     children.push_back(std::dynamic_pointer_cast<AstNode>(whileBody));
     return children;
+  }
+
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(condition);
+    return exprs;
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override;
@@ -816,6 +841,12 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(condition);
+    return exprs;
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
@@ -833,6 +864,12 @@ public:
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(returnExpr));
     return children;
+  }
+
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(returnExpr);
+    return exprs;
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
@@ -862,6 +899,12 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(statementExpr);
+    return exprs;
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(ExpressionStmt \n";
@@ -887,6 +930,8 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const override { return {}; }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(DeclStmt \n";
@@ -903,6 +948,8 @@ public:
     printIndent(os, indent);
     return os << "(NullStmt)\n";
   };
+
+  std::vector<std::shared_ptr<Expr>> getExprs() const override { return {}; }
 };
 
 // Types /////////////////////////////////////////////////////////////
