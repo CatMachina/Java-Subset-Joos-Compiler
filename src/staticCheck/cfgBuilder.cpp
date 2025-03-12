@@ -1,6 +1,42 @@
 #include "staticCheck/cfgBuilder.hpp"
+#include "ast/astExprNode.hpp"
+#include <stack>
 
 namespace static_check {
+
+bool evaluateBoolConstantExpr(std::shared_ptr<parsetree::ast::Expr> expr) {
+  auto exprNodes = expr->getExprNodes();
+  std::stack<bool> st;
+  for (auto exprNode : exprNodes) {
+    if (auto binOp = std::dynamic_pointer_cast<parsetree::ast::BinOp>(exprNode)) {
+      auto binOpType = binOp->getOp();
+      bool rhs = st.top(); st.pop();
+      bool lhs = st.top(); st.pop();
+      if (binOpType == parsetree::ast::BinOp::OpType::And || binOpType == parsetree::ast::BinOp::OpType::BitWiseAnd)
+      {
+        st.push(lhs && rhs);
+      }
+      else if (binOpType == parsetree::ast::BinOp::OpType::Or || binOpType == parsetree::ast::BinOp::OpType::BitWiseOr)
+      {
+        st.push(lhs || rhs);
+      } else {
+        return false;
+      }
+    } else if (auto literal = std::dynamic_pointer_cast<parsetree::ast::Literal>(exprNode)) {
+      u_int32_t val = literal->getAsInt();
+      auto type = literal->getBasicType()->getType();
+      if (val == 0 && type == parsetree::ast::BasicType::Type::Boolean) st.push(false);
+      else if (val == 1 && type == parsetree::ast::BasicType::Type::Boolean)
+        st.push(true);
+      else {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+  return st.top();
+}
 
 std::shared_ptr<CFGNode>
 CFGBuilder::buildIfStmt(std::shared_ptr<parsetree::ast::IfStmt> stmt,
