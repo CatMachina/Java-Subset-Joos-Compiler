@@ -23,6 +23,7 @@ static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
   }
   auto childDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(child);
   auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
+
   for (auto &superClass : childDecl->getSuperClasses()) {
     if (!superClass || !superClass->getResolvedDecl() ||
         !superClass->getResolvedDecl())
@@ -35,9 +36,8 @@ static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
     if (superClassDecl == superDecl)
       return true;
 
-    if (isSuperClass(
-            std::dynamic_pointer_cast<parsetree::ast::AstNode>(superClassDecl),
-            super))
+    if (isSuperClass(super, std::dynamic_pointer_cast<parsetree::ast::AstNode>(
+                                superClassDecl)))
       return true;
   }
   return false;

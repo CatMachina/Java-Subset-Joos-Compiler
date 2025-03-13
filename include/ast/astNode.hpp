@@ -407,6 +407,8 @@ public:
     return methods;
   }
 
+  std::vector<std::shared_ptr<MethodDecl>> getConstructors() const;
+
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
     for (const auto &node : classBodyDecls) {
@@ -739,6 +741,8 @@ public:
   const std::vector<std::shared_ptr<Stmt>> &getStatements() const {
     return statements;
   };
+
+  bool isEmpty() const { return statements.empty(); }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;

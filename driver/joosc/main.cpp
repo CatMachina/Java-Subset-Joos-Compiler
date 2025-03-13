@@ -16,6 +16,7 @@
 #include "staticCheck/astValidator.hpp"
 #include "staticCheck/envManager.hpp"
 #include "staticCheck/exprResolver.hpp"
+#include "staticCheck/forwardChecker.hpp"
 #include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
@@ -216,6 +217,9 @@ int main(int argc, char **argv) {
     auto astValidator =
         std::make_shared<static_check::ASTValidator>(typeResolver);
     astValidator->validate(astManager);
+
+    auto forwardChecker = std::make_shared<static_check::ForwardChecker>();
+    forwardChecker->check(astManager);
 
     std::cout << "Expr Resolving Done.....\n";
 

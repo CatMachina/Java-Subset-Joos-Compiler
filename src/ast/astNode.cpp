@@ -130,6 +130,19 @@ void ClassDecl::setParent(std::shared_ptr<CodeBody> parent) {
     method->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
 }
 
+std::vector<std::shared_ptr<MethodDecl>> ClassDecl::getConstructors() const {
+  std::vector<std::shared_ptr<MethodDecl>> constructors;
+
+  for (const auto &decl : classBodyDecls) {
+    if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+      if (methodDecl->isConstructor()) {
+        constructors.push_back(methodDecl);
+      }
+    }
+  }
+  return constructors;
+}
+
 InterfaceDecl::InterfaceDecl(
     std::shared_ptr<Modifiers> modifiers, std::string name,
     std::vector<std::shared_ptr<ReferenceType>> interfaces,

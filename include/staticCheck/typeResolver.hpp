@@ -33,6 +33,9 @@ public:
   bool isValidCast(const std::shared_ptr<parsetree::ast::Type> &exprType,
                    const std::shared_ptr<parsetree::ast::Type> &castType) const;
 
+  bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
+                    std::shared_ptr<parsetree::ast::AstNode> child) const;
+
   void resolve();
 
 private:

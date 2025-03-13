@@ -25,6 +25,11 @@ private:
   void validateVarDecl(std::shared_ptr<parsetree::ast::VarDecl> varDecl);
   std::shared_ptr<parsetree::ast::Type>
   getTypeFromExpr(std::shared_ptr<parsetree::ast::Expr> expr);
+  bool isAccessible(std::shared_ptr<parsetree::ast::Modifiers> mod,
+                    std::shared_ptr<parsetree::ast::CodeBody> parent);
+  bool areParameterTypesApplicable(
+      std::shared_ptr<parsetree::ast::MethodDecl> decl,
+      const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes) const;
 
 private:
   std::shared_ptr<TypeResolver> typeResolver;

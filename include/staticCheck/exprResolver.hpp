@@ -219,6 +219,8 @@ private:
   std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
   std::shared_ptr<parsetree::ast::ScopeID> currentScope;
+  std::shared_ptr<parsetree::ast::ClassDecl> currentClass;
+  std::shared_ptr<parsetree::ast::InterfaceDecl> currentInterface;
   StaticResolverState staticState;
 };
 

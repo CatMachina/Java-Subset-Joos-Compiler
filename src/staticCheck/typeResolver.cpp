@@ -37,8 +37,9 @@ static bool isInterface(std::shared_ptr<parsetree::ast::AstNode> decl) {
   return !!std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(decl);
 }
 
-static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
-                         std::shared_ptr<parsetree::ast::AstNode> child) {
+bool TypeResolver::isSuperClass(
+    std::shared_ptr<parsetree::ast::AstNode> super,
+    std::shared_ptr<parsetree::ast::AstNode> child) const {
   if (!child || !super) {
     // std::cout << "Either child or super is a nullptr."
     return false;
@@ -53,11 +54,11 @@ static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
   }
   auto childDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(child);
   auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
+
   for (auto &superClass : childDecl->getSuperClasses()) {
     if (!superClass || !superClass->getResolvedDecl() ||
         !superClass->getResolvedDecl())
       continue;
-
     // Cast to class
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
         superClass->getResolvedDecl()->getAstNode());
@@ -65,9 +66,8 @@ static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
     if (superClassDecl == superDecl)
       return true;
 
-    if (isSuperClass(
-            std::dynamic_pointer_cast<parsetree::ast::AstNode>(superClassDecl),
-            super))
+    if (isSuperClass(super, std::dynamic_pointer_cast<parsetree::ast::AstNode>(
+                                superClassDecl)))
       return true;
   }
   return false;
@@ -204,6 +204,7 @@ isWiderThan(const std::shared_ptr<parsetree::ast::BasicType> &type,
 bool TypeResolver::isAssignableTo(
     const std::shared_ptr<parsetree::ast::Type> &lhs,
     const std::shared_ptr<parsetree::ast::Type> &rhs) const {
+
   if (*lhs == *rhs)
     return true;
 

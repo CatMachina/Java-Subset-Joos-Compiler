@@ -36,6 +36,7 @@ bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
   }
   auto childDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(child);
   auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
+
   for (auto &superClass : childDecl->getSuperClasses()) {
     if (!superClass || !superClass->getResolvedDecl() ||
         !superClass->getResolvedDecl())
@@ -48,9 +49,8 @@ bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
     if (superClassDecl == superDecl)
       return true;
 
-    if (isSuperClass(
-            std::dynamic_pointer_cast<parsetree::ast::AstNode>(superClassDecl),
-            super))
+    if (isSuperClass(super, std::dynamic_pointer_cast<parsetree::ast::AstNode>(
+                                superClassDecl)))
       return true;
   }
   return false;
@@ -85,6 +85,13 @@ void ExprResolver::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   } else if (auto classDecl =
                  std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
     staticState.currentClass = classDecl;
+    currentClass = classDecl;
+    currentInterface = nullptr;
+  } else if (auto interfaceDecl =
+                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                     node)) {
+    currentInterface = interfaceDecl;
+    currentClass = nullptr;
   } else if (auto field =
                  std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
     staticState.isStaticContext = field->isStatic();
@@ -236,6 +243,9 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
               std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {
         canAccess =
             isAccessible(fieldDecl->getModifiers(), fieldDecl->getParent());
+        if (!canAccess && fieldDecl->getModifiers()->isProtected())
+          throw std::runtime_error("Cannot access protect field " +
+                                   fieldDecl->getName());
       }
       std::cout << "name: " << name << " got name: " << decl->getName()
                 << " scopeVisible: " << scopeVisible
@@ -656,6 +666,8 @@ exprResolveType ExprResolver::evalMethodInvocation(
     throw std::runtime_error(
         "attempted to call static method using single name: " +
         methodDecl->getName());
+  } else if (methodDecl->getModifiers()->isStatic()) {
+    std::cout << "method is static" << std::endl;
   }
 
   // check if the previous a type name
@@ -1001,7 +1013,8 @@ void ExprResolver::resolveFieldAccess(std::shared_ptr<ExprNameLinked> access) {
 }
 
 void ExprResolver::resolveTypeAccess(std::shared_ptr<ExprNameLinked> access) {
-  std::cout << "resolveTypeAccess" << std::endl;
+  std::cout << "resolveTypeAccess for " << access->getNode()->getName()
+            << std::endl;
   // First, verify invariants if access is a type access
   if (access->getValueType() !=
       ExprNameLinked::ValueType::SingleAmbiguousName) {
@@ -1042,6 +1055,33 @@ void ExprResolver::resolveTypeAccess(std::shared_ptr<ExprNameLinked> access) {
   if (!mods->isStatic()) {
     throw std::runtime_error("field attempt to access non-static member: " +
                              field->getName());
+  }
+  if (mods->isProtected()) {
+    std::cout << "static protected field access! " << field->getName()
+              << std::endl;
+    // auto ctxDecl = currentContext->asDecl();
+    // if (ctxDecl) std::cout << "ctxDecl: " << ctxDecl->getName() <<
+    // std::endl;
+    if (auto fieldClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+            field->getParent())) {
+      if (currentClass) {
+        std::cout << "for field: " << field->getName()
+                  << ", field parent class is " << fieldClass->getName()
+                  << ", current class is " << currentClass->getName()
+                  << std::endl;
+        if (fieldClass != currentClass &&
+            !isSuperClass(fieldClass, currentClass)) {
+          throw std::runtime_error("cannot access protected field " +
+                                   field->getName() + " from class " +
+                                   currentClass->getName());
+        }
+      } else if (currentInterface) {
+
+      } else {
+        throw std::runtime_error(
+            "No current class or interface, should not happen");
+      }
+    }
   }
   // field access is valid
   std::shared_ptr<parsetree::ast::Type> fieldType = nullptr;
@@ -1128,6 +1168,20 @@ ExprResolver::getMethodParent(std::shared_ptr<ExprNameLinked> method) const {
   return ty;
 }
 
+static void removeDuplicates(
+    std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> &maxSpecific) {
+  std::unordered_set<parsetree::ast::MethodDecl *> seen;
+
+  auto newEnd = std::remove_if(
+      maxSpecific.begin(), maxSpecific.end(),
+      [&seen](const std::shared_ptr<parsetree::ast::MethodDecl> &ptr) {
+        return !seen.insert(ptr.get())
+                    .second; // Returns true if already seen (to be removed)
+      });
+
+  maxSpecific.erase(newEnd, maxSpecific.end());
+}
+
 std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
     std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string name,
     const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes,
@@ -1161,8 +1215,9 @@ std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
               "package");
         }
       }
-      if (areParameterTypesApplicable(ctor, argTypes))
+      if (areParameterTypesApplicable(ctor, argTypes)) {
         candidates.push_back(ctor);
+      }
     }
   } else {
     // Search the current class and all superclasses
@@ -1179,8 +1234,20 @@ std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
         allMethods = result.methods;
     allMethods.insert(result.abstractMethods.begin(),
                       result.abstractMethods.end());
+    std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> allMethodsVec;
+    if (auto classDecl =
+            std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctxDecl)) {
+      std::cout << "class: " << classDecl->getName() << std::endl;
+      allMethodsVec = classDecl->getMethods();
+    } else if (auto interfaceDecl =
+                   std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                       ctxDecl)) {
+      allMethodsVec = interfaceDecl->getMethods();
+    }
     for (auto pair : allMethods) {
-      auto decl = pair.second;
+      allMethodsVec.push_back(pair.second);
+    }
+    for (auto decl : allMethodsVec) {
       if (!decl)
         continue;
       if (decl->getParams().size() != argTypes.size())
@@ -1189,8 +1256,12 @@ std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
         continue;
       if (!areParameterTypesApplicable(decl, argTypes))
         continue;
-      if (!isAccessible(decl->getModifiers(), decl->getParent()))
+      if (!(decl->getParent() == ctx) &&
+          !isAccessible(decl->getModifiers(), decl->getParent()))
         continue;
+      // if (decl->getParent()->asDecl())
+      //   std::cout << "candidate parent " <<
+      //   decl->getParent()->asDecl()->getName() << std::endl;
       candidates.push_back(decl);
     }
   }
@@ -1211,10 +1282,14 @@ std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
   for (auto cur : candidates) {
     if (!mostSpecific) {
       mostSpecific = cur;
+      // std::cout << "mostSpecific started out to be under " <<
+      // mostSpecific->getParent()->asDecl()->getName() << std::endl;
       continue;
     }
     // cur < minimum?
     if (isMethodMoreSpecific(cur, mostSpecific)) {
+      // std::cout << "mostSpecific changed to under " <<
+      // cur->getParent()->asDecl()->getName() << std::endl;
       mostSpecific = cur;
     }
   }
@@ -1227,6 +1302,7 @@ std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
       maxSpecific.push_back(cur);
     }
   }
+  removeDuplicates(maxSpecific);
   // If there's only one maximally specific method, return it
   if (maxSpecific.size() == 1) {
     // if (loc < maxSpecific[0]->getLoc()) {
@@ -1240,6 +1316,12 @@ std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
   }
   // There are more conditions i.e., abstract...
   // Otherwise, we have an ambiguity error
+  std::cout << "ambiguous method found for " << name << std::endl;
+  for (auto cur : maxSpecific) {
+    std::cout << ",  ";
+    cur->print(std::cout);
+    std::cout << std::endl;
+  }
   throw std::runtime_error("ambiguous method found for " + std::string(name));
 }
 
@@ -1280,7 +1362,7 @@ bool ExprResolver::isMethodMoreSpecific(
   auto U = std::make_shared<parsetree::ast::ReferenceType>(bDecl->getAstNode());
   U->setResolvedDecl(bDecl);
 
-  if (!typeResolver->isAssignableTo(T, U))
+  if (!typeResolver->isAssignableTo(U, T))
     return false;
   assert(a->getParams().size() == b->getParams().size());
   for (size_t i = 0; i < a->getParams().size(); i++) {
