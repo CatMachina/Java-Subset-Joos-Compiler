@@ -78,59 +78,61 @@ void ASTValidator::validateMethod(
           if (superRef)
             validSuperClass++;
         }
-        if (validSuperClass > 1) {
-          std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> validSupers;
-          for (auto superRef : parentClass->getSuperClasses()) {
-            if (!superRef)
-              continue;
-            if (!(superRef->isResolved())) {
-              throw std::runtime_error("Super class not resolved");
+        bool needCheck = false;
+        std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> validSupers;
+        for (auto superRef : parentClass->getSuperClasses()) {
+          if (!superRef)
+            continue;
+          if (!(superRef->isResolved())) {
+            throw std::runtime_error("Super class not resolved");
+          }
+          auto superDecl = superRef->getResolvedDecl()->getAstNode();
+          std::cout << "looking at super class " << superDecl->getName()
+                    << std::endl;
+          if (superDecl->getName() == "Object")
+            continue;
+
+          needCheck = true;
+          auto superClass =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
+          if (!superClass)
+            throw std::runtime_error("Super class is not a class");
+          std::vector<std::shared_ptr<parsetree::ast::Type>> argTypes;
+          for (auto param : method->getParams()) {
+            if (!param->getType()) {
+              throw std::runtime_error("Parameter type is null");
             }
-            auto superDecl = superRef->getResolvedDecl()->getAstNode();
-            std::cout << "looking at super class " << superDecl->getName()
-                      << std::endl;
-            if (superDecl->getName() == "Object")
+            argTypes.push_back(param->getType());
+          }
+
+          for (auto superConstructor : superClass->getConstructors()) {
+            if (!isAccessible(superConstructor->getModifiers(),
+                              superConstructor->getParent())) {
+              std::cout << "not accessible" << std::endl;
               continue;
-            auto superClass =
-                std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
-            if (!superClass)
-              throw std::runtime_error("Super class is not a class");
-            std::vector<std::shared_ptr<parsetree::ast::Type>> argTypes;
-            for (auto param : method->getParams()) {
-              if (!param->getType()) {
-                throw std::runtime_error("Parameter type is null");
-              }
-              argTypes.push_back(param->getType());
             }
 
-            for (auto superConstructor : superClass->getConstructors()) {
-              if (!isAccessible(superConstructor->getModifiers(),
-                                superConstructor->getParent())) {
-                std::cout << "not accessible" << std::endl;
-                continue;
-              }
-
-              if (superConstructor->getParams().size() < argTypes.size()) {
-                validSupers.push_back(superConstructor);
-                continue;
-              }
-              if (superConstructor->getParams().size() != argTypes.size()) {
-                continue;
-              }
-              if (!areParameterTypesApplicable(superConstructor, argTypes)) {
-                std::cout << "parameter types not applicable" << std::endl;
-                continue;
-              }
-              std::cout << "for " << method->getName()
-                        << " found valid super constructor for super"
-                        << superClass->getName() << std::endl;
+            // FIXME: currently does not check if is subset!
+            if (superConstructor->getParams().size() < argTypes.size()) {
               validSupers.push_back(superConstructor);
+              continue;
             }
+            if (superConstructor->getParams().size() != argTypes.size()) {
+              continue;
+            }
+            if (!areParameterTypesApplicable(superConstructor, argTypes)) {
+              std::cout << "parameter types not applicable" << std::endl;
+              continue;
+            }
+            std::cout << "for " << method->getName()
+                      << " found valid super constructor for super"
+                      << superClass->getName() << std::endl;
+            validSupers.push_back(superConstructor);
           }
-          if (validSupers.size() == 0) {
-            throw std::runtime_error("No valid super constructor for " +
-                                     method->getName());
-          }
+        }
+        if (needCheck && validSupers.size() == 0) {
+          throw std::runtime_error("No valid super constructor for " +
+                                   method->getName());
         }
       }
     }

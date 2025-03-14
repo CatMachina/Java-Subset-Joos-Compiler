@@ -73,9 +73,8 @@ bool TypeResolver::isSuperClass(
   return false;
 }
 
-static bool
-isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
-                 std::shared_ptr<parsetree::ast::AstNode> interface) {
+static bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> interface,
+                             std::shared_ptr<parsetree::ast::AstNode> child) {
   if (!child || !interface) {
     // std::cout << "Either child or super interface is a nullptr."
     return false;
@@ -104,9 +103,9 @@ isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
 
       if (superInterfaceDecl == interface)
         return true;
-      if (isSuperInterface(std::dynamic_pointer_cast<parsetree::ast::AstNode>(
-                               superInterfaceDecl),
-                           interface))
+      if (isSuperInterface(interface,
+                           std::dynamic_pointer_cast<parsetree::ast::AstNode>(
+                               superInterfaceDecl)))
         return true;
     }
     for (auto &superClass : childDecl->getSuperClasses()) {
@@ -119,9 +118,9 @@ isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
               superClass->getResolvedDecl()->getAstNode());
 
-      if (isSuperInterface(std::dynamic_pointer_cast<parsetree::ast::AstNode>(
-                               superClassDecl),
-                           interface))
+      if (isSuperInterface(interface,
+                           std::dynamic_pointer_cast<parsetree::ast::AstNode>(
+                               superClassDecl)))
         return true;
     }
   } else {
@@ -138,9 +137,9 @@ isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> child,
 
       if (superInterfaceDecl == interface)
         return true;
-      if (isSuperInterface(std::dynamic_pointer_cast<parsetree::ast::AstNode>(
-                               superInterfaceDecl),
-                           interface))
+      if (isSuperInterface(interface,
+                           std::dynamic_pointer_cast<parsetree::ast::AstNode>(
+                               superInterfaceDecl)))
         return true;
     }
   }

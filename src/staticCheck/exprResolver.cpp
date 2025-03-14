@@ -1290,6 +1290,8 @@ std::shared_ptr<parsetree::ast::MethodDecl> ExprResolver::resolveMethodOverload(
       if (!(decl->getParent() == ctx) &&
           !isAccessible(decl->getModifiers(), decl->getParent()))
         continue;
+      if (decl->isConstructor())
+        continue;
       // if (decl->getParent()->asDecl())
       //   std::cout << "candidate parent " <<
       //   decl->getParent()->asDecl()->getName() << std::endl;
