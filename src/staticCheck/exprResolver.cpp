@@ -560,6 +560,21 @@ ExprResolver::evalFieldAccess(std::shared_ptr<parsetree::ast::FieldAccess> &op,
       std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNode);
   if (!fieldNode)
     throw std::runtime_error("Bad node. Expected MemberName here.");
+
+  if (std::holds_alternative<std::shared_ptr<parsetree::ast::ExprNode>>(lhs)) {
+    auto lhsNode = std::get<std::shared_ptr<parsetree::ast::ExprNode>>(lhs);
+    if (std::dynamic_pointer_cast<parsetree::ast::ThisNode>(lhsNode)) {
+      fieldNode->setAccessedByThis();
+    } else if (auto memberName =
+                   std::dynamic_pointer_cast<parsetree::ast::MemberName>(
+                       lhsNode)) {
+      if (memberName->getName() == currentClass->getName()) {
+        fieldNode->setAccessedByThis();
+      }
+    }
+  }
+  fieldNode->setNotAsBase();
+
   // Allocate a new node as the member access to represent "Id" in Lhs . Id
   auto newPrev = std::make_shared<ExprNameLinked>(
       ExprNameLinked::ValueType::SingleAmbiguousName, fieldNode, op);
@@ -860,7 +875,23 @@ ExprResolver::evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
                              const exprResolveType rhs) {
   std::cout << "evaluating for assignment" << std::endl;
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>> ret;
+
   auto lhsVec = resolveExprNode(lhs);
+  if (lhsVec.size() == 1) {
+    if (auto memberName =
+            std::dynamic_pointer_cast<parsetree::ast::MemberName>(lhsVec[0])) {
+      memberName->setinitializedInExpr();
+    }
+  } else if (lhsVec.size() == 3) {
+    if (std::dynamic_pointer_cast<parsetree::ast::FieldAccess>(lhsVec[2])) {
+      if (auto memberName =
+              std::dynamic_pointer_cast<parsetree::ast::MemberName>(
+                  lhsVec[1])) {
+        memberName->setinitializedInExpr();
+      }
+    }
+  }
+
   auto rhsVec = resolveExprNode(rhs);
   ret.reserve(lhsVec.size() + rhsVec.size() + 1);
   ret.insert(ret.end(), lhsVec.begin(), lhsVec.end());

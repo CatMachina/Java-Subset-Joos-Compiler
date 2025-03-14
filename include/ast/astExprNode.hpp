@@ -160,13 +160,23 @@ public:
     return os;
   }
 
+  void setAccessedByThis() { accessedByThis = true; }
+  void setNotAsBase() { notAsBase = true; }
+  void setinitializedInExpr() { initializedInExpr = true; }
+
   // Getters
   std::string getName() const { return name; }
   const source::SourceRange getLoc() const { return loc; }
+  bool isAccessedByThis() const { return accessedByThis; }
+  bool isNotAsBase() const { return notAsBase; }
+  bool isinitializedInExpr() const { return initializedInExpr; }
 
 private:
   std::string name;
   const source::SourceRange loc;
+  bool accessedByThis = false;
+  bool notAsBase = false;
+  bool initializedInExpr = false;
 };
 
 class MethodName : public MemberName {

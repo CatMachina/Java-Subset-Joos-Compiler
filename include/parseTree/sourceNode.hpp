@@ -35,17 +35,20 @@ struct SourceRange {
     return os;
   }
 
-  bool operator<(const SourceRange &other) const {
+  bool operator<=(const SourceRange &other) const {
     if (fileID != other.fileID)
       return false;
-    // if (fileID != other.fileID) return fileID < other.fileID;
-    if (first_line != other.first_line)
-      return first_line < other.first_line;
-    if (last_line != other.last_line)
-      return last_line < other.last_line;
-    if (first_column != other.first_column)
-      return first_column < other.first_column;
-    return last_column < other.last_column;
+    // // if (fileID != other.fileID) return fileID < other.fileID;
+    // if (first_line != other.first_line)
+    //   return first_line < other.first_line;
+    // if (last_line != other.last_line)
+    //   return last_line < other.last_line;
+    // if (first_column != other.first_column)
+    //   return first_column < other.first_column;
+    // return last_column < other.last_column;
+    return first_line <= other.first_line && last_line <= other.last_line &&
+           first_column <= other.first_column &&
+           last_column <= other.last_column;
   }
 };
 
