@@ -652,10 +652,6 @@ class HierarchyCheck {
         std::string signature = method->getSignature();
         std::string returnType =
             method->getReturnType() ? method->getReturnType()->toString() : "";
-
-        // std::cout << "DEBUG: Checking method: " << signature << " in class "
-        //           << classDecl->getName() << "\n";
-
         for (auto &superClass : classDecl->getSuperClasses()) {
           if (!superClass)
             continue;
@@ -695,10 +691,6 @@ class HierarchyCheck {
 
       for (auto &method : interfaceDecl->getMethods()) {
         std::string signature = method->getSignature();
-        // std::cout << "DEBUG: Checking method: " << signature << " in
-        // interface "
-        //           << interfaceDecl->getName() << "\n";
-
         auto objectDecl = resolveJavaLangObjectInterfaces(rootPackage);
         if (objectDecl) {
           for (auto &objectMethod : objectDecl->getMethods()) {
@@ -720,7 +712,6 @@ class HierarchyCheck {
 
         for (auto &superInterface : superInterfaces) {
           if (!superInterface || !superInterface->getResolvedDecl()) {
-            // std::cout << "DEBUG: Skipping unresolved superinterface\n";
             continue;
           }
 
@@ -730,17 +721,12 @@ class HierarchyCheck {
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
             if (!superInterfaceDecl) {
-              // std::cout << "DEBUG: Skipping superinterface that is not an "
-              //              "interface\n";
               continue;
             }
 
             for (auto &superMethod : superInterfaceDecl->getMethods()) {
               if (!superMethod)
                 continue;
-              // std::cout << "DEBUG: Comparing against superinterface method: "
-              //           << superMethod->getSignature() << "\n";
-
               if (superMethod->getSignature() == signature) {
                 bool isSuperMethodFinal =
                     superMethod->getModifiers() &&
@@ -770,63 +756,14 @@ class HierarchyCheck {
 
     if (auto classDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
-
       auto inheritedMethods = getAllInheritedMethods(classDecl);
 
-      std::unordered_map<std::string,
-                         std::shared_ptr<parsetree::ast::MethodDecl>>
-          allMethods;
-      for (auto &method : classDecl->getMethods()) {
-        allMethods[method->getSignature()] = method;
-      }
-      for (auto &[signature, method] : inheritedMethods.abstractMethods) {
-        if (!allMethods.count(signature))
-          allMethods[signature] = method;
-      }
       for (auto &[signature, method] : inheritedMethods.methods) {
-        if (!allMethods.count(signature))
-          allMethods[signature] = method;
-      }
-
-      for (auto &[signature, method] : allMethods) {
         bool isMethodProtected =
             method->getModifiers() && method->getModifiers()->isProtected();
         bool isMethodPublic =
             method->getModifiers() && method->getModifiers()->isPublic();
-
         bool isInheritedProtected = false;
-
-        for (auto &superClass : classDecl->getSuperClasses()) {
-          if (!superClass)
-            continue;
-          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
-            auto superClassDecl =
-                std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
-            if (!superClassDecl)
-              continue;
-
-            for (auto &superMethod : superClassDecl->getMethods()) {
-              if (superMethod->getSignature() == signature) {
-                bool isSuperMethodPublic =
-                    superMethod->getModifiers() &&
-                    superMethod->getModifiers()->isPublic();
-
-                if (superMethod->getModifiers() &&
-                    superMethod->getModifiers()->isProtected()) {
-                  isInheritedProtected = true;
-                }
-
-                if (isSuperMethodPublic && isMethodProtected) {
-                  std::cerr << "Error: Protected method " << method->getName()
-                            << " in class " << classDecl->getName()
-                            << " cannot override public method from superclass "
-                            << superClassDecl->getName() << "\n";
-                  return false;
-                }
-              }
-            }
-          }
-        }
 
         for (auto &superInterface : classDecl->getInterfaces()) {
           if (!superInterface)
@@ -845,57 +782,25 @@ class HierarchyCheck {
                     superMethod->getModifiers() &&
                     superMethod->getModifiers()->isPublic();
 
-                if (isSuperMethodPublic && isInheritedProtected) {
-                  std::cerr << "Error: Protected method " << method->getName()
-                            << " in class " << classDecl->getName()
-                            << " cannot override public method from interface "
-                            << superInterfaceDecl->getName() << "\n";
-                  return false;
-                }
-
-                if (isSuperMethodPublic && isMethodProtected) {
-                  std::cerr << "Error: Protected method " << method->getName()
-                            << " in class " << classDecl->getName()
-                            << " cannot override public method from interface "
-                            << superInterfaceDecl->getName() << "\n";
-                  return false;
-                }
-              }
-            }
-          }
-        }
-
-        auto objectDecl = resolveJavaLangObjectInterfaces(rootPackage);
-        if (objectDecl) {
-          for (auto &objectMethod : objectDecl->getMethods()) {
-            if (!objectMethod)
-              continue;
-            if (objectMethod->getSignature() == signature) {
-              bool isObjectMethodProtected =
-                  objectMethod->getModifiers() &&
-                  objectMethod->getModifiers()->isProtected();
-
-              for (auto &superInterface : classDecl->getInterfaces()) {
-                if (!superInterface)
+                if (isSuperMethodPublic && isMethodProtected &&
+                    classDecl->getModifiers()->isAbstract()) {
                   continue;
-                if (auto superDecl =
-                        superInterface->getResolvedDecl()->getAstNode()) {
-                  auto superInterfaceDecl =
-                      std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                          superDecl);
-                  if (!superInterfaceDecl)
-                    continue;
-                  for (auto &superMethod : superInterfaceDecl->getMethods()) {
-                    if (superMethod->getSignature() == signature &&
-                        superMethod->getModifiers()->isPublic()) {
-                      std::cerr
-                          << "Error: Protected method " << method->getName()
-                          << " in class " << classDecl->getName()
-                          << " cannot override public method from interface "
-                          << superInterfaceDecl->getName() << "\n";
-                      return false;
-                    }
+                }
+
+                bool isFinalClass = true;
+                for (auto &m : classDecl->getMethods()) {
+                  if (m->getModifiers()->isAbstract()) {
+                    isFinalClass = false;
+                    break;
                   }
+                }
+
+                if (isSuperMethodPublic && isMethodProtected && isFinalClass) {
+                  std::cerr << "Error: Class " << classDecl->getName()
+                            << " must implement " << method->getName()
+                            << " as public to satisfy interface "
+                            << superInterfaceDecl->getName() << "\n";
+                  return false;
                 }
               }
             }
@@ -919,8 +824,6 @@ class HierarchyCheck {
 
       for (auto &method : classDecl->getMethods()) {
         std::string signature = method->getSignature();
-        // std::cout << "DEBUG: Checking method: " << signature << " in class "
-        //           << classDecl->getName() << "\n";
 
         for (auto &superClass : superClasses) {
           if (!superClass || !superClass->getResolvedDecl())
@@ -934,8 +837,6 @@ class HierarchyCheck {
             for (auto &superMethod : superClassDecl->getMethods()) {
               if (!superMethod)
                 continue;
-              // std::cout << "DEBUG: Comparing against superclass method: "
-              //           << superMethod->getSignature() << "\n";
 
               if (superMethod->getSignature() == signature) {
 
@@ -962,9 +863,6 @@ class HierarchyCheck {
 
       for (auto &method : interfaceDecl->getMethods()) {
         std::string signature = method->getSignature();
-        // std::cout << "DEBUG: Checking method: " << signature << " in
-        // interface "
-        //           << interfaceDecl->getName() << "\n";
 
         auto objectDecl = resolveJavaLangObjectInterfaces(rootPackage);
         if (objectDecl) {
@@ -988,7 +886,6 @@ class HierarchyCheck {
 
         for (auto &superInterface : superInterfaces) {
           if (!superInterface || !superInterface->getResolvedDecl()) {
-            // std::cout << "DEBUG: Skipping unresolved superinterface\n";
             continue;
           }
 
@@ -998,16 +895,12 @@ class HierarchyCheck {
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
             if (!superInterfaceDecl) {
-              // std::cout << "DEBUG: Skipping superinterface that is not an "
-              //              "interface\n";
               continue;
             }
 
             for (auto &superMethod : superInterfaceDecl->getMethods()) {
               if (!superMethod)
                 continue;
-              // std::cout << "DEBUG: Comparing against superinterface method: "
-              //           << superMethod->getSignature() << "\n";
 
               if (superMethod->getSignature() == signature) {
                 bool isSuperMethodFinal =
