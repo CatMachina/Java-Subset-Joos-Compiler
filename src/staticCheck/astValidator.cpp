@@ -5,7 +5,6 @@ namespace static_check {
 bool ASTValidator::isAccessible(
     std::shared_ptr<parsetree::ast::Modifiers> mod,
     std::shared_ptr<parsetree::ast::CodeBody> parent) {
-  std::cout << "checking accessibility" << std::endl;
   // 6.6.1
   if (mod->isPublic())
     return true;
@@ -34,11 +33,11 @@ bool ASTValidator::areParameterTypesApplicable(
   for (size_t i = 0; i < argTypes.size(); i++) {
     auto ty1 = argTypes[i];
     auto ty2 = decl->getParams()[i]->getType();
-    std::cout << "ty1: ";
-    ty1->print(std::cout);
-    std::cout << ", ty2: ";
-    ty2->print(std::cout);
-    std::cout << std::endl;
+    // std::cout << "ty1: ";
+    // ty1->print(std::cout);
+    // std::cout << ", ty2: ";
+    // ty2->print(std::cout);
+    // std::cout << std::endl;
     valid &= typeResolver->isAssignableTo(ty1, ty2);
   }
   return valid;
@@ -65,10 +64,7 @@ void ASTValidator::validateProgram(
 void ASTValidator::validateMethod(
     std::shared_ptr<parsetree::ast::MethodDecl> method) {
   if (method->isConstructor()) {
-    std::cout << "validating constructor: " << method->getName() << std::endl;
-    method->print(std::cout);
     if (!(method->getMethodBody()) || method->getMethodBody()->isEmpty()) {
-      std::cout << "no method body" << std::endl;
       auto parent = method->getParent();
       auto parentClass =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(parent);
@@ -87,8 +83,6 @@ void ASTValidator::validateMethod(
             throw std::runtime_error("Super class not resolved");
           }
           auto superDecl = superRef->getResolvedDecl()->getAstNode();
-          std::cout << "looking at super class " << superDecl->getName()
-                    << std::endl;
           if (superDecl->getName() == "Object")
             continue;
 
@@ -108,7 +102,6 @@ void ASTValidator::validateMethod(
           for (auto superConstructor : superClass->getConstructors()) {
             if (!isAccessible(superConstructor->getModifiers(),
                               superConstructor->getParent())) {
-              std::cout << "not accessible" << std::endl;
               continue;
             }
 
@@ -121,12 +114,11 @@ void ASTValidator::validateMethod(
               continue;
             }
             if (!areParameterTypesApplicable(superConstructor, argTypes)) {
-              std::cout << "parameter types not applicable" << std::endl;
               continue;
             }
-            std::cout << "for " << method->getName()
-                      << " found valid super constructor for super"
-                      << superClass->getName() << std::endl;
+            // std::cout << "for " << method->getName()
+            //           << " found valid super constructor for super"
+            //           << superClass->getName() << std::endl;
             validSupers.push_back(superConstructor);
           }
         }

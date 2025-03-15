@@ -19,7 +19,6 @@ public:
     if (!resolvedDecl)
       throw std::runtime_error("setResolvedDecl Decl cannot be null");
     this->decl_ = resolvedDecl;
-    std::cout << "setResolvedDecl done decl" << std::endl;
     if (type_) {
       auto refType = std::dynamic_pointer_cast<ReferenceType>(type_);
       if (!refType)
@@ -266,7 +265,6 @@ public:
   std::shared_ptr<Type> getResultType() const { return resultType; }
   std::shared_ptr<Type> resolveResultType(std::shared_ptr<Type> type) {
     if (!type) {
-      std::cout << "Tried to resolve op with null type\n";
       return nullptr;
     }
     if (!type->isResolved()) {

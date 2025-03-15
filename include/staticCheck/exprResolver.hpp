@@ -23,19 +23,14 @@ using previousType =
 static std::shared_ptr<parsetree::ast::Decl>
 GetTypeAsDecl(std::shared_ptr<parsetree::ast::Type> type,
               std::shared_ptr<parsetree::ast::ASTManager> manager) {
-  std::cout << "GetTypeAsDecl" << std::endl;
   if (auto refType =
           std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type)) {
-    std::cout << "GetTypeAsDecl refType" << std::endl;
     return refType->getResolvedDecl()->getAstNode();
   } else if (type->isString()) {
-    std::cout << "GetTypeAsDecl string" << std::endl;
     return manager->java_lang.String;
   } else if (type->isArray()) {
-    std::cout << "GetTypeAsDecl array" << std::endl;
     return manager->java_lang.Array;
   } else {
-    std::cout << "GetTypeAsDecl null" << std::endl;
     return nullptr;
   }
 }
@@ -183,10 +178,8 @@ private:
 
   std::shared_ptr<ExprNameLinked>
   resolveName(std::shared_ptr<parsetree::ast::MemberName> node) {
-    std::cout << "resolveName: " << node->getName() << std::endl;
     if (auto method =
             std::dynamic_pointer_cast<parsetree::ast::MethodName>(node)) {
-      std::cout << "resolveName found method" << std::endl;
       return std::make_shared<ExprNameLinked>(
           ExprNameLinked::ValueType::MethodName, method, nullptr);
     }

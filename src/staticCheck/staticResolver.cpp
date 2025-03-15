@@ -10,15 +10,12 @@ static bool isClass(std::shared_ptr<parsetree::ast::AstNode> decl) {
 static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
                          std::shared_ptr<parsetree::ast::AstNode> child) {
   if (!child || !super) {
-    // std::cout << "Either child or super is a nullptr."
     return false;
   }
   if (!isClass(child)) {
-    // std::cout << "Child class is not a class!\n";
     return false;
   }
   if (!isClass(super)) {
-    // std::cout << "Super class is not a class!\n";
     return false;
   }
   auto childDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(child);
@@ -202,7 +199,6 @@ StaticResolverData StaticResolver::evalMethodInvocation(
   if (!(method.isValue && method.decl))
     throw std::runtime_error(
         "method must be a value and have a resolved declaration");
-  // method.print(std::cout);
   this->checkInstanceVariable(method);
   for (auto arg : args) {
     if (!(arg.isValue))

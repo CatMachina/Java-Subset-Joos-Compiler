@@ -37,9 +37,9 @@ std::shared_ptr<parsetree::ast::FieldDecl> EnvManager::BuildFieldDecl(
     const std::shared_ptr<parsetree::ast::Expr> &init,
     const source::SourceRange &loc, bool allowFinal) {
   auto scopeID = NextFieldScopeID();
-  std::cout << "BuildFieldDecl: name=" << name << ", " << loc
-            << ", scopeID=" << (scopeID ? scopeID->toString() : "")
-            << std::endl;
+  // std::cout << "BuildFieldDecl: name=" << name << ", " << loc
+  //           << ", scopeID=" << (scopeID ? scopeID->toString() : "")
+  //           << std::endl;
   return std::make_shared<parsetree::ast::FieldDecl>(
       modifiers, type, name, init, scopeID, loc, allowFinal);
 }
@@ -63,9 +63,9 @@ std::shared_ptr<parsetree::ast::VarDecl> EnvManager::BuildVarDecl(
     const std::shared_ptr<parsetree::ast::ScopeID> &scopeID,
     const source::SourceRange &loc,
     const std::shared_ptr<parsetree::ast::Expr> &initializer) {
-  std::cout << "BuildVarDecl: name=" << name << ", " << loc
-            << ", scopeID=" << (scopeID ? scopeID->toString() : "")
-            << std::endl;
+  // std::cout << "BuildVarDecl: name=" << name << ", " << loc
+  //           << ", scopeID=" << (scopeID ? scopeID->toString() : "")
+  //           << std::endl;
   if (initializer) {
     for (auto exprNode : initializer->getExprNodes()) {
       if (auto memberName =

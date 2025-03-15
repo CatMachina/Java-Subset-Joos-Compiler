@@ -18,7 +18,6 @@ public:
       : astManager(astManager), envManager(envManager) {}
   std::shared_ptr<parsetree::ast::Type>
   EvalList(std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list) {
-    std::cout << "TypeResolver::EvalList" << std::endl;
     return Evaluator<std::shared_ptr<parsetree::ast::Type>>::evaluateList(list);
   }
 

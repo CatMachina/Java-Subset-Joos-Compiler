@@ -74,9 +74,6 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
         } else {
           resolveType(type);
         }
-        std::cout << "Resolving type: ";
-        type->print(std::cout);
-        std::cout << std::endl;
       }
       if (!(type->isResolved()))
         throw std::runtime_error("Type still not resolved after resolveType");

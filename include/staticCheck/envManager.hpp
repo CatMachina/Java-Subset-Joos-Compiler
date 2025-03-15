@@ -79,7 +79,6 @@ public:
   BuildUnresolvedType();
 
   void ClearLocalScope() noexcept {
-    std::cout << "Clearing local scope" << std::endl;
     localDecls_.clear();
     localDeclStack_.clear();
     localScope_.clear();
@@ -116,8 +115,6 @@ public:
   }
 
   std::shared_ptr<parsetree::ast::ScopeID> NextScopeID() {
-    std::cout << "NextScopeID of scope " << currentScope_->toString()
-              << std::endl;
     currentScope_ = currentScope_->next(currentScope_->parent());
     return currentScope_;
   }
