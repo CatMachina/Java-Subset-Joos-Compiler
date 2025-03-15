@@ -148,7 +148,8 @@ ParseTreeVisitor::visitFieldDecl(const NodePtr &node) {
   auto decl = visitLocalDecl(node->child_at(1), node->child_at(2));
   if (decl.init)
     decl.init->setScope(envManager->CurrentFieldScopeID());
-  return envManager->BuildFieldDecl(modifiers, decl.type, decl.name, decl.init);
+  return envManager->BuildFieldDecl(modifiers, decl.type, decl.name, decl.init,
+                                    node->loc);
 }
 
 // Method Declaration
@@ -178,8 +179,8 @@ ParseTreeVisitor::visitMethodDecl(const NodePtr &node) {
       node->child_at(type ? 4 : 3) ? visitBlock(node->child_at(type ? 4 : 3))
                                    : nullptr;
 
-  return envManager->BuildMethodDecl(modifiers, name, type, params, false,
-                                     body);
+  return envManager->BuildMethodDecl(modifiers, name, type, params, false, body,
+                                     node->loc);
 }
 
 std::shared_ptr<ast::MethodDecl>
@@ -204,7 +205,7 @@ ParseTreeVisitor::visitConstructorDecl(const NodePtr &node) {
       node->child_at(3) ? visitBlock(node->child_at(3)) : nullptr;
 
   return envManager->BuildMethodDecl(modifiers, name, nullptr, params, true,
-                                     body);
+                                     body, node->loc);
 }
 
 template <>
@@ -215,8 +216,9 @@ ParseTreeVisitor::visit<NodeType::ParameterList>(const NodePtr &node) {
 
   auto type = visitType(node->child_at(0));
   auto name = visitIdentifier(node->child_at(1));
+  auto loc = node->loc;
 
-  return envManager->BuildVarDecl(type, name, envManager->NextScopeID());
+  return envManager->BuildVarDecl(type, name, envManager->NextScopeID(), loc);
 }
 
 // Interface Declaration
@@ -272,7 +274,7 @@ ParseTreeVisitor::visitAbstractMethodDecl(const NodePtr &node) {
   }
 
   return envManager->BuildMethodDecl(modifiers, name, type, params, false,
-                                     nullptr);
+                                     nullptr, node->loc);
 }
 
 template <>
@@ -318,7 +320,8 @@ ParseTreeVisitor::visitStatement(const NodePtr &node) {
   case NodeType::LocalDeclStatement:
     return visitLocalDeclStatement(node);
   case NodeType::Statement:
-    return std::make_shared<ast::Stmt>();
+    throw std::runtime_error("Got Statement");
+    // return std::make_shared<ast::Stmt>();
   default:
     throw std::runtime_error("Invalid Statement");
   }
@@ -413,8 +416,9 @@ ParseTreeVisitor::visitForStatement(const NodePtr &node) {
     if (initNode->get_node_type() == NodeType::LocalDecl) {
       check_num_children(initNode, 2, 2);
       auto decl = visitLocalDecl(initNode->child_at(0), initNode->child_at(1));
-      auto varDecl = envManager->BuildVarDecl(
-          decl.type, decl.name, envManager->NextScopeID(), decl.init);
+      auto varDecl = envManager->BuildVarDecl(decl.type, decl.name,
+                                              envManager->NextScopeID(),
+                                              initNode->loc, decl.init);
       init = envManager->BuildDeclStmt(varDecl);
     } else {
       init = visitExpression(initNode);
@@ -472,8 +476,8 @@ ParseTreeVisitor::visitLocalDeclStatement(const NodePtr &node) {
 
   auto decl =
       visitLocalDecl(innerLocalDecl->child_at(0), innerLocalDecl->child_at(1));
-  auto varDecl = envManager->BuildVarDecl(decl.type, decl.name,
-                                          envManager->NextScopeID(), decl.init);
+  auto varDecl = envManager->BuildVarDecl(
+      decl.type, decl.name, envManager->NextScopeID(), node->loc, decl.init);
   return envManager->BuildDeclStmt(varDecl);
 }
 

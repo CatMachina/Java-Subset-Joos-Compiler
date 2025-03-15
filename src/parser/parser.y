@@ -627,7 +627,16 @@ class_create_expr:
 ;
 
 field_access_expr:
-    primary DOT ID { $$ = lexer.make_node(@$, NodeType::FieldAccess, std::move($1), std::move($3)); }
+    primary DOT ID {
+        bool isExpression = $1->get_node_type() == parsetree::Node::Type::Expression;
+        int numChildren = $1->num_children();
+        if(isExpression && numChildren == 1 && $1->child_at(0)->get_node_type() == parsetree::Node::Type::QualifiedName) {
+            std::cerr << "Invalid expression for field access" << std::endl;
+            $$ = lexer.make_corrupted("some field access expression");
+        } else {
+            $$ = lexer.make_node(@$, NodeType::FieldAccess, std::move($1), std::move($3));
+        }
+    }
 ;
 
 method_invocation_expr:

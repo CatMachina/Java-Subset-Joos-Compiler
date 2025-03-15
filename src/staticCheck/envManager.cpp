@@ -34,12 +34,14 @@ std::shared_ptr<parsetree::ast::ClassDecl> EnvManager::BuildClassDecl(
 std::shared_ptr<parsetree::ast::FieldDecl> EnvManager::BuildFieldDecl(
     const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
     const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
-    const std::shared_ptr<parsetree::ast::Expr> &init, bool allowFinal) {
+    const std::shared_ptr<parsetree::ast::Expr> &init,
+    const source::SourceRange &loc, bool allowFinal) {
   auto scopeID = NextFieldScopeID();
-  std::cout << "BuildFieldDecl: name=" << name
-            << " scopeID=" << (scopeID ? scopeID->toString() : "") << std::endl;
-  return std::make_shared<parsetree::ast::FieldDecl>(modifiers, type, name,
-                                                     init, scopeID, allowFinal);
+  // std::cout << "BuildFieldDecl: name=" << name << ", " << loc
+  //           << ", scopeID=" << (scopeID ? scopeID->toString() : "")
+  //           << std::endl;
+  return std::make_shared<parsetree::ast::FieldDecl>(
+      modifiers, type, name, init, scopeID, loc, allowFinal);
 }
 
 std::shared_ptr<parsetree::ast::MethodDecl> EnvManager::BuildMethodDecl(
@@ -47,10 +49,11 @@ std::shared_ptr<parsetree::ast::MethodDecl> EnvManager::BuildMethodDecl(
     std::string name, const std::shared_ptr<parsetree::ast::Type> &returnType,
     const std::vector<std::shared_ptr<parsetree::ast::VarDecl>> &params,
     bool isConstructor,
-    const std::shared_ptr<parsetree::ast::Block> &methodBody) {
+    const std::shared_ptr<parsetree::ast::Block> &methodBody,
+    const source::SourceRange &loc) {
   std::shared_ptr<parsetree::ast::MethodDecl> methodDecl =
       std::make_shared<parsetree::ast::MethodDecl>(
-          modifiers, name, returnType, params, isConstructor, methodBody);
+          modifiers, name, returnType, params, isConstructor, methodBody, loc);
   methodDecl->addDecls(getAllDecls());
   return methodDecl;
 }
@@ -58,12 +61,24 @@ std::shared_ptr<parsetree::ast::MethodDecl> EnvManager::BuildMethodDecl(
 std::shared_ptr<parsetree::ast::VarDecl> EnvManager::BuildVarDecl(
     const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
     const std::shared_ptr<parsetree::ast::ScopeID> &scopeID,
+    const source::SourceRange &loc,
     const std::shared_ptr<parsetree::ast::Expr> &initializer) {
-  std::cout << "BuildVarDecl: name=" << name
-            << " scopeID=" << (scopeID ? scopeID->toString() : "") << std::endl;
+  // std::cout << "BuildVarDecl: name=" << name << ", " << loc
+  //           << ", scopeID=" << (scopeID ? scopeID->toString() : "")
+  //           << std::endl;
+  if (initializer) {
+    for (auto exprNode : initializer->getExprNodes()) {
+      if (auto memberName =
+              std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNode)) {
+        if (memberName->getName() == name) {
+          throw std::runtime_error("self reference!");
+        }
+      }
+    }
+  }
   std::shared_ptr<parsetree::ast::VarDecl> varDecl =
       std::make_shared<parsetree::ast::VarDecl>(type, name, initializer,
-                                                scopeID);
+                                                scopeID, loc);
   if (!AddToLocalScope(varDecl)) {
     throw std::runtime_error("Variable " + std::string(name) +
                              " already declared in this scope.");

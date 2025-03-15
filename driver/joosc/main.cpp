@@ -13,10 +13,11 @@
 #include "parseTree/parseTreeVisitor.hpp"
 #include "parseTree/sourceNode.hpp"
 #include "parser/myBisonParser.hpp"
+#include "staticCheck/astValidator.hpp"
 #include "staticCheck/envManager.hpp"
-#include "staticCheck/hierarchyCheck.hpp"
-// #include "staticCheck/nameDisambiguator.hpp"
 #include "staticCheck/exprResolver.hpp"
+#include "staticCheck/forwardChecker.hpp"
+#include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
 
@@ -111,6 +112,7 @@ int main(int argc, char **argv) {
       // Parse the input
       std::shared_ptr<parsetree::Node> parse_tree;
       myBisonParser parser{fileContent};
+      parser.setFileID(file_number);
       int result = parser.parse(parse_tree);
 
       // Validate parse result
@@ -140,7 +142,6 @@ int main(int argc, char **argv) {
       try {
         if (parse_tree->is_corrupted())
           throw std::runtime_error("Parse tree is invalid");
-        std::cout << "Visiting parse tree..." << std::endl;
         ast = visitor.visitProgramDecl(parse_tree);
       } catch (const std::exception &ex) {
         std::cerr << "Runtime error: " << ex.what() << std::endl;
@@ -168,11 +169,7 @@ int main(int argc, char **argv) {
         return EXIT_ERROR;
       }
       astManager->addAST(ast);
-      std::cout << "Parsed " << fileName << std::endl;
-      // if (file_number == 1) {
-      //   std::cout << "Constructed AST: \n";
-      //   ast->print(std::cout);
-      // }
+      // std::cout << "Parsed " << fileName << std::endl;
     }
 
     std::cout << "Passed AST constructions\n";
@@ -182,7 +179,7 @@ int main(int argc, char **argv) {
         std::make_shared<static_check::TypeLinker>(astManager, env);
     std::shared_ptr<static_check::Package> rootPackage =
         typeLinker->getRootPackage();
-    rootPackage->printStructure();
+    // rootPackage->printStructure();
     std::cout << "Starting type linking\n";
     typeLinker->resolve();
     std::cout << "Populating java.lang\n";
@@ -203,13 +200,9 @@ int main(int argc, char **argv) {
     //   checkLinked(ast);
     // }
 
-    // // name disambiguation
-    // auto nameDisambiguator =
-    // std::make_shared<static_check::NameDisambiguator>(
-    //     astManager, typeLinker, hierarchyChecker);
-    // nameDisambiguator->resolve();
+    // astManager->getASTs()[0]->print(std::cout);
 
-    astManager->getASTs()[0]->print(std::cout);
+    std::cout << "Starting name disambiguation and type checking...\n";
 
     auto typeResolver =
         std::make_shared<static_check::TypeResolver>(astManager, env);
@@ -218,7 +211,14 @@ int main(int argc, char **argv) {
         astManager, hierarchyChecker, typeLinker, typeResolver);
     exprResolver->resolve();
 
-    std::cout << "Expr Resolving Done.....\n";
+    auto astValidator =
+        std::make_shared<static_check::ASTValidator>(typeResolver);
+    astValidator->validate(astManager);
+
+    auto forwardChecker = std::make_shared<static_check::ForwardChecker>();
+    forwardChecker->check(astManager);
+
+    std::cout << "Name disambiguation and type checking passed\n";
 
     return EXIT_SUCCESS;
   } catch (const std::runtime_error &err) {

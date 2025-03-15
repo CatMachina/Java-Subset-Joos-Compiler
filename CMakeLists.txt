@@ -71,6 +71,8 @@ add_library(CompilerLib
     # "src/staticCheck/nameDisambiguator.cpp"
     "src/staticCheck/exprResolver.cpp"
     "src/staticCheck/typeResolver.cpp"
+    "src/staticCheck/staticResolver.cpp"
+    "src/staticCheck/astValidator.cpp"
 )
 target_include_directories(
     CompilerLib

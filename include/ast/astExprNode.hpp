@@ -19,7 +19,6 @@ public:
     if (!resolvedDecl)
       throw std::runtime_error("setResolvedDecl Decl cannot be null");
     this->decl_ = resolvedDecl;
-    std::cout << "setResolvedDecl done decl" << std::endl;
     if (type_) {
       auto refType = std::dynamic_pointer_cast<ReferenceType>(type_);
       if (!refType)
@@ -151,28 +150,42 @@ private:
 
 class MemberName : public ExprValue {
 public:
-  MemberName(std::string name) : ExprValue{}, name{name} {}
+  MemberName(std::string name, const source::SourceRange loc)
+      : ExprValue{}, name{name}, loc{loc} {}
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Member name " << name << ")\n";
+    os << "(Member name " << name << ", loc: " << loc << ")\n";
     return os;
   }
 
+  void setAccessedByThis() { accessedByThis = true; }
+  void setNotAsBase() { notAsBase = true; }
+  void setinitializedInExpr() { initializedInExpr = true; }
+
   // Getters
   std::string getName() const { return name; }
+  const source::SourceRange getLoc() const { return loc; }
+  bool isAccessedByThis() const { return accessedByThis; }
+  bool isNotAsBase() const { return notAsBase; }
+  bool isinitializedInExpr() const { return initializedInExpr; }
 
 private:
   std::string name;
+  const source::SourceRange loc;
+  bool accessedByThis = false;
+  bool notAsBase = false;
+  bool initializedInExpr = false;
 };
 
 class MethodName : public MemberName {
 public:
-  MethodName(std::string name) : MemberName{name} {}
+  MethodName(std::string name, const source::SourceRange loc)
+      : MemberName{name, loc} {}
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Method name " << getName() << ")\n";
+    os << "(Method name " << getName() << ", loc: " << getLoc() << ")\n";
     return os;
   }
 };
@@ -252,7 +265,6 @@ public:
   std::shared_ptr<Type> getResultType() const { return resultType; }
   std::shared_ptr<Type> resolveResultType(std::shared_ptr<Type> type) {
     if (!type) {
-      std::cout << "Tried to resolve op with null type\n";
       return nullptr;
     }
     if (!type->isResolved()) {
@@ -342,6 +354,7 @@ private:
 };
 
 class Assignment : public ExprOp {
+  std::shared_ptr<VarDecl> assignedVariable; // only for assignment
 public:
   Assignment() : ExprOp(2){};
 
@@ -349,6 +362,15 @@ public:
     printIndent(os, indent);
     os << "(Assignment)\n";
     return os;
+  }
+
+  std::shared_ptr<VarDecl> getAssignedVariable() const {
+    return assignedVariable;
+  }
+  void setAssignedVariable(std::shared_ptr<VarDecl> var) {
+    if (assignedVariable && assignedVariable != var)
+      throw std::runtime_error("Assignment already set");
+    assignedVariable = var;
   }
 };
 
