@@ -61,6 +61,11 @@ public:
   }
 
   void checkLocalVar(const std::shared_ptr<parsetree::ast::VarDecl> node) {
+    if (!node)
+      throw std::runtime_error("local decl is null");
+    if (node->isInParam())
+      return;
+
     if (!node->hasInit())
       throw std::runtime_error("local variable " + node->getName() +
                                " has no initializer");
@@ -86,9 +91,12 @@ public:
     if (auto field =
             std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
       checkField(field);
-    } else if (auto var =
-                   std::dynamic_pointer_cast<parsetree::ast::VarDecl>(node)) {
-      checkLocalVar(var);
+    } else if (auto method =
+                   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+                       node)) {
+      for (const auto &localDecl : method->getLocalDecls()) {
+        checkLocalVar(localDecl);
+      }
     }
     for (const auto &child : node->getChildren()) {
       if (!child)
