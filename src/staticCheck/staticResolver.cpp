@@ -48,6 +48,19 @@ void StaticResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr,
   return;
 }
 
+/**
+ * Check if the given instance variable is valid to access in the current
+ * context.
+ *
+ * An instance variable can only be accessed in an instance context, not in a
+ * static context. If the instance variable is accessed in the initializer of
+ * another field, the instance variable must also be declared before the
+ * current field.
+ *
+ * @param variable the variable to check
+ * @param checkInitOrder whether to check the lexical order of the instance
+ *        variables
+ */
 void StaticResolver::checkInstanceVariable(StaticResolverData variable,
                                            bool checkInitOrder) const {
   if (!variable.isInstanceVariable)
@@ -68,6 +81,17 @@ void StaticResolver::checkInstanceVariable(StaticResolverData variable,
   }
 }
 
+/**
+ * Checks if the given variable is accessible from the given LHS.
+ *
+ * Checks if the given variable is accessible from the given LHS. If the
+ * variable is an instance variable, it must be accessible from the given LHS.
+ * If the variable is protected, it must be accessed from a subclass of the
+ * same package or from the same package.
+ *
+ * @param lhs the LHS variable
+ * @param variable the variable to check
+ */
 void StaticResolver::isAccessible(StaticResolverData lhs,
                                   StaticResolverData variable) const {
   if (!variable.isInstanceVariable)
@@ -119,6 +143,22 @@ void StaticResolver::isAccessible(StaticResolverData lhs,
   return;
 }
 
+/**
+ * Maps an expression value to a StaticResolverData object.
+ *
+ * Checks if the given expression value is a literal or a type node. If it is a
+ * literal, sets the type of the StaticResolverData object to the type of the
+ * literal. If it is a type node, sets the type of the StaticResolverData object
+ * to the type of the type node. If it is neither a literal nor a type node,
+ * sets the type of the StaticResolverData object to the type of the given
+ * expression value.
+ *
+ * Checks if the given expression value is an instance variable. If it is, sets
+ * the isInstanceVariable field of the StaticResolverData object to true.
+ *
+ * @param value the expression value to map
+ * @return the mapped StaticResolverData object
+ */
 StaticResolverData
 StaticResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
   if ((std::dynamic_pointer_cast<parsetree::ast::ThisNode>(value)) &&
@@ -148,6 +188,23 @@ StaticResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
   }
 }
 
+/**
+ * Evaluates a binary operation and returns the resulting StaticResolverData.
+ *
+ * This function checks the validity of the instance variables involved in the
+ * binary operation, ensuring they can be accessed in the current context. It
+ * then returns a StaticResolverData object with the result type of the
+ * operation.
+ *
+ * @param op a shared pointer to the binary operation AST node.
+ * @param lhs the left-hand side operand as StaticResolverData.
+ * @param rhs the right-hand side operand as StaticResolverData.
+ * @return a StaticResolverData object with the result type of the binary
+ * operation.
+ * @throws std::runtime_error if the result type of the operation cannot be
+ * resolved.
+ */
+
 StaticResolverData
 StaticResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
                           const StaticResolverData lhs,
@@ -161,6 +218,21 @@ StaticResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
   return StaticResolverData{nullptr, op->getResultType(), true, false};
 }
 
+/**
+ * Evaluates an unary operation and returns the resulting StaticResolverData.
+ *
+ * This function checks the validity of the instance variables involved in the
+ * unary operation, ensuring they can be accessed in the current context. It
+ * then returns a StaticResolverData object with the result type of the
+ * operation.
+ *
+ * @param op a shared pointer to the unary operation AST node.
+ * @param rhs the right-hand side operand as StaticResolverData.
+ * @return a StaticResolverData object with the result type of the unary
+ * operation.
+ * @throws std::runtime_error if the result type of the operation cannot be
+ * resolved.
+ */
 StaticResolverData
 StaticResolver::evalUnOp(std::shared_ptr<parsetree::ast::UnOp> &op,
                          const StaticResolverData rhs) {
@@ -172,6 +244,22 @@ StaticResolver::evalUnOp(std::shared_ptr<parsetree::ast::UnOp> &op,
   return StaticResolverData{nullptr, op->getResultType(), true, false};
 }
 
+/**
+ * Evaluates a field access operation and returns the resulting
+ * StaticResolverData.
+ *
+ * This function ensures that the left-hand side (LHS) is a value and the field
+ * being accessed has a resolved declaration. It checks the validity of instance
+ * variables involved, ensuring they can be accessed in the current context.
+ * Accessing a static field through an instance variable will throw an error.
+ *
+ * @param op a shared pointer to the field access AST node.
+ * @param lhs the left-hand side operand as StaticResolverData.
+ * @param field the field to access as StaticResolverData.
+ * @return a StaticResolverData object with the result type of the field access.
+ * @throws std::runtime_error if the field access cannot be resolved or if
+ *         the constraints on LHS or RHS are not met.
+ */
 StaticResolverData StaticResolver::evalFieldAccess(
     std::shared_ptr<parsetree::ast::FieldAccess> &op,
     const StaticResolverData lhs, const StaticResolverData field) {
@@ -192,6 +280,24 @@ StaticResolverData StaticResolver::evalFieldAccess(
   return StaticResolverData{field.decl, op->getResultType(), true, false};
 }
 
+/**
+ * Evaluates a method invocation and returns the resulting StaticResolverData.
+ *
+ * This function checks the validity of the method and its arguments, ensuring
+ * they can be accessed in the current context. It verifies that the method is
+ * a value and has a resolved declaration. Additionally, it ensures all provided
+ * arguments are values and checks their validity. The function then returns a
+ * StaticResolverData object with the result type of the method invocation.
+ *
+ * @param op a shared pointer to the method invocation AST node.
+ * @param method the method being invoked as StaticResolverData.
+ * @param args a vector of StaticResolverData representing the arguments to the
+ * method.
+ * @return a StaticResolverData object with the result type of the method
+ * invocation.
+ * @throws std::runtime_error if the method or its arguments do not meet the
+ * required constraints.
+ */
 StaticResolverData StaticResolver::evalMethodInvocation(
     std::shared_ptr<parsetree::ast::MethodInvocation> &op,
     const StaticResolverData method,
@@ -208,6 +314,25 @@ StaticResolverData StaticResolver::evalMethodInvocation(
   return StaticResolverData{nullptr, op->getResultType(), true, false};
 }
 
+/**
+ * Evaluates a class creation (new object) and returns the resulting
+ * StaticResolverData.
+ *
+ * This function checks the validity of the object and its arguments, ensuring
+ * they can be accessed in the current context. It verifies that the object is
+ * not a value and has a resolved type. Additionally, it ensures all provided
+ * arguments are values and checks their validity. The function then returns a
+ * StaticResolverData object with the result type of the class creation.
+ *
+ * @param op a shared pointer to the class creation AST node.
+ * @param object the object being created as StaticResolverData.
+ * @param args a vector of StaticResolverData representing the arguments to the
+ * constructor.
+ * @return a StaticResolverData object with the result type of the class
+ * creation.
+ * @throws std::runtime_error if the object or its arguments do not meet the
+ * required constraints.
+ */
 StaticResolverData StaticResolver::evalNewObject(
     std::shared_ptr<parsetree::ast::ClassCreation> &op,
     const StaticResolverData object,
@@ -225,6 +350,23 @@ StaticResolverData StaticResolver::evalNewObject(
   return StaticResolverData{nullptr, op->getResultType(), true, false};
 }
 
+/**
+ * Evaluates a new array creation and returns the resulting StaticResolverData.
+ *
+ * This function checks the validity of the array and its arguments, ensuring
+ * they can be accessed in the current context. It verifies that the array is
+ * not a value and has a resolved type. Additionally, it ensures the size is a
+ * value and checks its validity. The function then returns a StaticResolverData
+ * object with the result type of the array creation.
+ *
+ * @param op a shared pointer to the array creation AST node.
+ * @param type the type of the array elements as StaticResolverData.
+ * @param size the size of the array as StaticResolverData.
+ * @return a StaticResolverData object with the result type of the array
+ * creation.
+ * @throws std::runtime_error if the object or its arguments do not meet the
+ * required constraints.
+ */
 StaticResolverData
 StaticResolver::evalNewArray(std::shared_ptr<parsetree::ast::ArrayCreation> &op,
                              const StaticResolverData type,
@@ -240,6 +382,22 @@ StaticResolver::evalNewArray(std::shared_ptr<parsetree::ast::ArrayCreation> &op,
   return StaticResolverData{nullptr, op->getResultType(), true, false};
 }
 
+/**
+ * Evaluates an array access operation and returns the resulting
+ * StaticResolverData.
+ *
+ * This function checks the validity of the array and its index, ensuring
+ * they can be accessed in the current context. It verifies that the array and
+ * index are values and checks their validity. The function then returns a
+ * StaticResolverData object with the result type of the array access.
+ *
+ * @param op a shared pointer to the array access AST node.
+ * @param array the array being accessed as StaticResolverData.
+ * @param index the index of the element being accessed as StaticResolverData.
+ * @return a StaticResolverData object with the result type of the array access.
+ * @throws std::runtime_error if the array or its index do not meet the required
+ * constraints.
+ */
 StaticResolverData StaticResolver::evalArrayAccess(
     std::shared_ptr<parsetree::ast::ArrayAccess> &op,
     const StaticResolverData array, const StaticResolverData index) {
@@ -255,6 +413,21 @@ StaticResolverData StaticResolver::evalArrayAccess(
   return StaticResolverData{nullptr, op->getResultType(), true, false};
 }
 
+/**
+ * Evaluates a cast operation and returns the resulting StaticResolverData.
+ *
+ * This function checks the validity of the cast, ensuring it can be accessed in
+ * the current context. It verifies that the type and value are values and
+ * checks their validity. The function then returns a StaticResolverData object
+ * with the result type of the cast.
+ *
+ * @param op a shared pointer to the cast AST node.
+ * @param type the type being cast to as StaticResolverData.
+ * @param value the value being cast as StaticResolverData.
+ * @return a StaticResolverData object with the result type of the cast.
+ * @throws std::runtime_error if the cast or its arguments do not meet the
+ * required constraints.
+ */
 StaticResolverData
 StaticResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
                          const StaticResolverData type,
@@ -270,6 +443,22 @@ StaticResolver::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
   return StaticResolverData{nullptr, op->getResultType(), true, false};
 }
 
+/**
+ * Evaluates an assignment operation and returns the resulting
+ * StaticResolverData.
+ *
+ * This function checks the validity of the assignment, ensuring it can be
+ * accessed in the current context. It verifies that the LHS and RHS are values
+ * and checks their validity. The function then returns a StaticResolverData
+ * object with the result type of the assignment.
+ *
+ * @param op a shared pointer to the assignment AST node.
+ * @param lhs the left-hand side of the assignment as StaticResolverData.
+ * @param rhs the right-hand side of the assignment as StaticResolverData.
+ * @return a StaticResolverData object with the result type of the assignment.
+ * @throws std::runtime_error if the assignment or its arguments do not meet the
+ *         required constraints.
+ */
 StaticResolverData
 StaticResolver::evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
                                const StaticResolverData lhs,

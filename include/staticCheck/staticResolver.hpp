@@ -5,6 +5,7 @@
 
 namespace static_check {
 
+// state for static resolution
 struct StaticResolverState {
   bool isStaticContext;
   bool isInstFieldInitializer;
@@ -15,6 +16,7 @@ struct StaticResolverState {
         currentClass{nullptr}, fieldScope{nullptr} {}
 };
 
+// store info in static resolution
 struct StaticResolverData {
   const std::shared_ptr<parsetree::ast::Decl> decl;
   const std::shared_ptr<parsetree::ast::Type> type;
@@ -46,6 +48,7 @@ struct StaticResolverData {
   }
 };
 
+// Static resolver of expressions
 class StaticResolver : public Evaluator<StaticResolverData> {
 
 public:

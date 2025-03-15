@@ -10,6 +10,8 @@
 
 namespace static_check {
 
+// Resolves the types of expressions in the AST
+// See evaluator.hpp for RPN evaluation
 class TypeResolver final
     : private Evaluator<std::shared_ptr<parsetree::ast::Type>> {
 public:

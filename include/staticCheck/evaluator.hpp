@@ -6,6 +6,20 @@
 #include "ast/ast.hpp"
 
 namespace static_check {
+
+/*
+ * Evaluator: A template class for evaluating expressions in Reverse Polish
+ * Notation order.
+ *
+ * This class serves as a base class for evaluating expressions in the Joos
+ * compiler. It processes a list of expression nodes in RPN order to resolve
+ * their name and type. The evaluation follows a stack-based approach, where
+ * operands are pushed onto a stack and operations are executed in sequence,
+ * popping the necessary operands and pushing results back.
+ *
+ * The class is templated to allow different evaluation strategies, such as
+ * TypeResolver and ExprResolver.
+ */
 template <typename T> class Evaluator {
 protected:
   using op_array = std::vector<T>;
@@ -65,7 +79,6 @@ public:
       } else if (auto method = std::dynamic_pointer_cast<
                      parsetree::ast::MethodInvocation>(node)) {
         // Note: reverse order
-        // Q: What happens if there are 3 children (primaryExpr, id, arg)?
         std::vector<T> args;
         if (method->getNumArgs() > 1) {
           for (int i = 0; i < method->getNumArgs() - 1; ++i) {

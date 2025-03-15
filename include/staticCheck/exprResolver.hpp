@@ -35,6 +35,19 @@ GetTypeAsDecl(std::shared_ptr<parsetree::ast::Type> type,
   }
 }
 
+/*
+ * ExprNameLinked: A linked representation of an expression node in the Joos
+ * compiler.
+ *
+ * This class serves as an intermediary structure for resolving names in
+ * expressions.
+ *
+ * Each instance of ExprNameLinked maintains a reference to its previous
+ * element, which can either be another ExprNameLinked instance (for unresolved
+ * names) or a resolved expression node array. This allows for step-by-step
+ * resolution of ambiguous or complex names in expressions.
+ *
+ */
 class ExprNameLinked {
 
 public:
@@ -100,8 +113,9 @@ private:
   std::shared_ptr<Package> package_;
 };
 
+// Resolves Expressions
+// See more of how this works in evaluator.hpp
 class ExprResolver : public Evaluator<exprResolveType> {
-  // class ExprResolver {
 
 public:
   ExprResolver(std::shared_ptr<parsetree::ast::ASTManager> astManager,
