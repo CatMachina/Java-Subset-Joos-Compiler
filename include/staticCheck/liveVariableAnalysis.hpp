@@ -6,22 +6,12 @@
 
 namespace static_check {
 
-// TODO
-class LiveVariableAnalysisInfo {
-  // variables that are used at node n
-  std::unordered_set<parsetree::ast::VarDecl> use;
-
-  // variables that are written at node n
-  std::unordered_set<parsetree::ast::VarDecl> def;
-
-  // variables live on entry
-  std::unordered_set<parsetree::ast::VarDecl> in;
-
-  // variables live on exit
-  std::unordered_set<parsetree::ast::VarDecl> out;
+class LiveVariableAnalysis {
+  /*
+  Note, in A4, only need to report warnings for dead assignment statements
+  */
+public:
+  static bool checkDeadAssignments(std::shared_ptr<CFG> cfg);
 };
-
-// TODO
-class LiveVariableAnalysis {};
 
 } // namespace static_check

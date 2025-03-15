@@ -19,12 +19,14 @@
 #include "staticCheck/cfgBuilder.hpp"
 #include "staticCheck/exprResolver.hpp"
 #include "staticCheck/reachabilityAnalysis.hpp"
+#include "staticCheck/liveVariableAnalysis.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
 
 #include <memory>
 
 #define EXIT_ERROR 42
+#define EXIT_WARNING 43
 
 // void checkLinked(std::shared_ptr<parsetree::ast::AstNode> node) {
 //   if (!node)
@@ -66,6 +68,7 @@ bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
 }
 
 int main(int argc, char **argv) {
+  int retCode = EXIT_SUCCESS;
   try {
     if (argc == 1) {
       std::cerr << "Usage: " << argv[0] << " input-files... " << std::endl;
@@ -238,6 +241,14 @@ int main(int argc, char **argv) {
                   << std::endl;
               return EXIT_ERROR;
             }
+            std::cout << "Check Dead Assignments\n";
+            if(!static_check::LiveVariableAnalysis::checkDeadAssignments(cfg)) {
+              std::cerr
+                  << "Warning: Method " << method->getName()
+                  << " has dead assignments"
+                  << std::endl;
+              retCode = EXIT_WARNING;
+            }
           } else {
             std::cout << "Method is null or has no body." << std::endl;
           }
@@ -246,7 +257,7 @@ int main(int argc, char **argv) {
     }
     std::cout << "Done building CFGs....\n";
 
-    return EXIT_SUCCESS;
+    return retCode;
   } catch (const std::runtime_error &err) {
     std::cerr << "Runtime error: " << err.what() << std::endl;
     return EXIT_ERROR;

@@ -2,11 +2,10 @@
 
 #include "ast/astNode.hpp"
 #include "staticCheck/reachabilityAnalysisInfo.hpp"
+#include "staticCheck/liveVariableAnalysisInfo.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
-
-class LiveVariableAnalysisInfo;
 
 class CFGNode {
   int id;
@@ -14,14 +13,15 @@ class CFGNode {
   std::shared_ptr<parsetree::ast::Expr> condition;
   std::vector<std::shared_ptr<CFGNode>> predecessors;
   std::vector<std::shared_ptr<CFGNode>> successors;
-  std::shared_ptr<LiveVariableAnalysisInfo> lvaInfo;
+  std::shared_ptr<static_check::LiveVariableAnalysisInfo> lvaInfo;
   std::shared_ptr<static_check::ReachabilityAnalysisInfo> rsaInfo;
 
 public:
   CFGNode(int id, std::shared_ptr<parsetree::ast::Stmt> statement,
           std::shared_ptr<parsetree::ast::Expr> condition = nullptr)
       : id{id}, statement{statement}, condition{condition},
-        rsaInfo{std::make_shared<static_check::ReachabilityAnalysisInfo>()} {}
+        rsaInfo{std::make_shared<static_check::ReachabilityAnalysisInfo>()},
+        lvaInfo{std::make_shared<static_check::LiveVariableAnalysisInfo>()} {}
 
   // Getters / Setters
   int getId() const { return id; }
@@ -55,8 +55,9 @@ public:
     successors.push_back(node);
   }
 
-  std::shared_ptr<LiveVariableAnalysisInfo>
-  getLiveVariableAnalysisInfo() const {
+  std::shared_ptr<static_check::LiveVariableAnalysisInfo>
+  getLiveVariableAnalysisInfo() const
+  {
     return lvaInfo;
   }
   std::shared_ptr<static_check::ReachabilityAnalysisInfo>
