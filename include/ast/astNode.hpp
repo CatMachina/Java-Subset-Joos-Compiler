@@ -590,6 +590,7 @@ class VarDecl : public Decl {
   std::shared_ptr<Type> type;
   std::shared_ptr<Expr> initializer;
   std::shared_ptr<ScopeID> scope;
+  bool inParam = false;
 
 public:
   VarDecl(std::shared_ptr<Type> type, std::string name,
@@ -598,6 +599,9 @@ public:
       : Decl{name, loc}, type{type}, initializer{initializer}, scope{scope} {}
 
   bool hasInit() const { return initializer != nullptr; }
+  bool isInParam() const { return inParam; }
+
+  void setInParam() { inParam = true; }
 
   // Getters
   std::shared_ptr<Type> getType() const { return type; }
@@ -707,6 +711,7 @@ public:
   std::shared_ptr<Block> getMethodBody() { return methodBody; }
 
   std::vector<std::shared_ptr<VarDecl>> &getParams() { return params; }
+  std::vector<std::shared_ptr<VarDecl>> &getLocalDecls() { return localDecls; }
   std::shared_ptr<CodeBody> asCodeBody() const override {
     auto ptr1 = std::const_pointer_cast<MethodDecl>(shared_from_this());
     auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);

@@ -60,12 +60,43 @@ public:
     }
   }
 
+  void checkLocalVar(const std::shared_ptr<parsetree::ast::VarDecl> node) {
+    if (!node)
+      throw std::runtime_error("local decl is null");
+    if (node->isInParam())
+      return;
+
+    if (!node->hasInit())
+      throw std::runtime_error("local variable " + node->getName() +
+                               " has no initializer");
+    auto exprNodes = node->getInitializer()->getExprNodes();
+    for (auto exprNode : exprNodes) {
+      if (auto member =
+              std::dynamic_pointer_cast<parsetree::ast::MemberName>(exprNode)) {
+        if (!member->isDeclResolved())
+          throw std::runtime_error("member name not decl resolved for " +
+                                   member->getName());
+
+        if (member->getResolvedDecl() == node) {
+          throw std::runtime_error("variable " + node->getName() +
+                                   " occurred in its own initializer.");
+        }
+      }
+    }
+  }
+
   void checkAST(const std::shared_ptr<parsetree::ast::AstNode> node) {
     if (!node)
       throw std::runtime_error("Node is null when resolving AST");
     if (auto field =
             std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
       checkField(field);
+    } else if (auto method =
+                   std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+                       node)) {
+      for (const auto &localDecl : method->getLocalDecls()) {
+        checkLocalVar(localDecl);
+      }
     }
     for (const auto &child : node->getChildren()) {
       if (!child)

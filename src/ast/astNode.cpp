@@ -294,6 +294,12 @@ MethodDecl::MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
     }
   }
   checkSuperThisCalls(methodBody);
+
+  // set params
+  for (auto &param : params) {
+    if (!param) throw std::runtime_error("Param cannot be null");
+    param->setInParam();
+  }
 }
 
 void MethodDecl::setParent(std::shared_ptr<CodeBody> parent) {
