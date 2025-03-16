@@ -1,5 +1,5 @@
-#include <unordered_set>
 #include <string>
+#include <unordered_set>
 
 namespace static_check {
 class LiveVariableAnalysisInfo {

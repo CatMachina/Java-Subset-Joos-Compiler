@@ -16,8 +16,8 @@ DRIVER_NAME="joosc"
 
 pushd $BUILD_DIR
 {
-    # cmake ..
-    # make clean
+    cmake ..
+    make clean
     make $DRIVER_NAME
 }
 popd
@@ -69,7 +69,7 @@ for testcase in "$TEST_DIR"/*; do
             echo "FAILED command: $DRIVER ${files_to_test[@]}"
             echo "FAIL - $testcase_name should have passed with exit code 43 but passed/failed with exit code $exit_code."
             NUM_FAILED=$((NUM_FAILED+1))
-        elif [[ "$prefix" != "Je" && exit_code -ne 0 ]]; then
+        elif [[ "$prefix" != "Je" && "$prefix" != "Jw" && exit_code -ne 0 ]]; then
             echo "FAILED command: $DRIVER ${files_to_test[@]}"
             echo "FAIL - $testcase_name should have passed with exit code 0 but failed with exit code $exit_code."
             NUM_FAILED=$((NUM_FAILED+1))

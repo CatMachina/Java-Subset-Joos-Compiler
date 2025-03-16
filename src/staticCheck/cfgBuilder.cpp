@@ -291,7 +291,7 @@ CFGBuilder::buildCFG(std::shared_ptr<parsetree::ast::MethodDecl> method) {
   // Create CFG with sentinel node for easier analysis
   auto methodBody = method->getMethodBody();
   auto stmts = methodBody->getStatements();
-  auto sentinelStmt = std::make_shared<parsetree::ast::Stmt>();
+  auto sentinelStmt = std::make_shared<parsetree::ast::Block>();
   stmts.push_back(sentinelStmt);
   auto newMethodBody = std::make_shared<parsetree::ast::Block>(stmts);
 

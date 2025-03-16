@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ast/astNode.hpp"
-#include "staticCheck/reachabilityAnalysisInfo.hpp"
 #include "staticCheck/liveVariableAnalysisInfo.hpp"
+#include "staticCheck/reachabilityAnalysisInfo.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -56,8 +56,7 @@ public:
   }
 
   std::shared_ptr<static_check::LiveVariableAnalysisInfo>
-  getLiveVariableAnalysisInfo() const
-  {
+  getLiveVariableAnalysisInfo() const {
     return lvaInfo;
   }
   std::shared_ptr<static_check::ReachabilityAnalysisInfo>
