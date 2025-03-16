@@ -1,6 +1,7 @@
 #pragma once
 
 #include "parseTree/parseTree.hpp"
+#include "parseTree/sourceNode.hpp"
 #include <iostream>
 #include <list>
 #include <memory>
@@ -47,13 +48,20 @@ class Decl : virtual public AstNode {
 protected:
   std::string name;
   std::weak_ptr<CodeBody> parent;
+  source::SourceRange loc;
 
 public:
-  explicit Decl(std::string name) : name{name} {}
+  explicit Decl(std::string name,
+                const source::SourceRange loc = source::SourceRange())
+      : name{name}, loc{loc} {}
   [[nodiscard]] std::string getName() const noexcept { return name; }
   [[nodiscard]] std::shared_ptr<CodeBody> getParent() const noexcept {
     return parent.lock();
   }
+
+  [[nodiscard]] const source::SourceRange getLoc() const { return loc; }
+
+  virtual bool isStatic() const { return false; }
 
   virtual void setParent(std::shared_ptr<CodeBody> rawParent);
   virtual std::shared_ptr<CodeBody> asCodeBody() const { return nullptr; }
@@ -125,6 +133,8 @@ public:
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     return os << "(Stmt)";
   }
+
+  virtual std::vector<std::shared_ptr<Expr>> getExprs() const = 0;
 };
 
 std::ostream &operator<<(std::ostream &os, const AstNode &astNode);
@@ -260,8 +270,9 @@ class PackageDecl : public Decl {
 
 public:
   PackageDecl(std::string name,
-              std::shared_ptr<ReferenceType> qualifiedIdentifier)
-      : Decl{name}, qualifiedIdentifier{qualifiedIdentifier} {}
+              std::shared_ptr<ReferenceType> qualifiedIdentifier,
+              const source::SourceRange loc)
+      : Decl{name, loc}, qualifiedIdentifier{qualifiedIdentifier} {}
 
   std::shared_ptr<ReferenceType> getQualifiedIdentifier() const {
     return qualifiedIdentifier;
@@ -396,6 +407,8 @@ public:
     return methods;
   }
 
+  std::vector<std::shared_ptr<MethodDecl>> getConstructors() const;
+
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
     for (const auto &node : classBodyDecls) {
@@ -505,17 +518,90 @@ public:
   }
 };
 
+class Modifiers {
+  bool isPublic_ = false;
+  bool isProtected_ = false;
+  bool isStatic_ = false;
+  bool isFinal_ = false;
+  bool isAbstract_ = false;
+  bool isNative_ = false;
+
+public:
+  void set(parsetree::Modifier modifier) {
+    switch (modifier.get_type()) {
+    case parsetree::Modifier::Type::Public:
+      setPublic();
+      break;
+    case parsetree::Modifier::Type::Protected:
+      setProtected();
+      break;
+    case parsetree::Modifier::Type::Static:
+      setStatic();
+      break;
+    case parsetree::Modifier::Type::Abstract:
+      setAbstract();
+      break;
+    case parsetree::Modifier::Type::Final:
+      setFinal();
+      break;
+    case parsetree::Modifier::Type::Native:
+      setNative();
+      break;
+    }
+  };
+
+  void set(ast::Modifiers modifier);
+
+  [[nodiscard]] bool isPublic() const noexcept { return isPublic_; }
+  [[nodiscard]] bool isProtected() const noexcept { return isProtected_; }
+  [[nodiscard]] bool isStatic() const noexcept { return isStatic_; }
+  [[nodiscard]] bool isFinal() const noexcept { return isFinal_; }
+  [[nodiscard]] bool isAbstract() const noexcept { return isAbstract_; }
+  [[nodiscard]] bool isNative() const noexcept { return isNative_; }
+  [[nodiscard]] bool isInvalid() const noexcept {
+    return !isPublic_ && !isProtected_ && !isStatic_ && !isFinal_ &&
+           !isAbstract_ && !isNative_;
+  }
+
+  void setPublic() { isPublic_ = true; };
+  void setProtected() { isProtected_ = true; };
+  void setStatic() { isStatic_ = true; };
+  void setFinal() { isFinal_ = true; };
+  void setAbstract() { isAbstract_ = true; };
+  void setNative() { isNative_ = true; };
+
+  [[nodiscard]] std::string toString() const {
+    std::string result;
+    result += (isPublic_ ? "public " : "");
+    result += (isProtected_ ? "protected " : "");
+    result += (isStatic_ ? "static " : "");
+    result += (isFinal_ ? "final " : "");
+    result += (isAbstract_ ? "abstract " : "");
+    result += (isNative_ ? "native " : "");
+    return result;
+  };
+
+  friend std::ostream &operator<<(std::ostream &os, const Modifiers &mod) {
+    return os << mod.toString();
+  }
+};
+
 class VarDecl : public Decl {
   std::shared_ptr<Type> type;
   std::shared_ptr<Expr> initializer;
   std::shared_ptr<ScopeID> scope;
+  bool inParam = false;
 
 public:
   VarDecl(std::shared_ptr<Type> type, std::string name,
-          std::shared_ptr<Expr> initializer, std::shared_ptr<ScopeID> scope)
-      : Decl{name}, type{type}, initializer{initializer}, scope{scope} {}
+          std::shared_ptr<Expr> initializer, std::shared_ptr<ScopeID> scope,
+          const source::SourceRange &loc)
+      : Decl{name, loc}, type{type}, initializer{initializer}, scope{scope} {}
 
   bool hasInit() const { return initializer != nullptr; }
+  bool isInParam() const { return inParam; }
+
+  void setInParam() { inParam = true; }
 
   // Getters
   std::shared_ptr<Type> getType() const { return type; }
@@ -538,12 +624,15 @@ class FieldDecl final : public VarDecl {
 public:
   FieldDecl(std::shared_ptr<Modifiers> modifiers, std::shared_ptr<Type> type,
             std::string name, std::shared_ptr<Expr> initializer,
-            std::shared_ptr<ScopeID> scope, bool allowFinal = false);
+            std::shared_ptr<ScopeID> scope, const source::SourceRange &loc,
+            bool allowFinal = false);
 
   // Getters
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
 
   void setParent(std::shared_ptr<CodeBody> parent) override;
+
+  bool isStatic() const override { return modifiers->isStatic(); }
 };
 
 class MethodDecl : public Decl,
@@ -563,7 +652,7 @@ public:
   MethodDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
              std::shared_ptr<Type> returnType,
              std::vector<std::shared_ptr<VarDecl>> params, bool isConstructor,
-             std::shared_ptr<Block> methodBody);
+             std::shared_ptr<Block> methodBody, const source::SourceRange loc);
 
   template <std::ranges::range T>
   requires std::same_as<std::ranges::range_value_t<T>, std::shared_ptr<VarDecl>>
@@ -575,6 +664,7 @@ public:
   std::shared_ptr<Modifiers> getModifiers() const { return modifiers; };
   bool isConstructor() const { return isConstructor_; }
   bool hasBody() const { return methodBody != nullptr; };
+  bool isStatic() const override { return modifiers->isStatic(); }
 
   void reApplySetParent() override {
     for (const auto &decl : localDecls) {
@@ -621,6 +711,7 @@ public:
   std::shared_ptr<Block> getMethodBody() { return methodBody; }
 
   std::vector<std::shared_ptr<VarDecl>> &getParams() { return params; }
+  std::vector<std::shared_ptr<VarDecl>> &getLocalDecls() { return localDecls; }
   std::shared_ptr<CodeBody> asCodeBody() const override {
     auto ptr1 = std::const_pointer_cast<MethodDecl>(shared_from_this());
     auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
@@ -656,6 +747,8 @@ public:
     return statements;
   };
 
+  bool isEmpty() const { return statements.empty(); }
+
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;
     for (const auto &node : statements) {
@@ -663,6 +756,8 @@ public:
     }
     return children;
   }
+
+  std::vector<std::shared_ptr<Expr>> getExprs() const { return {}; }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
@@ -691,6 +786,12 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(condition);
+    return exprs;
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
@@ -711,6 +812,12 @@ public:
     children.push_back(std::dynamic_pointer_cast<AstNode>(condition));
     children.push_back(std::dynamic_pointer_cast<AstNode>(whileBody));
     return children;
+  }
+
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(condition);
+    return exprs;
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override;
@@ -743,6 +850,12 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(condition);
+    return exprs;
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
@@ -760,6 +873,12 @@ public:
     std::vector<std::shared_ptr<AstNode>> children;
     children.push_back(std::dynamic_pointer_cast<AstNode>(returnExpr));
     return children;
+  }
+
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(returnExpr);
+    return exprs;
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
@@ -789,6 +908,12 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const override {
+    std::vector<std::shared_ptr<Expr>> exprs;
+    exprs.push_back(statementExpr);
+    return exprs;
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(ExpressionStmt \n";
@@ -814,6 +939,8 @@ public:
     return children;
   }
 
+  std::vector<std::shared_ptr<Expr>> getExprs() const override { return {}; }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(DeclStmt \n";
@@ -830,6 +957,8 @@ public:
     printIndent(os, indent);
     return os << "(NullStmt)\n";
   };
+
+  std::vector<std::shared_ptr<Expr>> getExprs() const override { return {}; }
 };
 
 // Types /////////////////////////////////////////////////////////////
@@ -962,74 +1091,6 @@ public:
 
 // Other classes /////////////////////////////////////////////////////////////
 
-class Modifiers {
-  bool isPublic_ = false;
-  bool isProtected_ = false;
-  bool isStatic_ = false;
-  bool isFinal_ = false;
-  bool isAbstract_ = false;
-  bool isNative_ = false;
-
-public:
-  void set(parsetree::Modifier modifier) {
-    switch (modifier.get_type()) {
-    case parsetree::Modifier::Type::Public:
-      setPublic();
-      break;
-    case parsetree::Modifier::Type::Protected:
-      setProtected();
-      break;
-    case parsetree::Modifier::Type::Static:
-      setStatic();
-      break;
-    case parsetree::Modifier::Type::Abstract:
-      setAbstract();
-      break;
-    case parsetree::Modifier::Type::Final:
-      setFinal();
-      break;
-    case parsetree::Modifier::Type::Native:
-      setNative();
-      break;
-    }
-  };
-
-  void set(ast::Modifiers modifier);
-
-  [[nodiscard]] bool isPublic() const noexcept { return isPublic_; }
-  [[nodiscard]] bool isProtected() const noexcept { return isProtected_; }
-  [[nodiscard]] bool isStatic() const noexcept { return isStatic_; }
-  [[nodiscard]] bool isFinal() const noexcept { return isFinal_; }
-  [[nodiscard]] bool isAbstract() const noexcept { return isAbstract_; }
-  [[nodiscard]] bool isNative() const noexcept { return isNative_; }
-  [[nodiscard]] bool isInvalid() const noexcept {
-    return !isPublic_ && !isProtected_ && !isStatic_ && !isFinal_ &&
-           !isAbstract_ && !isNative_;
-  }
-
-  void setPublic() { isPublic_ = true; };
-  void setProtected() { isProtected_ = true; };
-  void setStatic() { isStatic_ = true; };
-  void setFinal() { isFinal_ = true; };
-  void setAbstract() { isAbstract_ = true; };
-  void setNative() { isNative_ = true; };
-
-  [[nodiscard]] std::string toString() const {
-    std::string result;
-    result += (isPublic_ ? "public " : "");
-    result += (isProtected_ ? "protected " : "");
-    result += (isStatic_ ? "static " : "");
-    result += (isFinal_ ? "final " : "");
-    result += (isAbstract_ ? "abstract " : "");
-    result += (isNative_ ? "native " : "");
-    return result;
-  };
-
-  friend std::ostream &operator<<(std::ostream &os, const Modifiers &mod) {
-    return os << mod.toString();
-  }
-};
-
 class MethodType : public Type {
   std::shared_ptr<Type> returnType;
   std::vector<std::shared_ptr<Type>> paramTypes;
@@ -1058,7 +1119,8 @@ public:
     os << "(MethodType ";
     printIndent(os, indent + 1);
     os << "Return Type: ";
-    returnType->print(os, indent + 2);
+    if (returnType)
+      returnType->print(os, indent + 2);
     os << "Param Types: [";
     bool paramTypesIndent = false;
     for (auto &paramType : paramTypes) {

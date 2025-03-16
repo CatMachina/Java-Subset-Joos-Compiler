@@ -16,8 +16,8 @@ DRIVER_NAME="joosc"
 
 pushd $BUILD_DIR
 {
-    cmake ..
-    make clean
+    # cmake ..
+    # make clean
     make $DRIVER_NAME
 }
 popd

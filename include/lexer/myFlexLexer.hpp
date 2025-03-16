@@ -30,10 +30,13 @@ public:
 
   template <typename... Args>
   std::shared_ptr<Node> make_node(source::SourceRange loc, Args &&...args) {
+    loc.fileID = this->fileID;
     auto nodePtr = std::make_shared<Node>(loc, std::forward<Args>(args)...);
     nodes.push_back(nodePtr);
     return nodePtr;
   }
+
+  void setFileID(int id) { this->fileID = id; }
 
   std::shared_ptr<Node> make_corrupted(const char *name);
 
@@ -50,5 +53,6 @@ public:
 private:
   YYSTYPE yylval;
   YYLTYPE yylloc;
+  int fileID = 0;
   std::vector<std::shared_ptr<Node>> nodes;
 };

@@ -74,6 +74,9 @@ add_library(CompilerLib
     "src/staticCheck/cfg.cpp"
     "src/staticCheck/cfgBuilder.cpp"
     "src/staticCheck/reachabilityAnalysis.cpp"
+    "src/staticCheck/staticResolver.cpp"
+    "src/staticCheck/astValidator.cpp"
+    "src/staticCheck/liveVariableAnalysis.cpp"
 )
 target_include_directories(
     CompilerLib

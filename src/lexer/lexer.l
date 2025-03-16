@@ -24,7 +24,8 @@ int yycolumn = 1; // Track column location
     yylloc.first_line = yylineno; \
     yylloc.first_column = yycolumn; \
     yylloc.last_line = yylineno; \
-    yylloc.last_column = yycolumn + yyleng - 1;
+    yylloc.last_column = yycolumn + yyleng - 1; \
+    yycolumn += yyleng;
 
 using literalType = parsetree::Literal::Type;
 using operatorType = parsetree::Operator::Type;

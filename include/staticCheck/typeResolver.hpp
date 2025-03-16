@@ -10,6 +10,8 @@
 
 namespace static_check {
 
+// Resolves the types of expressions in the AST
+// See evaluator.hpp for RPN evaluation
 class TypeResolver final
     : private Evaluator<std::shared_ptr<parsetree::ast::Type>> {
 public:
@@ -18,7 +20,6 @@ public:
       : astManager(astManager), envManager(envManager) {}
   std::shared_ptr<parsetree::ast::Type>
   EvalList(std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list) {
-    std::cout << "TypeResolver::EvalList" << std::endl;
     return Evaluator<std::shared_ptr<parsetree::ast::Type>>::evaluateList(list);
   }
 
@@ -32,6 +33,9 @@ public:
 
   bool isValidCast(const std::shared_ptr<parsetree::ast::Type> &exprType,
                    const std::shared_ptr<parsetree::ast::Type> &castType) const;
+
+  bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
+                    std::shared_ptr<parsetree::ast::AstNode> child) const;
 
   void resolve();
 

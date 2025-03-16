@@ -18,23 +18,6 @@ class Method;
 class Field;
 class Variable;
 
-// class Decl {
-//   std::shared_ptr<parsetree::ast::Decl> astNode;
-
-// public:
-//   explicit Decl(std::shared_ptr<parsetree::ast::Decl> node)
-//       : astNode(node) {}
-//   void printDecl(int depth = 0) const {
-//     for (int i = 0; i < depth; ++i)
-//       std::cout << "  ";
-//     std::cout << "(Decl: " << astNode->getName() << ")"
-//               << "\n";
-//   }
-//   std::string getName() const { return astNode->getName(); }
-//   std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode;
-//   }
-// };
-
 // trie tree structure
 class Package {
 
@@ -106,83 +89,5 @@ public:
               << "\n";
   }
 };
-
-// class Interface : public Decl {
-// public:
-//   explicit Interface(std::shared_ptr<parsetree::ast::InterfaceDecl> itf)
-//       : Decl{itf} {}
-//   void printDecl(int depth = 0) const override {
-//     for (int i = 0; i < depth; ++i)
-//       std::cout << "  ";
-//     std::cout << "(Interface: " << getAstNode()->getName() << ")"
-//               << "\n";
-//   }
-// };
-
-// class Method : public Decl {
-//   std::string name;
-//   std::unordered_set<std::shared_ptr<Variable>> localVars;
-//   std::unordered_set<std::string> modifiers;
-
-// public:
-//   explicit Method(std::string name) : name{name} {}
-
-//   void addLocalVar(std::shared_ptr<Variable> var) { localVars.insert(var); }
-//   void addModifier(const std::string &modifier) { modifiers.insert(modifier);
-//   }
-
-//   const std::string &getName() const { return name; }
-// };
-
-// class Field : public Decl {
-// private:
-//   std::string name;
-//   std::unordered_set<std::string> modifiers;
-
-// public:
-//   explicit Field(std::string name) : name{name} {}
-
-//   void addModifier(const std::string &modifier) { modifiers.insert(modifier);
-//   } const std::string &getName() const { return name; }
-// };
-
-// class Variable : public Decl {
-//   std::string name;
-
-// public:
-//   explicit Variable(std::string name) : name{name} {}
-//   const std::string &getName() const { return name; }
-// };
-
-// class Environment {
-//   // Hashmap to map names to Decls
-//   std::unordered_map<std::string, std::shared_ptr<Decl>> simpleNamesToDecls;
-
-//   // Reference to the scope (AST node) which the environment is for
-//   std::shared_ptr<parsetree::ast::AstNode> scope;
-
-//   // Reference to the outer enclosing environment?
-//   // Do we need this, given we maintain a stack?
-// };
-
-// class GlobalEnvironment {
-//   // Maybe this is the "global symbol table". According to some previous
-//   course
-//   // notes, "The global environment should record all class names along with
-//   // their corresponding package names from the files passed to the compiler
-//   for
-//   // linking". So it will just look like this for now?
-// public:
-//   GlobalEnvironment();
-
-//   void addDecl(const std::string &qualifiedName, std::shared_ptr<Decl> decl);
-//   [[nodiscard]] std::shared_ptr<Decl>
-//   getDecl(const std::string &qualifiedName) const;
-
-// private:
-//   // From fully qualified names to declarations
-//   std::unordered_map<std::string, std::shared_ptr<Decl>>
-//   qualifiedNamesToDecls;
-// };
 
 } // namespace static_check

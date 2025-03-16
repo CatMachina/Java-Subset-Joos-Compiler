@@ -2,6 +2,7 @@
 
 #include "ast/ast.hpp"
 #include "parseTree/parseTree.hpp"
+#include "parseTree/sourceNode.hpp"
 #include <ranges>
 
 namespace static_check {
@@ -34,18 +35,20 @@ public:
                  const std::shared_ptr<parsetree::ast::Type> &type,
                  std::string name,
                  const std::shared_ptr<parsetree::ast::Expr> &init,
-                 bool allowFinal = false);
+                 const source::SourceRange &loc, bool allowFinal = false);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::MethodDecl> BuildMethodDecl(
       const std::shared_ptr<parsetree::ast::Modifiers> &modifiers,
       std::string name, const std::shared_ptr<parsetree::ast::Type> &returnType,
       const std::vector<std::shared_ptr<parsetree::ast::VarDecl>> &params,
       bool isConstructor,
-      const std::shared_ptr<parsetree::ast::Block> &methodBody);
+      const std::shared_ptr<parsetree::ast::Block> &methodBody,
+      const source::SourceRange &loc);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::VarDecl> BuildVarDecl(
       const std::shared_ptr<parsetree::ast::Type> &type, std::string name,
       const std::shared_ptr<parsetree::ast::ScopeID> &scopeID,
+      const source::SourceRange &loc,
       const std::shared_ptr<parsetree::ast::Expr> &initializer = nullptr);
 
   [[nodiscard]] std::shared_ptr<parsetree::ast::InterfaceDecl>
@@ -76,7 +79,6 @@ public:
   BuildUnresolvedType();
 
   void ClearLocalScope() noexcept {
-    std::cout << "Clearing local scope" << std::endl;
     localDecls_.clear();
     localDeclStack_.clear();
     localScope_.clear();
@@ -113,8 +115,6 @@ public:
   }
 
   std::shared_ptr<parsetree::ast::ScopeID> NextScopeID() {
-    std::cout << "NextScopeID of scope " << currentScope_->toString()
-              << std::endl;
     currentScope_ = currentScope_->next(currentScope_->parent());
     return currentScope_;
   }

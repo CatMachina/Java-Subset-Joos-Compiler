@@ -5,6 +5,7 @@
 #include "environment.hpp"
 #include "evaluator.hpp"
 #include "hierarchyCheck.hpp"
+#include "staticResolver.hpp"
 #include "typeLinker.hpp"
 #include "typeResolver.hpp"
 
@@ -22,23 +23,31 @@ using previousType =
 static std::shared_ptr<parsetree::ast::Decl>
 GetTypeAsDecl(std::shared_ptr<parsetree::ast::Type> type,
               std::shared_ptr<parsetree::ast::ASTManager> manager) {
-  std::cout << "GetTypeAsDecl" << std::endl;
   if (auto refType =
           std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type)) {
-    std::cout << "GetTypeAsDecl refType" << std::endl;
     return refType->getResolvedDecl()->getAstNode();
   } else if (type->isString()) {
-    std::cout << "GetTypeAsDecl string" << std::endl;
     return manager->java_lang.String;
   } else if (type->isArray()) {
-    std::cout << "GetTypeAsDecl array" << std::endl;
     return manager->java_lang.Array;
   } else {
-    std::cout << "GetTypeAsDecl null" << std::endl;
     return nullptr;
   }
 }
 
+/*
+ * ExprNameLinked: A linked representation of an expression node in the Joos
+ * compiler.
+ *
+ * This class serves as an intermediary structure for resolving names in
+ * expressions.
+ *
+ * Each instance of ExprNameLinked maintains a reference to its previous
+ * element, which can either be another ExprNameLinked instance (for unresolved
+ * names) or a resolved expression node array. This allows for step-by-step
+ * resolution of ambiguous or complex names in expressions.
+ *
+ */
 class ExprNameLinked {
 
 public:
@@ -104,8 +113,9 @@ private:
   std::shared_ptr<Package> package_;
 };
 
+// Resolves Expressions
+// See more of how this works in evaluator.hpp
 class ExprResolver : public Evaluator<exprResolveType> {
-  // class ExprResolver {
 
 public:
   ExprResolver(std::shared_ptr<parsetree::ast::ASTManager> astManager,
@@ -113,7 +123,10 @@ public:
                std::shared_ptr<TypeLinker> typeLinker,
                std::shared_ptr<TypeResolver> typeResolver)
       : astManager(astManager), hierarchyChecker(hierarchyChecker),
-        typeLinker(typeLinker), typeResolver(typeResolver) {}
+        typeLinker(typeLinker), typeResolver(typeResolver) {
+    staticResolver = std::make_shared<static_check::StaticResolver>();
+    staticState = StaticResolverState();
+  }
   void BeginProgram(std::shared_ptr<parsetree::ast::ProgramDecl> programDecl) {
     currentProgram = programDecl;
   }
@@ -168,7 +181,7 @@ private:
 
   std::shared_ptr<parsetree::ast::Decl>
   lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
-                  std::string name);
+                  std::string name, const source::SourceRange loc);
 
   std::shared_ptr<parsetree::ast::Decl>
   reclassifyDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
@@ -179,10 +192,8 @@ private:
 
   std::shared_ptr<ExprNameLinked>
   resolveName(std::shared_ptr<parsetree::ast::MemberName> node) {
-    std::cout << "resolveName: " << node->getName() << std::endl;
     if (auto method =
             std::dynamic_pointer_cast<parsetree::ast::MethodName>(node)) {
-      std::cout << "resolveName found method" << std::endl;
       return std::make_shared<ExprNameLinked>(
           ExprNameLinked::ValueType::MethodName, method, nullptr);
     }
@@ -199,7 +210,7 @@ private:
   std::shared_ptr<parsetree::ast::MethodDecl> resolveMethodOverload(
       std::shared_ptr<parsetree::ast::CodeBody> ctx, std::string name,
       const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes,
-      bool isConstructor);
+      const source::SourceRange loc, bool isConstructor);
   bool areParameterTypesApplicable(
       std::shared_ptr<parsetree::ast::MethodDecl> decl,
       const std::vector<std::shared_ptr<parsetree::ast::Type>> &argTypes) const;
@@ -211,9 +222,13 @@ private:
   std::shared_ptr<HierarchyCheck> hierarchyChecker;
   std::shared_ptr<TypeLinker> typeLinker;
   std::shared_ptr<TypeResolver> typeResolver;
+  std::shared_ptr<StaticResolver> staticResolver;
   std::shared_ptr<parsetree::ast::ProgramDecl> currentProgram;
   std::shared_ptr<parsetree::ast::CodeBody> currentContext;
   std::shared_ptr<parsetree::ast::ScopeID> currentScope;
+  std::shared_ptr<parsetree::ast::ClassDecl> currentClass;
+  std::shared_ptr<parsetree::ast::InterfaceDecl> currentInterface;
+  StaticResolverState staticState;
 };
 
 } // namespace static_check
