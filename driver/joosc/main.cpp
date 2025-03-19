@@ -15,15 +15,20 @@
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/astValidator.hpp"
 #include "staticCheck/envManager.hpp"
+#include "staticCheck/hierarchyCheck.hpp"
+// #include "staticCheck/nameDisambiguator.hpp"
+#include "staticCheck/cfgBuilder.hpp"
 #include "staticCheck/exprResolver.hpp"
 #include "staticCheck/forwardChecker.hpp"
-#include "staticCheck/hierarchyCheck.hpp"
+#include "staticCheck/liveVariableAnalysis.hpp"
+#include "staticCheck/reachabilityAnalysis.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
 
 #include <memory>
 
 #define EXIT_ERROR 42
+#define EXIT_WARNING 43
 
 // void checkLinked(std::shared_ptr<parsetree::ast::AstNode> node) {
 //   if (!node)
@@ -65,6 +70,7 @@ bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
 }
 
 int main(int argc, char **argv) {
+  int retCode = EXIT_SUCCESS;
   try {
     if (argc == 1) {
       std::cerr << "Usage: " << argv[0] << " input-files... " << std::endl;
@@ -220,7 +226,49 @@ int main(int argc, char **argv) {
 
     std::cout << "Name disambiguation and type checking passed\n";
 
-    return EXIT_SUCCESS;
+    auto cfgBuilder = std::make_shared<static_check::CFGBuilder>();
+    std::cout << "Start building CFGs....\n";
+    for (auto ast : astManager->getASTs()) {
+      for (auto decl : ast->getBody()->getDecls()) {
+        if (auto method =
+                std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl)) {
+          std::cout << "=== Start building CFG for method " << method->getName()
+                    << " ===" << std::endl;
+          std::shared_ptr<CFG> cfg = cfgBuilder->buildCFG(method);
+          std::cout << "=== Done building CFG for method " << method->getName()
+                    << " ===" << std::endl;
+          if (cfg) {
+            cfg->print(std::cout);
+            if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
+                    cfg)) {
+              std::cerr << "Method " << method->getName()
+                        << " has unreachable statements" << std::endl;
+              return EXIT_ERROR;
+            }
+            if (!static_check::ReachabilityAnalysis::checkFiniteLengthReturn(
+                    cfg, method)) {
+              std::cerr
+                  << "Method " << method->getName()
+                  << " finite-length execution paths do not all end in return"
+                  << std::endl;
+              return EXIT_ERROR;
+            }
+            std::cout << "Check Dead Assignments\n";
+            if (!static_check::LiveVariableAnalysis::checkDeadAssignments(
+                    cfg)) {
+              std::cerr << "Warning: Method " << method->getName()
+                        << " has dead assignments" << std::endl;
+              retCode = EXIT_WARNING;
+            }
+          } else {
+            std::cout << "Method is null or has no body." << std::endl;
+          }
+        }
+      }
+    }
+    std::cout << "Done building CFGs....\n";
+
+    return retCode;
   } catch (const std::runtime_error &err) {
     std::cerr << "Runtime error: " << err.what() << std::endl;
     return EXIT_ERROR;

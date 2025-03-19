@@ -824,21 +824,21 @@ public:
 };
 
 class ForStmt : public Stmt {
-  std::shared_ptr<AstNode> forInit;
+  std::shared_ptr<Stmt> forInit;
   std::shared_ptr<Expr> condition;
-  std::shared_ptr<Expr> forUpdate;
+  std::shared_ptr<Stmt> forUpdate;
   std::shared_ptr<Stmt> forBody;
 
 public:
-  ForStmt(std::shared_ptr<AstNode> forInit, std::shared_ptr<Expr> condition,
-          std::shared_ptr<Expr> forUpdate, std::shared_ptr<Stmt> forBody)
+  ForStmt(std::shared_ptr<Stmt> forInit, std::shared_ptr<Expr> condition,
+          std::shared_ptr<Stmt> forUpdate, std::shared_ptr<Stmt> forBody)
       : forInit{forInit}, condition{condition}, forUpdate{forUpdate},
         forBody{forBody} {};
 
   // Getters
-  std::shared_ptr<AstNode> getForInit() const { return forInit; };
+  std::shared_ptr<Stmt> getForInit() const { return forInit; };
   std::shared_ptr<Expr> getCondition() const { return condition; };
-  std::shared_ptr<Expr> getForUpdate() const { return forUpdate; };
+  std::shared_ptr<Stmt> getForUpdate() const { return forUpdate; };
   std::shared_ptr<Stmt> getForBody() const { return forBody; };
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
