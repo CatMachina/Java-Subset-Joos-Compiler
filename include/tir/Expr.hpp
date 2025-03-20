@@ -4,6 +4,10 @@
 
 namespace tir {
 
-class Expr : public Node {};
+class Expr : public Node {
+
+public:
+  virtual bool isConstant() const { return false; }
+};
 
 } // namespace tir

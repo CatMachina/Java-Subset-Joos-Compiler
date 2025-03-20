@@ -5,10 +5,10 @@
 #include "tir/Stmt.hpp"
 
 // Expressions
-#include "tir/BinOP.hpp"
+#include "tir/BinOp.hpp"
 #include "tir/Call.hpp"
 #include "tir/Const.hpp"
-#include "tir/Eseq.hpp"
+#include "tir/ESeq.hpp"
 #include "tir/Mem.hpp"
 #include "tir/Name.hpp"
 #include "tir/Temp.hpp"

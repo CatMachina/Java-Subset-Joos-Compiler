@@ -12,4 +12,8 @@ std::shared_ptr<Expr> Call::makeException() {
   return makeExpr(Name::makeException(), nullptr, {});
 }
 
+std::shared_ptr<Expr> BinOp::makeNegate(std::shared_ptr<Expr> negated) {
+  return makeExpr(BinOp::OpType::SUB, Const::makeExpr(0), negated);
+}
+
 } // namespace tir
