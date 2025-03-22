@@ -14,5 +14,7 @@
 #include "tir/Temp.hpp"
 
 // Statements
+#include "tir/CJump.hpp"
+#include "tir/Jump.hpp"
 #include "tir/Move.hpp"
 #include "tir/Seq.hpp"
