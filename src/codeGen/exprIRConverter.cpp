@@ -48,12 +48,23 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
     } else if (value->getLiteralType() ==
                parsetree::ast::Literal::Type::String) {
 
+        // TODO!
+
     } else if (value->getLiteralType() == parsetree::ast::Literal::Type::Null) {
       return std::make_shared<tir::Const>(0);
     } else {
       throw std::runtime_error("Invalid literal in codegen");
     }
   }
+
+  if (auto memberName =
+          std::dynamic_pointer_cast<parsetree::ast::MemberName>(value)) {
+    
+    // Todo: If array length, special case handled in member access
+    
+    // simple or accessed?
+  }
+  throw std::runtime_error("Invalid value in mapValue in codegen");
 }
 
 } // namespace codegen
