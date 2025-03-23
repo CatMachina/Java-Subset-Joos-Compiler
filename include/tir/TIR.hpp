@@ -1,9 +1,5 @@
 #pragma once
 
-#include "tir/Expr.hpp"
-#include "tir/Node.hpp"
-#include "tir/Stmt.hpp"
-
 // Expressions
 #include "tir/BinOp.hpp"
 #include "tir/Call.hpp"
@@ -16,3 +12,7 @@
 // Statements
 #include "tir/Move.hpp"
 #include "tir/Seq.hpp"
+
+// Others
+#include "tir/CompUnit.hpp"
+#include "tir/FuncDecl.hpp"

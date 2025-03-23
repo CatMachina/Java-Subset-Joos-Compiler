@@ -529,12 +529,14 @@ public:
 
     // 1. Check if the type is numeric
     if (type->isNumeric()) {
-      uint32_t val = 0;
+      int64_t val = 0;
       if (type->getType() == BasicType::Type::Char) {
+        type = Type::Character;
         val = parseChar(str);
       } else {
         // Convert the string to an integer
         try {
+          type = Type::Integer;
           if (node->isNegativeVal())
             val = std::stoi("-" + std::string(str));
           else
@@ -547,6 +549,7 @@ public:
     }
     // 2. Otherwise, check if the type is boolean
     else if (type->isBoolean()) {
+      type = Type::Boolean;
       if (str == "true") {
         value = 1U;
       } else if (str == "false") {
@@ -557,12 +560,14 @@ public:
     }
     // 3. Otherwise, its a string
     else if (type->isString()) {
+      type = Type::String;
       // Unescape the string
       value = std::string{};
       unescapeString(str, std::get<std::string>(value));
     }
     // 4. Maybe it's a NoneType (i.e., NULL)
     else if (type->getType() == BasicType::Type::Void) {
+      type = Type::Null;
       value = 0U;
     }
     // 5. Otherwise, it's an invalid type
@@ -587,9 +592,9 @@ public:
   bool isString() const { return std::holds_alternative<std::string>(value); }
 
   // Getters
-  // Type getType() const { return type; }
+  Type getLiteralType() const { return literalType; }
   // std::string getValue() const { return value; }
-  uint32_t getAsInt() const { return std::get<uint32_t>(value); }
+  int64_t getAsInt() const { return std::get<int64_t>(value); }
   auto const &getAsString() const { return std::get<std::string>(value); }
   std::shared_ptr<BasicType> getBasicType() const {
     return std::dynamic_pointer_cast<BasicType>(getType());
@@ -598,7 +603,8 @@ public:
 private:
   // Type type;
   // std::string value;
-  std::variant<uint32_t, std::string> value;
+  type literalType;
+  std::variant<int64_t, std::string> value;
 };
 
 } // namespace parsetree::ast
