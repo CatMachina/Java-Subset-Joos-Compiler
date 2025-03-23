@@ -12,6 +12,8 @@
 #include "tir/Mem.hpp"
 #include "tir/Name.hpp"
 #include "tir/Temp.hpp"
+#include "tir/Label.hpp"
+#include "tir/Return.hpp"
 
 // Statements
 #include "tir/CJump.hpp"
