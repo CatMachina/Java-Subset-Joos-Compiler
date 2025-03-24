@@ -34,6 +34,10 @@ TIRBuilder::buildStmt(std::shared_ptr<parsetree::ast::Stmt> node) {
   } else if (auto returnStmt =
                  std::dynamic_pointer_cast<parsetree::ast::ReturnStmt>(node)) {
     irNode = buildReturnStmt(returnStmt);
+  } else if (auto expressionStmt =
+                 std::dynamic_pointer_cast<parsetree::ast::ExpressionStmt>(
+                     node)) {
+    irNode = buildExpressionStmt(expressionStmt);
   } else {
     throw std::runtime_error("TIRBuilder::buildStmt: not an AST Stmt");
   }
@@ -112,24 +116,22 @@ TIRBuilder::buildReturnStmt(std::shared_ptr<parsetree::ast::ReturnStmt> node) {
   return std::make_shared<Return>(returnExpr);
 }
 
-// FIXME: no translation to an IR Stmt?
-std::shared_ptr<Expr> TIRBuilder::buildExpressionStmt(
+std::shared_ptr<Stmt> TIRBuilder::buildExpressionStmt(
     std::shared_ptr<parsetree::ast::ExpressionStmt> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildExpressionStmt: node is null");
   }
   // TODO: buildExpr
-  return buildExpr(node->getStatementExpr());
+  return std::make_shared<Exp>(buildExpr(node->getStatementExpr()));
 }
 
-// FIXME: no translation to an IR Stmt?
-std::shared_ptr<Node>
+// TODO
+std::shared_ptr<Stmt>
 TIRBuilder::buildDeclStmt(std::shared_ptr<parsetree::ast::DeclStmt> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildDeclStmt: node is null");
   }
-  // TODO: buildDecl
-  return buildDecl(node->getDecl());
+  return std::make_shared<Stmt>();
 }
 
 } // namespace tir
