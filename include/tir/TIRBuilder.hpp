@@ -36,7 +36,7 @@ public:
   // Declaration Builders
   std::shared_ptr<Node> buildDecl(std::shared_ptr<parsetree::ast::Decl> node);
 
-  std::vector<std::shared_ptr<Node>>
+  std::shared_ptr<tir::CompUnit>
   buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node);
 
   std::shared_ptr<FuncDecl>

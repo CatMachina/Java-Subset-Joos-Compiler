@@ -141,25 +141,25 @@ TIRBuilder::buildDecl(std::shared_ptr<parsetree::ast::Decl> node) {
     throw std::runtime_error("TIRBuilder::buildDecl: node is null");
   }
 
-  if (auto methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
+  if (auto methodDecl =
+          std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
     return buildMethodDecl(methodDecl);
-  } else if (auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
+  } else if (auto fieldDecl =
+                 std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
     return buildFieldDecl(fieldDecl);
-  } else if (auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(node)) {
+  } else if (auto varDecl =
+                 std::dynamic_pointer_cast<parsetree::ast::VarDecl>(node)) {
     return buildVarDecl(varDecl);
   } else {
     throw std::runtime_error("TIRBuilder::buildDecl: unsupported Decl type");
   }
 }
 
-
-std::vector<std::shared_ptr<Node>>
+std::shared_ptr<tir::CompUnit>
 TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildProgram: node is null");
   }
-
-  std::vector<std::shared_ptr<Node>> result;
 
   auto body = node->getBody();
   if (!body) {
@@ -171,16 +171,19 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
     throw std::runtime_error("TIRBuilder::buildProgram: body is not a Decl");
   }
 
+  std::string className = decl->getName();
+  std::vector<std::shared_ptr<tir::Node>> nodes;
+
   if (auto classDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl)) {
-    auto nodes = buildClassDecl(classDecl);
-    result.insert(result.end(), nodes.begin(), nodes.end());
+    auto classNodes = buildClassDecl(classDecl);
+    nodes.insert(nodes.end(), classNodes.begin(), classNodes.end());
   } else {
     throw std::runtime_error(
         "TIRBuilder::buildProgram: only ClassDecl supported at top level");
   }
 
-  return result;
+  return std::make_shared<tir::CompUnit>(className, nodes);
 }
 
 std::shared_ptr<FuncDecl>
