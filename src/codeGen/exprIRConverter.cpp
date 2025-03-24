@@ -75,6 +75,96 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
     }
       */
 
+      // get the string value
+      auto val = value->getAsString();
+
+      // constants
+      auto zero = std::make_shared<tir::Const>(0);
+      auto four = std::make_shared<tir::Const>(4);
+      auto eight = std::make_shared<tir::Const>(8);
+
+      // temps
+      auto t1 = std::make_shared<tir::Temp>("t1");
+      auto t2 = std::make_shared<tir::Temp>("t2");
+
+      // t1 = malloc(12)
+      auto mallocString =
+          tir::Call::makeMalloc(std::make_shared<tir::Const>(12));
+      auto moveT1 = std::make_shared<tir::Move>(t1, mallocString);
+
+      // Mem[t1] = @DV_String
+      auto dvString =
+          std::make_shared<tir::Name>("@DV_String", /* isGlobal */ true);
+      auto memT1 = std::make_shared<tir::Mem>(t1);
+      auto moveDvString = std::make_shared<tir::Move>(memT1, dvString);
+
+      // Mem[t1 + 4] = 0
+      auto t1Plus4 = std::make_shared<tir::BinOp>(ADD, t1, four);
+      auto memT1Plus4 = std::make_shared<tir::Mem>(t1Plus4);
+      auto moveMemT1Plus4 = std::make_shared<tir::Move>(memT1Plus4, zero);
+
+      // Mem[t1 + 8] = 0
+      auto t1Plus8 = std::make_shared<tir::BinOp>(ADD, t1, eight);
+      auto memT1Plus8 = std::make_shared<tir::Mem>(t1Plus8);
+      auto moveMemT1Plus8 = std::make_shared<tir::Move>(memT1Plus8, zero);
+
+      // CALL @String::<init>(), this = t1
+      auto init =
+          std::make_shared<tir::Name>("@String::<init>", /* isGlobal */ true);
+      std::vector<std::shared_ptr<tir::Expr>> args = {t1};
+      auto call = std::make_shared<tir::Call>(init, args);
+      auto callStmt = std::make_shared<tir::Exp>(call);
+
+      // t2 = t1 + 8
+      auto moveT2 = std::make_shared<tir::Move>(t2, t1Plus8);
+
+      // allocate char array
+      // Mem[t2] = malloc(28)
+      auto mallocCharArray = tir::Call::makeMalloc(
+          std::make_shared<tir::Const>(8 + 4 * val.size()));
+      auto memT2 = std::make_shared<tir::Mem>(t2);
+      auto moveMemT2 = std::make_shared<tir::Move>(memT2, mallocCharArray);
+
+      // char array length
+      // Mem[Mem[t2]]     = 5
+      auto memMemT2 = std::make_shared<tir::Mem>(memT2);
+      auto moveLength = std::make_shared<tir::Move>(
+          memMemT2, std::make_shared<tir::Const>(val.size()));
+
+      // Mem[Mem[t2] + 4] = @DV_Array
+      auto dvArray =
+          std::make_shared<tir::Name>("@DV_Array", /* isGlobal */ true);
+      auto memT2Plus4 =
+          std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD, memT2, four);
+      auto moveDvArray = std::make_shared<tir::Move>(memT2Plus4, dvArray);
+
+      // individual characters, for example:
+      // Mem[Mem[t2] + 8]  = 104  // 'h'
+      // Mem[Mem[t2] + 12] = 101  // 'e'
+      // Mem[Mem[t2] + 16] = 108  // 'l'
+      // Mem[Mem[t2] + 20] = 108  // 'l'
+      // Mem[Mem[t2] + 24] = 111  // 'o'
+      std::vector<std::shared_ptr<tir::Stmt>> moveChars;
+      auto addr = memT2Plus4;
+      for (const char c : val) {
+        addr =
+            std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD, addr, four);
+        auto memAddr = std::make_shared<tir::Mem>(addr);
+        auto moveChar =
+            std::make_shared<tir::Move>(addr, std::make_shared<tir::Const>(c));
+        moveChars.push_back(moveChar);
+      }
+
+      std::vector<std::shared_ptr<tir::Stmt>> stmts = {
+          moveT1, moveDvString, moveMemT1Plus4, moveMemT1Plus8, callStmt,
+          moveT2, moveMemT2,    moveLength,     moveDvArray};
+
+      stmts.insert(stmts.end(), moveChars.begin(), moveChars.end());
+
+      auto seq = std::make_shared<tir::Seq>(stmts);
+
+      return std::maked_shared<tir::ESeq>(seq, t1);
+
     } else if (value->getLiteralType() == parsetree::ast::Literal::Type::Null) {
       return std::make_shared<tir::Const>(0);
     } else {
