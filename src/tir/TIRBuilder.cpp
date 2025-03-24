@@ -134,4 +134,109 @@ TIRBuilder::buildDeclStmt(std::shared_ptr<parsetree::ast::DeclStmt> node) {
   return std::make_shared<Stmt>();
 }
 
+//////////////////// Declaration Builders ////////////////////
+std::shared_ptr<Node>
+TIRBuilder::buildDecl(std::shared_ptr<parsetree::ast::Decl> node) {
+  if (!node) {
+    throw std::runtime_error("TIRBuilder::buildDecl: node is null");
+  }
+
+  if (auto methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
+    return buildMethodDecl(methodDecl);
+  } else if (auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
+    return buildFieldDecl(fieldDecl);
+  } else if (auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(node)) {
+    return buildVarDecl(varDecl);
+  } else {
+    throw std::runtime_error("TIRBuilder::buildDecl: unsupported Decl type");
+  }
+}
+
+
+std::vector<std::shared_ptr<Node>>
+TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+  if (!node) {
+    throw std::runtime_error("TIRBuilder::buildProgram: node is null");
+  }
+
+  std::vector<std::shared_ptr<Node>> result;
+
+  auto body = node->getBody();
+  if (!body) {
+    throw std::runtime_error("TIRBuilder::buildProgram: body is null");
+  }
+
+  auto decl = std::dynamic_pointer_cast<parsetree::ast::Decl>(body);
+  if (!decl) {
+    throw std::runtime_error("TIRBuilder::buildProgram: body is not a Decl");
+  }
+
+  if (auto classDecl =
+          std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl)) {
+    auto nodes = buildClassDecl(classDecl);
+    result.insert(result.end(), nodes.begin(), nodes.end());
+  } else {
+    throw std::runtime_error(
+        "TIRBuilder::buildProgram: only ClassDecl supported at top level");
+  }
+
+  return result;
+}
+
+std::shared_ptr<FuncDecl>
+TIRBuilder::buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node) {
+  if (!node) {
+    throw std::runtime_error("TIRBuilder::buildMethodDecl: node is null");
+  }
+
+  std::vector<std::shared_ptr<Temp>> params;
+  for (const auto &param : node->params) {
+    auto name = param->getName();
+    params.push_back(std::make_shared<Temp>(name));
+  }
+
+  auto body = buildStmt(node->methodBody);
+
+  return std::make_shared<FuncDecl>(node->getName(), params, body);
+}
+
+std::shared_ptr<Stmt>
+TIRBuilder::buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node) {
+  if (!node) {
+    throw std::runtime_error("TIRBuilder::buildVarDecl: node is null");
+  }
+
+  auto temp = std::make_shared<Temp>(node->getName());
+  if (node->hasInit()) {
+    auto expr = buildExpr(node->getInitializer());
+    return std::make_shared<Move>(temp, expr);
+  } else {
+    return std::make_shared<Move>(temp, std::make_shared<Const>(0));
+  }
+}
+
+// NOTE: Treats field variables like local variables
+std::shared_ptr<Stmt>
+TIRBuilder::buildFieldDecl(std::shared_ptr<parsetree::ast::FieldDecl> node) {
+  if (!node) {
+    throw std::runtime_error("TIRBuilder::buildFieldDecl: node is null");
+  }
+
+  return buildVarDecl(node);
+}
+
+std::vector<std::shared_ptr<Node>>
+TIRBuilder::buildClassDecl(std::shared_ptr<parsetree::ast::ClassDecl> node) {
+  if (!node) {
+    throw std::runtime_error("TIRBuilder::buildClassDecl: node is null");
+  }
+
+  std::vector<std::shared_ptr<Node>> results;
+  for (const auto &decl : node->getClassMembers()) {
+    results.push_back(buildDecl(decl));
+  }
+
+  return results;
+}
+
 } // namespace tir

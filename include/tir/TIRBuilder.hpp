@@ -33,6 +33,24 @@ public:
   std::shared_ptr<Node>
   buildDeclStmt(std::shared_ptr<parsetree::ast::DeclStmt> node);
 
+  // Declaration Builders
+  std::shared_ptr<Node> buildDecl(std::shared_ptr<parsetree::ast::Decl> node);
+
+  std::vector<std::shared_ptr<Node>>
+  buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node);
+
+  std::shared_ptr<FuncDecl>
+  buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node);
+
+  std::shared_ptr<Stmt>
+  buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node);
+
+  std::shared_ptr<Stmt>
+  buildFieldDecl(std::shared_ptr<parsetree::ast::FieldDecl> node);
+
+  std::vector<std::shared_ptr<Node>>
+  buildClassDecl(std::shared_ptr<parsetree::ast::ClassDecl> node);
+
 private:
   int labelCounter = 0;
 
