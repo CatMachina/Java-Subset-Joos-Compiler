@@ -14,10 +14,10 @@
 // Statements
 #include "tir/CJump.hpp"
 #include "tir/Jump.hpp"
-#include "tir/Move.hpp"
-#include "tir/Seq.hpp"
 #include "tir/Label.hpp"
+#include "tir/Move.hpp"
 #include "tir/Return.hpp"
+#include "tir/Seq.hpp"
 
 // Others
 #include "tir/CompUnit.hpp"

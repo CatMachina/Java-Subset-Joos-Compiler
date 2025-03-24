@@ -521,6 +521,8 @@ class Literal : public ExprValue {
 public:
   enum class Type { Integer, Character, String, Boolean, Null };
 
+  Literal::Type literalType;
+
   // Literal(Type type, std::string value) : type{type}, value{value} {}
   Literal(std::shared_ptr<parsetree::Literal> node,
           std::shared_ptr<parsetree::ast::BasicType> type)
@@ -531,12 +533,12 @@ public:
     if (type->isNumeric()) {
       int64_t val = 0;
       if (type->getType() == BasicType::Type::Char) {
-        type = Type::Character;
+        literalType = Literal::Type::Character;
         val = parseChar(str);
       } else {
         // Convert the string to an integer
         try {
-          type = Type::Integer;
+          literalType = Literal::Type::Integer;
           if (node->isNegativeVal())
             val = std::stoi("-" + std::string(str));
           else
@@ -549,7 +551,7 @@ public:
     }
     // 2. Otherwise, check if the type is boolean
     else if (type->isBoolean()) {
-      type = Type::Boolean;
+      literalType = Literal::Type::Boolean;
       if (str == "true") {
         value = 1U;
       } else if (str == "false") {
@@ -560,14 +562,14 @@ public:
     }
     // 3. Otherwise, its a string
     else if (type->isString()) {
-      type = Type::String;
+      literalType = Literal::Type::String;
       // Unescape the string
       value = std::string{};
       unescapeString(str, std::get<std::string>(value));
     }
     // 4. Maybe it's a NoneType (i.e., NULL)
     else if (type->getType() == BasicType::Type::Void) {
-      type = Type::Null;
+      literalType = Literal::Type::Null;
       value = 0U;
     }
     // 5. Otherwise, it's an invalid type
@@ -603,7 +605,6 @@ public:
 private:
   // Type type;
   // std::string value;
-  type literalType;
   std::variant<int64_t, std::string> value;
 };
 

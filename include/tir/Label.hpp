@@ -1,7 +1,7 @@
 #pragma once
 
-#include "tir/Stmt.hpp"
 #include "tir/InsnMapsBuilder.hpp"
+#include "tir/Stmt.hpp"
 
 #include <string>
 

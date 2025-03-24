@@ -1,8 +1,8 @@
 #pragma once
 
 #include "tir/Expr.hpp"
-#include "tir/Stmt.hpp"
 #include "tir/IRVisitor.hpp"
+#include "tir/Stmt.hpp"
 #include "tirAggregateVisitor.hpp"
 
 #include <string>
