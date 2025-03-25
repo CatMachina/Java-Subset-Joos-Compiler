@@ -406,7 +406,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     std::string error_name = tir::Label::generateName("error");
     std::string not_null_name = tir::Label::generateName("not_null");
     auto not_null_check = std::make_shared<tir::CJump>(
-        // NEQ(t_a, 0)
+        // NEQ(array, 0)
         std::make_shared<tir::BinOp>(
             tir::BinOp::OpType::NEQ,
             std::make_shared<tir::Temp>(array_name, nullptr),
@@ -608,22 +608,214 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewArray(
   std::vector<std::shared_ptr<tir::Stmt>> seq_vec = {move1, cjump, error_label,
                                                      error_call_stmt};
 
-
-  // TODO:
   // allocate space
+  auto array_name = tir::Temp::generateName("array");
+  seq_vec.push_back(std::make_shared<tir::Label>(not_negative_name));
+  seq_vec.push_back(std::make_shared<tir::Move>(
+      std::make_shared<tir::Temp>(array_name),
+      tir::Call::makeMalloc(
+          // 4 * size + 8
+          std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD,
+              std::make_shared<tir::BinOp>(
+                  tir::BinOp::OpType::MUL, std::make_shared<tir::Const>(4),
+                  std::make_shared<tir::Temp>(size_name)),
+              std::make_shared<tir::Const>(8)))));
 
+  // write size
+  seq_vec.push_back(std::make_shared<tir::Move>(
+      std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(array_name)),
+      std::make_shared<tir::Temp>(size_name)));
 
+  // add DV
+  seq_vec.push_back(
+      // MEM(arr + 4) = DV for arrays
+      std::make_shared<tir::Move>(
+          std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(array_name),
+              std::make_shared<tir::Const>(4))),
+          std::make_shared<tir::Temp>(Constants::uniqueClassLabel(array_obj),
+                                      nullptr, true)));
+
+  // zero initialize array (loop)
+  std::string iterator_name = tir::Temp::generateName("iter");
+  std::string start_loop = tir::Label::generateName("start_loop");
+  std::string exit_loop = tir::Label::generateName("exit_loop");
+  std::string dummy_name = tir::Label::generateName("dummy");
+
+  seq_vec.push_back(
+      // Move(iterator, 0)
+      std::make_shared<tir::Move>(std::make_shared<tir::Temp>(iterator_name),
+                                  std::make_shared<tir::Const>(0)));
+
+  seq_vec.push_back(
+      // start_loop:
+      std::make_shared<tir::Label>(start_loop));
+
+  seq_vec.push_back(
+      // MOVE(iterator, iterator + 4)
+      std::make_shared<tir::Move>(
+          std::make_shared<tir::Temp>(iterator_name),
+          std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD,
+              std::make_shared<tir::Temp>(iterator_name),
+              std::make_shared<tir::Const>(4))));
+
+  seq_vec.push_back(
+      // CJump(iterator > 4 * t_size, exit_loop, start_loop)
+      std::make_shared<tir::CJump>(
+          std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::GT,
+              std::make_shared<tir::Temp>(iterator_name),
+              std::make_shared<tir::BinOp>(
+                  tir::BinOp::OpType::MUL, std::make_shared<tir::Const>(4),
+                  std::make_shared<tir::Temp>(size_name))),
+          exit_loop, dummy_name));
+
+  seq_vec.push_back(
+      // dummy label
+      std::make_shared<tir::Label>(dummy_name));
+
+  seq_vec.push_back(
+      // MOVE(MEM(iterator + array + 4), 0)
+      std::make_shared<tir::Move>(
+          std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD,
+              std::make_shared<tir::BinOp>(
+                  tir::BinOp::OpType::ADD,
+                  std::make_shared<tir::Temp>(array_name),
+                  std::make_shared<tir::Temp>(iterator_name)),
+              std::make_shared<tir::Const>(4))),
+          std::make_shared<tir::Const>(0)));
+
+  seq_vec.push_back(
+      // JUMP(start_loop)
+      std::make_shared<tir::Jump>(std::make_shared<tir::Name>(start_loop)));
+
+  seq_vec.push_back(
+      // exit_loop:
+      std::make_shared<tir::Label>(exit_loop));
+
+  /*
+  init iterator
+  start_loop:
+  iterator = iterator + 4
+  CJump to exit if outbounds
+  dummy:
+  a[iterator] = 0
+  Jump to start
+  exit_loop:
+  */
+  return std::make_shared<tir::ESeq>(
+      std::make_shared<tir::Seq>(seq_vec),
+      // t_array + 4
+      std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD,
+                                   std::make_shared<tir::Temp>(array_name),
+                                   std::make_shared<tir::Const>(4)));
 }
 
 std::shared_ptr<tir::Expr> ExprIRConverter::evalArrayAccess(
     std::shared_ptr<parsetree::ast::ArrayAccess> &op,
     const std::shared_ptr<tir::Expr> array,
-    const std::shared_ptr<tir::Expr> index) {}
+    const std::shared_ptr<tir::Expr> index) {
+  /*
+  Temp array
+  CJump(NEQ(array, 0), not_null, error)
+  error:
+  CALL(NAME(__exception))
+  not_null:
+  Temp index
+  CJump(GEQ(index, MEM(array - 4)), error, inbound)
+  inbound:
+  MEM(array + 4 + 4*index)
+  */
+
+  // get array in temp
+  std::string array_name = tir::Temp::generateName("array");
+  auto get_array = std::make_shared<tir::Move>(
+      std::make_shared<tir::Temp>(array_name), array)
+
+      // check not null
+      std::string error_name = tir::Temp::generateName("error");
+  std::string not_null_name = tir::Label::generateName("not_null");
+  auto check_not_null = std::make_shared<tir::CJump>(
+      // NEQ(array, 0)
+      std::make_shared<tir::BinOp>(tir::BinOp::OpType::NEQ,
+                                   std::make_shared<tir::Temp>(array_name),
+                                   std::make_shared<tir::Const>(0)),
+      not_null_name, error_name);
+
+  // throw null exception
+  auto error_label = std::make_shared<tir::Label>(error_name);
+  auto throw_exception = std::make_shared<tir::Exp>(tir::Call::makeException());
+
+  // not null
+  auto not_null_label = std::make_shared<tir::Label>(not_null_name);
+  std::string index_name = tir::Temp::generateName("index");
+  auto get_index = std::make_shared<tir::Move>(
+      std::make_shared<tir::Temp>(index_name), index)
+
+      // check bound
+      auto still_in_bounds_name = tir::Label::generateName("still_in_bounds");
+  auto check_bound = std::make_shared<tir::CJump>(
+      // index < 0 || index >= MEM(array - 4)
+      std::make_shared<tir::BinOp>(
+          tir::BinOp::OpType::OR,
+          // LT(index, 0)
+          std::make_shared<tir::BinOp>(tir::BinOp::OpType::LT,
+                                       std::make_shared<tir::Temp>(index_name),
+                                       std::make_shared<tir::Const>(0)),
+          // GEQ(index, MEM(array - 4))
+          std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::GEQ, std::make_shared<tir::Temp>(index_name),
+              std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+                  tir::BinOp::OpType::SUB,
+                  std::make_shared<tir::Temp>(array_name),
+                  std::make_shared<tir::Const>(4))))),
+      error_name, still_in_bounds_name);
+
+  // still in bound
+  auto inbound_label = std::make_shared<tir::Label>(still_in_bounds_name);
+  auto inbound_call = std::make_shared<tir::Exp>(
+      // array + 4 + (4 * index)
+      std::make_shared<tir::BinOp>(
+          tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(array_name),
+          std::make_shared<tir::BinOp>(std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD, std::make_shared<tir::Const>(4),
+              std::make_shared<tir::BinOp>(
+                  tir::BinOp::OpType::MUL,
+                  std::make_shared<tir::Temp>(index_name),
+                  std::make_shared<tir::Const>(4))))));
+
+  return std::make_shared<tir::ESeq>(
+      std::make_shared<tir::Seq>({get_array, check_not_null, error_label,
+                                  throw_exception, not_null_label, get_index,
+                                  check_bound, inbound_label}),
+      inbound_call);
+}
 
 std::shared_ptr<tir::Expr>
 ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
                           const std::shared_ptr<tir::Expr> type,
-                          const std::shared_ptr<tir::Expr> value) {}
+                          const std::shared_ptr<tir::Expr> value) {
+  if (!std::dynamic_pointer_cast<tir::TempTIR>(type)) {
+    throw std::runtime_error("Invalid cast, type is not a TempTIR");
+  }
+  auto typeTempIR = std::dynamic_pointer_cast<tir::TempTIR>(type);
+  if (typeTempIR->type != tir::TempTIR::Type::TypeNode) {
+    throw std::runtime_error("Invalid cast, type is not a TempTIR TypeNode");
+  }
+  auto typeNode =
+      std::dynamic_pointer_cast<parsetree::ast::TypeNode>(typeTempIR->astNode);
+  if (!typeNode) {
+    throw std::runtime_error("Invalid cast, type is not a TypeNode");
+  }
+
+  // TODO:
+  // if rhs is literal check promotion or narrowing
+
+  return value;
+}
 
 std::shared_ptr<tir::Expr>
 ExprIRConverter::evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
