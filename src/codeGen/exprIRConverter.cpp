@@ -383,42 +383,237 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
         "Invalid field access, field is not a field access");
   }
 
-  auto fieldAstNode = fieldTIR->astNode;
-
-  std::shared_ptr<parsetree::ast::AstNode> lhsAstNode = nullptr;
-  if (auto lhsTemp = std::dynamic_pointer_cast<tir::Temp>(lhs)) {
-    if (!lhsTemp->getAstNode()) {
-      throw std::runtime_error(
-          "Invalid field access, lhs is a TempTIR with no ast node");
-    }
-    lhsAstNode = lhsTemp->getAstNode();
-  } else {
-    // TODO: is there more cases for lhs?
+  auto fieldDecl =
+      std::dynamic_pointer_cast<parsetree::ast::VarDecl>(fieldTIR->astNode);
+  if (!fieldDecl) {
+    throw std::runtime_error("Invalid field access, field is not a VarDecl");
   }
 
-  if (!lhsAstNode)
-    throw std::runtime_error("Invalid field access, lhs can't find AstNode");
-
-  // TODO:
   // Special case: array length field
+  auto lengthDecl = nullptr;
+  for (auto field : astManager->java_lang.Array->getFields()) {
+    if (field->name() == "length") {
+      lengthDecl = field;
+    }
+  }
+  if (fieldDecl == lengthDecl) {
+    // Get array
+    std::string array_name = tir::Temp::generateName("array");
+    auto get_array = std::make_shared<tir::Move>(
+        std::make_shared<tir::Temp>(array_name, nullptr), lhs);
+
+    // not null check
+    std::string error_name = tir::Label::generateName("error");
+    std::string not_null_name = tir::Label::generateName("not_null");
+    auto not_null_check = std::make_shared<tir::CJump>(
+        // NEQ(t_a, 0)
+        std::make_shared<tir::BinOp>(
+            tir::BinOp::OpType::NEQ,
+            std::make_shared<tir::Temp>(array_name, nullptr),
+            std::make_shared<tir::Const>(0)),
+        not_null_name, error_name);
+
+    // exception on null
+    auto error_label = std::make_shared<tir::Label>(error_name);
+    auto exception_call_stmt =
+        std::make_shared<tir::Exp>(tir::Call::makeException());
+    auto not_null_label = std::make_shared<tir::Label>(not_null_name);
+
+    return std::make_shared<tir::ESeq>(
+        // null check
+        std::make_shared<tir::Seq>({get_array, not_null_check, error_label,
+                                    exception_call_stmt, not_null_label}),
+
+        // Length stored at MEM[array - 4]
+        std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+            tir::BinOp::OpType::SUB,
+            std::make_shared<tir::Temp>(array_name, nullptr),
+            std::make_shared<tir::Const>(4))));
+  }
+
   // Static field access
-  // Instance field access
+  if (auto castedFieldDecl =
+          std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(fieldDecl)) {
+    if (castedFieldDecl->isStatic()) {
+      throw std::runtime_error("Non-static static field access on " +
+                               fieldDecl->getName());
+    }
+
+    // Instance field access
+    if (std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+            castedFieldDecl->getResolvedDecl()->getAstNode())) {
+      return std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+          tir::BinOp::OpType::ADD, lhs,
+          std::make_shared<tir::Const>(
+              4 * (currentClass->getFieldOffset(castedFieldDecl) + 1))));
+    }
+  }
+
+  throw std::runtime_error("field access cannot build IR tree");
 }
 
 std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
     std::shared_ptr<parsetree::ast::MethodInvocation> &op,
     const std::shared_ptr<tir::Expr> method,
-    const std::vector<std::shared_ptr<tir::Expr>> &args) {}
+    const std::vector<std::shared_ptr<tir::Expr>> &args) {
+  if (!std::dynamic_pointer_cast<tir::TempTIR>(method)) {
+    throw std::runtime_error(
+        "Invalid method invocation, method is not a TempTIR");
+  }
+  auto methodTIR = std::dynamic_pointer_cast<tir::TempTIR>(method);
+  if (methodTIR->type != tir::TempTIR::Type::MethodName) {
+    throw std::runtime_error(
+        "Invalid method invocation, method is not a method name");
+  }
+
+  auto methodDecl =
+      std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(methodTIR->astNode);
+  if (!methodDecl) {
+    throw std::runtime_error(
+        "Invalid method invocation, method is not a method decl");
+  }
+
+  // static method
+  if (methodDecl->isStatic()) {
+    return tir::Call::makeExpr(
+        std::make_shared<tir::Name>(
+            Constants::uniqueStaticMethodLabel(methodDecl)),
+        (methodDecl->getModifiers()->isNative())
+            ? nullptr
+            : std::make_shared<tir::Const>(0),
+        args);
+  }
+
+  // instance method
+  // TODO: If there is a parent expr, define a stmt to move into Temp?
+
+  // return expr
+  return tir::Call::makeExpr(
+      // gets method NameIR
+      std::make_shared<tir::Mem>(
+          // *this + 4*offset
+          std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD,
+              std::make_shared<tir::Temp>("this", nullptr),
+              std::make_shared<tir::Const>(
+                  4 * (currentClass->getMethodOffset(methodDecl) + 1)))),
+      (methodDecl->getModifiers()->isNative())
+          ? nullptr
+          : std::make_shared<tir::Temp>("this", nullptr),
+      args, );
+}
 
 std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
     std::shared_ptr<parsetree::ast::ClassCreation> &op,
     const std::shared_ptr<tir::Expr> object,
-    const std::vector<std::shared_ptr<tir::Expr>> &args) {}
+    const std::vector<std::shared_ptr<tir::Expr>> &args) {
+  if (!std::dynamic_pointer_cast<tir::TempTIR>(object)) {
+    throw std::runtime_error("Invalid new object, object is not a TempTIR");
+  }
+  auto objectTIR = std::dynamic_pointer_cast<tir::TempTIR>(object);
+  if (objectTIR->type != tir::TempTIR::Type::TypeNode) {
+    throw std::runtime_error(
+        "Invalid new object, object is not a TempTIR TypeNode");
+  }
+
+  auto typeNode =
+      std::dynamic_pointer_cast<parsetree::ast::TypeNode>(objectTIR->astNode);
+  if (!typeNode) {
+    throw std::runtime_error("Invalid new object, object is not a TypeNode");
+  }
+  if (!type->isDeclResolved() || type->getResolvedDecl() == nullptr) {
+    throw std::runtime_error("Invalid new object, type is not decl resolved");
+  }
+  if (!type->isTypeResolved()) {
+    throw std::runtime_error("Invalid new object, type is not type resolved");
+  }
+  auto typeRefType =
+      std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type->getType());
+  if (!typeRefType) {
+    throw std::runtime_error("Invalid new object, type is not a ReferenceType");
+  }
+  if (!typeRefType->isResolved()) {
+    throw std::runtime_error(
+        "Invalid new object, type is not resolved ReferenceType");
+  }
+
+  auto constructor = type->getResolvedDecl();
+  auto typeClass = std::make_shared<parsetree::ast::ClassDecl>(
+      typeRefType->getResolvedDecl()->getAstNode());
+
+  int num_fields = typeClass->getFields()->size();
+  std::string obj_ref = tir::Temp::generateName("obj_ref");
+
+  // allocate space for class
+  auto move1 = std::make_shared<tir::Move>(
+      std::make_shared<tir::Temp>(obj_ref),
+      tir::Call::makeMalloc(
+          std::make_shared<tir::Const>(4 * (num_fields + 1)), ));
+
+  // write dispatch vector to first location
+  auto move2 = std::make_shared<tir::Move>(
+      std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(obj_ref)),
+      // location of dispatch vector
+      std::make_shared<tir::Temp>(Constants::uniqueClassLabel(typeClass),
+                                  nullptr, true));
+
+  std::vector<std::shared_ptr<tir::Stmt>> seq_vec = {move1, move2};
+
+  // initialize all fields
+  int count = 0;
+  for (auto &field : typeClass->getFields()) {
+    seq_vec.push_back(std::make_shared<tir::Move>(
+        std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+            tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(obj_ref),
+            std::make_shared<tir::Const>(4 * (count + 1)))),
+        std::make_shared<tir::Const>(0))) count++;
+  }
+
+  // TODO: super constructor?
+
+  // call constructor
+  seq_vec.push_back(std::make_shared<tir::Exp>(std::make_shared<tir::Call>(
+      std::make_shared<tir::Name>(Constants::uniqueMethodLabel(constructor)),
+      std::make_shared<tir::Temp>(obj_ref), args)));
+
+  return std::make_shared<tir::ESeq>(std::make_shared<tir::Seq>(seq_vec),
+                                     std::make_shared<tir::Temp>(obj_ref));
+}
 
 std::shared_ptr<tir::Expr> ExprIRConverter::evalNewArray(
     std::shared_ptr<parsetree::ast::ArrayCreation> &op,
     const std::shared_ptr<tir::Expr> type,
-    const std::shared_ptr<tir::Expr> size) {}
+    const std::shared_ptr<tir::Expr> size) {
+  auto array_obj = astManager->java_lang.Array;
+
+  // get inner expression
+  std::string size_name = tir::Temp::generateName("size");
+  auto move1 =
+      std::make_shared<tir::Move>(std::make_shared<tir::Temp>(size_name), size);
+
+  // check not negative
+  std::string error_name = LabelIR::generateName("error");
+  std::string not_negative_name = LabelIR::generateName("not_negative");
+  auto cjump = std::make_shared<tir::CJump>(
+      // size >= 0
+      std::make_shared<tir::BinOp>(tir::BinOp::OpType::GTE,
+                                   std::make_shared<tir::Temp>(size_name),
+                                   std::make_shared<tir::Const>(0)),
+      not_negative_name, error_name);
+
+  // error
+  auto error_label = std::make_shared<tir::Label>(error_name);
+  auto error_call_stmt = std::make_shared<tir::Exp>(tir::Call::makeException());
+
+  std::vector<std::shared_ptr<tir::Stmt>> seq_vec = {move1, cjump, error_label,
+                                                     error_call_stmt};
+
+
+  // TODO:
+  // allocate space
+
+
+}
 
 std::shared_ptr<tir::Expr> ExprIRConverter::evalArrayAccess(
     std::shared_ptr<parsetree::ast::ArrayAccess> &op,
