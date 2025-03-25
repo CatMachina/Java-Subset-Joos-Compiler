@@ -38,6 +38,9 @@ TIRBuilder::buildStmt(std::shared_ptr<parsetree::ast::Stmt> node) {
                  std::dynamic_pointer_cast<parsetree::ast::ExpressionStmt>(
                      node)) {
     irNode = buildExpressionStmt(expressionStmt);
+  } else if (auto declStmt =
+                 std::dynamic_pointer_cast<parsetree::ast::DeclStmt>(node)) {
+    irNode = buildDeclStmt(declStmt)
   } else {
     throw std::runtime_error("TIRBuilder::buildStmt: not an AST Stmt");
   }
@@ -125,13 +128,12 @@ std::shared_ptr<Stmt> TIRBuilder::buildExpressionStmt(
   return std::make_shared<Exp>(buildExpr(node->getStatementExpr()));
 }
 
-// TODO
 std::shared_ptr<Stmt>
 TIRBuilder::buildDeclStmt(std::shared_ptr<parsetree::ast::DeclStmt> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildDeclStmt: node is null");
   }
-  return std::make_shared<Stmt>();
+  return buildVarDecl(node->getDecl());
 }
 
 //////////////////// Declaration Builders ////////////////////
