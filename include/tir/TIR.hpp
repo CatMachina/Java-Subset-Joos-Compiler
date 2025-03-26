@@ -13,6 +13,7 @@
 
 // Statements
 #include "tir/CJump.hpp"
+#include "tir/Exp.hpp"
 #include "tir/Jump.hpp"
 #include "tir/Label.hpp"
 #include "tir/Move.hpp"
