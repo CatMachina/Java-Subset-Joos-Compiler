@@ -5,6 +5,8 @@
 
 #include "tir/Expr.hpp"
 
+namespace tir {
+
 class Name : public Expr {
   std::string name;
 
@@ -13,17 +15,17 @@ public:
   Name(std::string name, bool isGlobal = false)
       : name{name}, isGlobal{isGlobal} {}
   std::string &getName() { return name; }
-  std::string label() { return "NAME(" + name + ")"; }
+  std::string label() const override { return "NAME(" + name + ")"; }
 
-  static std::shared_ptr<ExpressionIR> makeExpr(std::string name,
-                                                bool isGlobal = false) {
+  static std::shared_ptr<Expr> makeExpr(std::string name,
+                                        bool isGlobal = false) {
     return std::make_shared<Name>(name, isGlobal);
   }
 
-  static std::shared_ptr<ExpressionIR> makeMalloc() {
-    return makeExpr("__malloc");
-  }
-  static std::shared_ptr<ExpressionIR> makeException() {
+  static std::shared_ptr<Expr> makeMalloc() { return makeExpr("__malloc"); }
+  static std::shared_ptr<Expr> makeException() {
     return makeExpr("__exception");
   }
 };
+
+} // namespace tir

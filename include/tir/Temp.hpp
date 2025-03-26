@@ -16,7 +16,8 @@ class Temp : public Expr {
 public:
   bool isGlobal = false; // Is a static field
 
-  Temp(std::string name, std::shared_ptr<parsetree::ast::AstNode> astNode = nullptr,
+  Temp(std::string name,
+       std::shared_ptr<parsetree::ast::AstNode> astNode = nullptr,
        bool isGlobal = false)
       : name{name}, astNode{astNode}, isGlobal{isGlobal} {}
 
@@ -28,7 +29,7 @@ public:
     return (prefix.empty() ? "temp" : prefix) + std::to_string(num_temps);
   }
 
-  std::string label() { return "TEMP(" + name + ")"; }
+  std::string label() const override { return "TEMP(" + name + ")"; }
 };
 
 } // namespace tir

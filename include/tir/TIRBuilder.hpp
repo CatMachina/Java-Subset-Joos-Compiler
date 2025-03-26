@@ -1,14 +1,31 @@
 #pragma once
 
-#include "ast.hpp"
-#include "tir.hpp"
+#include "ast/ast.hpp"
+#include "ast/astManager.hpp"
+#include "tir/TIR.hpp"
 #include <memory>
 
 namespace tir {
 
 class TIRBuilder {
 public:
-  TIRBuilder();
+  TIRBuilder(std::shared_ptr<parsetree::ast::ASTManager> astManager)
+      : astManager{astManager} {}
+
+  void run();
+
+private:
+  std::shared_ptr<parsetree::ast::ASTManager> astManager;
+  std::vector<std::shared_ptr<CompUnit>> compUnits;
+
+  int labelCounter = 0;
+
+  // Helpers
+  std::string getNextLabelName();
+  std::shared_ptr<Label> getNewLabel();
+
+  // Expression Builder
+  std::shared_ptr<Expr> buildExpr(std::shared_ptr<parsetree::ast::Expr> expr);
 
   // Statement Builders
   std::shared_ptr<Stmt> buildStmt(std::shared_ptr<parsetree::ast::Stmt> node);
@@ -27,10 +44,10 @@ public:
   std::shared_ptr<Stmt>
   buildReturnStmt(std::shared_ptr<parsetree::ast::ReturnStmt> node);
 
-  std::shared_ptr<Expr>
+  std::shared_ptr<Stmt>
   buildExpressionStmt(std::shared_ptr<parsetree::ast::ExpressionStmt> node);
 
-  std::shared_ptr<Node>
+  std::shared_ptr<Stmt>
   buildDeclStmt(std::shared_ptr<parsetree::ast::DeclStmt> node);
 
   // Declaration Builders
@@ -50,13 +67,6 @@ public:
 
   std::vector<std::shared_ptr<Node>>
   buildClassDecl(std::shared_ptr<parsetree::ast::ClassDecl> node);
-
-private:
-  int labelCounter = 0;
-
-  // Helpers
-  std::string getNextLabelName();
-  std::shared_ptr<Label> newLabel();
 };
 
 } // namespace tir

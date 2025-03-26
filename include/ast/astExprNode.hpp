@@ -5,6 +5,8 @@
 
 namespace parsetree::ast {
 
+class Literal;
+
 // Expressions /////////////////////////////////////////////////////////////
 
 class ExprValue : public ExprNode {
@@ -452,14 +454,18 @@ public:
 };
 
 class Cast : public ExprOp {
-  std::shared_ptr<Literal> rhsLiteral = nullptr;
+  std::shared_ptr<parsetree::ast::Literal> rhsLiteral = nullptr;
 
 public:
   Cast() : ExprOp(2) {}
 
   bool hasRhsLiteral() const { return rhsLiteral != nullptr; }
-  void setRhsLiteral(std::shared_ptr<Literal> literal) { rhsLiteral = literal; }
-  std::shared_ptr<Literal> getRhsLiteral() const { return rhsLiteral; }
+  void setRhsLiteral(std::shared_ptr<parsetree::ast::Literal> literal) {
+    rhsLiteral = literal;
+  }
+  std::shared_ptr<parsetree::ast::Literal> getRhsLiteral() const {
+    return rhsLiteral;
+  }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

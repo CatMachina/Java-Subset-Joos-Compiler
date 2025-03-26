@@ -68,7 +68,6 @@ add_library(CompilerLib
     # static check
     "src/staticCheck/envManager.cpp"
     "src/staticCheck/typeLinker.cpp"
-    # "src/staticCheck/nameDisambiguator.cpp"
     "src/staticCheck/exprResolver.cpp"
     "src/staticCheck/typeResolver.cpp"
     "src/staticCheck/cfg.cpp"
@@ -77,6 +76,9 @@ add_library(CompilerLib
     "src/staticCheck/staticResolver.cpp"
     "src/staticCheck/astValidator.cpp"
     "src/staticCheck/liveVariableAnalysis.cpp"
+
+    # code generation
+    "src/tir/TIRBuilder.cpp"
 )
 target_include_directories(
     CompilerLib

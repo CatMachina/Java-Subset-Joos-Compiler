@@ -1,4 +1,4 @@
-#include "TIRBuilder.hpp"
+#include "tir/TIRBuilder.hpp"
 
 namespace tir {
 
@@ -8,8 +8,15 @@ std::string TIRBuilder::getNextLabelName() {
   return "label_" + std::to_string(labelCounter++);
 }
 
-std::shared_ptr<Label> TIRBuilder::newLabel() {
+std::shared_ptr<Label> TIRBuilder::getNewLabel() {
   return std::make_shared<Label>(getNextLabelName());
+}
+
+//////////////////// Expression Builder ////////////////////
+
+std::shared_ptr<Expr>
+TIRBuilder::buildExpr(std::shared_ptr<parsetree::ast::Expr> expr) {
+  return std::make_shared<Expr>();
 }
 
 //////////////////// Statement Builders ////////////////////
@@ -19,32 +26,32 @@ TIRBuilder::buildStmt(std::shared_ptr<parsetree::ast::Stmt> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildStmt: node is null");
   }
-  std::shared_ptr<Node> irNode;
+  std::shared_ptr<Stmt> irStmt;
   if (auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node)) {
-    irNode = buildBlock(block);
+    irStmt = buildBlock(block);
   } else if (auto ifStmt =
                  std::dynamic_pointer_cast<parsetree::ast::IfStmt>(node)) {
-    irNode = buildIfStmt(ifStmt);
+    irStmt = buildIfStmt(ifStmt);
   } else if (auto whileStmt =
                  std::dynamic_pointer_cast<parsetree::ast::WhileStmt>(node)) {
-    irNode = buildWhileStmt(whileStmt);
+    irStmt = buildWhileStmt(whileStmt);
   } else if (auto forStmt =
                  std::dynamic_pointer_cast<parsetree::ast::ForStmt>(node)) {
-    irNode = buildForStmt(forStmt);
+    irStmt = buildForStmt(forStmt);
   } else if (auto returnStmt =
                  std::dynamic_pointer_cast<parsetree::ast::ReturnStmt>(node)) {
-    irNode = buildReturnStmt(returnStmt);
+    irStmt = buildReturnStmt(returnStmt);
   } else if (auto expressionStmt =
                  std::dynamic_pointer_cast<parsetree::ast::ExpressionStmt>(
                      node)) {
-    irNode = buildExpressionStmt(expressionStmt);
+    irStmt = buildExpressionStmt(expressionStmt);
   } else if (auto declStmt =
                  std::dynamic_pointer_cast<parsetree::ast::DeclStmt>(node)) {
-    irNode = buildDeclStmt(declStmt)
+    irStmt = buildDeclStmt(declStmt);
   } else {
     throw std::runtime_error("TIRBuilder::buildStmt: not an AST Stmt");
   }
-  return irNode;
+  return irStmt;
 }
 
 std::shared_ptr<Stmt>
@@ -53,7 +60,7 @@ TIRBuilder::buildBlock(std::shared_ptr<parsetree::ast::Block> node) {
     throw std::runtime_error("TIRBuilder::buildBlock: node is null");
   }
   std::vector<std::shared_ptr<Stmt>> irStmts;
-  for (auto astStmt : node->getStmts()) {
+  for (auto astStmt : node->getStatements()) {
     irStmts.push_back(buildStmt(astStmt));
   }
   return std::make_shared<Seq>(irStmts);
@@ -64,13 +71,17 @@ TIRBuilder::buildIfStmt(std::shared_ptr<parsetree::ast::IfStmt> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildIfStmt: node is null");
   }
-  auto lt = newLabel();
-  auto lf = newLabel();
-  // TODO: buildExpr
+  auto ltName = getNextLabelName();
+  auto lfName = getNextLabelName();
+  auto lt = std::make_shared<Label>(ltName);
+  auto lf = std::make_shared<Label>(lfName);
+
   auto condition = buildExpr(node->getCondition());
   auto stmt = buildStmt(node->getIfBody());
-  auto cJump = std::make_shared<CJump>(condition, lt, lf);
-  return std::make_shared<Seq>({cJump, lt, stmt, lf});
+  auto cJump = std::make_shared<CJump>(condition, ltName, lfName);
+
+  std::vector<std::shared_ptr<Stmt>> stmts = {cJump, lt, stmt, lf};
+  return std::make_shared<Seq>(stmts);
 }
 
 std::shared_ptr<Stmt>
@@ -78,16 +89,20 @@ TIRBuilder::buildWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildWhileStmt: node is null");
   }
-  auto lh = newLabel();
-  auto lt = newLabel();
-  auto lf = newLabel();
-  // TODO: buildExpr
+  auto lh = getNewLabel();
+  auto ltName = getNextLabelName();
+  auto lfName = getNextLabelName();
+  auto lt = std::make_shared<Label>(ltName);
+  auto lf = std::make_shared<Label>(lfName);
+
   auto condition = buildExpr(node->getCondition());
   auto stmt = buildStmt(node->getWhileBody());
-  auto cJump = std::make_shared<CJump>(condition, lt, lf);
+  auto cJump = std::make_shared<CJump>(condition, ltName, lfName);
   auto name = std::make_shared<Name>(lh->getName());
   auto jump = std::make_shared<Jump>(name);
-  return std::make_shared<Seq>({lh, cJump, lt, stmt, jump, lf});
+
+  std::vector<std::shared_ptr<Stmt>> stmts = {lh, cJump, lt, stmt, jump, lf};
+  return std::make_shared<Seq>(stmts);
 }
 
 std::shared_ptr<Stmt>
@@ -95,18 +110,22 @@ TIRBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildForStmt: node is null");
   }
-  auto lh = newLabel();
-  auto lt = newLabel();
-  auto lf = newLabel();
+  auto lh = getNewLabel();
+  auto ltName = getNextLabelName();
+  auto lfName = getNextLabelName();
+  auto lt = std::make_shared<Label>(ltName);
+  auto lf = std::make_shared<Label>(lfName);
   auto init = buildStmt(node->getForInit());
-  // TODO: buildExpr
+
   auto condition = buildExpr(node->getCondition());
   auto update = buildStmt(node->getForUpdate());
   auto body = buildStmt(node->getForBody());
-  auto cJump = std::make_shared<CJump>(condition, lt, lf);
+  auto cJump = std::make_shared<CJump>(condition, ltName, lfName);
   auto name = std::make_shared<Name>(lh->getName());
   auto jump = std::make_shared<Jump>(name);
-  return std::make_shared<Seq>({init, lh, cJump, lt, body, update, jump, lf});
+  std::vector<std::shared_ptr<Stmt>> stmts = {init, lh,     cJump, lt,
+                                              body, update, jump,  lf};
+  return std::make_shared<Seq>(stmts);
 }
 
 std::shared_ptr<Stmt>
@@ -114,7 +133,6 @@ TIRBuilder::buildReturnStmt(std::shared_ptr<parsetree::ast::ReturnStmt> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildReturnStmt: node is null");
   }
-  // TODO: buildExpr
   auto returnExpr = buildExpr(node->getReturnExpr());
   return std::make_shared<Return>(returnExpr);
 }
@@ -124,7 +142,6 @@ std::shared_ptr<Stmt> TIRBuilder::buildExpressionStmt(
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildExpressionStmt: node is null");
   }
-  // TODO: buildExpr
   return std::make_shared<Exp>(buildExpr(node->getStatementExpr()));
 }
 
@@ -157,7 +174,7 @@ TIRBuilder::buildDecl(std::shared_ptr<parsetree::ast::Decl> node) {
   }
 }
 
-std::shared_ptr<tir::CompUnit>
+std::shared_ptr<CompUnit>
 TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildProgram: node is null");
@@ -174,7 +191,7 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   }
 
   std::string className = decl->getName();
-  std::vector<std::shared_ptr<tir::Node>> nodes;
+  std::vector<std::shared_ptr<Node>> nodes;
 
   if (auto classDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl)) {
@@ -185,7 +202,7 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
         "TIRBuilder::buildProgram: only ClassDecl supported at top level");
   }
 
-  return std::make_shared<tir::CompUnit>(className, nodes);
+  return std::make_shared<CompUnit>(className, nodes);
 }
 
 std::shared_ptr<FuncDecl>
@@ -195,12 +212,12 @@ TIRBuilder::buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node) {
   }
 
   std::vector<std::shared_ptr<Temp>> params;
-  for (const auto &param : node->params) {
+  for (const auto &param : node->getParams()) {
     auto name = param->getName();
     params.push_back(std::make_shared<Temp>(name));
   }
 
-  auto body = buildStmt(node->methodBody);
+  auto body = buildStmt(node->getMethodBody());
 
   return std::make_shared<FuncDecl>(node->getName(), params, body);
 }
@@ -242,6 +259,15 @@ TIRBuilder::buildClassDecl(std::shared_ptr<parsetree::ast::ClassDecl> node) {
   }
 
   return results;
+}
+
+//////////////////// Pass Runner ////////////////////
+
+void TIRBuilder::run() {
+  for (auto ast : astManager->getASTs()) {
+    auto compUnit = buildProgram(ast);
+    compUnits.push_back(compUnit);
+  }
 }
 
 } // namespace tir
