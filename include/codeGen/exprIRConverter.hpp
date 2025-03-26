@@ -1,6 +1,8 @@
 #pragma once
 
 #include "ast/ast.hpp"
+#include "ast/astManager.hpp"
+#include "codeGen/codeGenLables.hpp"
 #include "staticCheck/evaluator.hpp"
 #include "tir/TIR.hpp"
 
@@ -25,6 +27,19 @@ namespace codegen {
 
 class ExprIRConverter final
     : public static_check::ExprEvaluator<std::shared_ptr<tir::Expr>> {
+
+public:
+  ExprIRConverter(std::shared_ptr<ast::ASTManager> astManager,
+                  std::shared_ptr<CodegenLables> codeGenLabels) {
+    this->astManager = astManager;
+    this->codeGenLabels = codeGenLabels;
+  }
+
+  void
+  setCurrentClass(std::shared_ptr<parsetree::ast::ClassDecl> currentClass) {
+    this->currentClass = currentClass;
+  }
+
 private:
   std::shared_ptr<tir::Expr>
   evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
@@ -72,6 +87,10 @@ private:
 
   std::shared_ptr<tir::Expr>
   mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) override;
+
+  std::shared_ptr<parsetree::ast::ASTManager> astManager;
+  std::shared_ptr<tir::CodegenLables> codeGenLabels;
+  std::shared_ptr<parsetree::ast::ClassDecl> currentClass = nullptr;
 };
 
 } // namespace codegen

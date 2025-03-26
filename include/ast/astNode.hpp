@@ -49,6 +49,7 @@ protected:
   std::string name;
   std::weak_ptr<CodeBody> parent;
   source::SourceRange loc;
+  std::string fullName = "";
 
 public:
   explicit Decl(std::string name,
@@ -65,6 +66,13 @@ public:
 
   virtual void setParent(std::shared_ptr<CodeBody> rawParent);
   virtual std::shared_ptr<CodeBody> asCodeBody() const { return nullptr; }
+
+  std::string getFullName() const {
+    if (fullName.empty()) {
+      return name;
+    }
+    return fullName;
+  }
 };
 
 class CodeBody : virtual public AstNode {

@@ -132,7 +132,7 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
           std::make_shared<tir::Mem>(
               std::make_shared<tir::Temp>(stringRefName), ),
           // location
-          std::make_shared<tir::Temp>(Constants::uniqueClassLabel(stringClass),
+          std::make_shared<tir::Temp>(codeGenLabels->getClassLabel(stringClass),
                                       nullptr, true)));
 
       // initialize all fields
@@ -166,7 +166,7 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       // call the constructor
       seqVec.push_back(std::make_shared<tir::Exp>(std::make_shared<tir::Call>(
           std::make_shared<tir::Name>(
-              Constants::uniqueMethodLabel(constructor), ),
+              codeGenLabels->getMethodLabel(constructor), ),
           std::make_shared<tir::Temp>(stringRefName), args)));
 
       // get chars field
@@ -213,7 +213,7 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
               std::make_shared<tir::Mem>(
                   std::make_shared<tir::Temp>(charsRefName)),
               std::make_shared<tir::Const>(4))),
-          std::make_shared<tir::Temp>(Constants::uniqueClassLabel(arrayClass),
+          std::make_shared<tir::Temp>(codeGenLabels->getClassLabel(arrayClass),
                                       nullptr, true)));
 
       // initialize the new chars array, starting at MEM[arr + 8]
@@ -551,7 +551,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
   if (methodDecl->isStatic()) {
     return tir::Call::makeExpr(
         std::make_shared<tir::Name>(
-            Constants::uniqueStaticMethodLabel(methodDecl)),
+            codeGenLabels->getStaticFieldLabel(methodDecl)),
         (methodDecl->getModifiers()->isNative())
             ? nullptr
             : std::make_shared<tir::Const>(0),
@@ -628,7 +628,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
   auto move2 = std::make_shared<tir::Move>(
       std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(obj_ref)),
       // location of dispatch vector
-      std::make_shared<tir::Temp>(Constants::uniqueClassLabel(typeClass),
+      std::make_shared<tir::Temp>(codeGenLabels->getClassLabel(typeClass),
                                   nullptr, true));
 
   std::vector<std::shared_ptr<tir::Stmt>> seq_vec = {move1, move2};
@@ -647,7 +647,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
 
   // call constructor
   seq_vec.push_back(std::make_shared<tir::Exp>(std::make_shared<tir::Call>(
-      std::make_shared<tir::Name>(Constants::uniqueMethodLabel(constructor)),
+      std::make_shared<tir::Name>(codeGenLabels->getMethodLabel(constructor)),
       std::make_shared<tir::Temp>(obj_ref), args)));
 
   return std::make_shared<tir::ESeq>(std::make_shared<tir::Seq>(seq_vec),
@@ -708,7 +708,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewArray(
           std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
               tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(array_name),
               std::make_shared<tir::Const>(4))),
-          std::make_shared<tir::Temp>(Constants::uniqueClassLabel(array_obj),
+          std::make_shared<tir::Temp>(codeGenLabels->getClassLabel(array_obj),
                                       nullptr, true)));
 
   // zero initialize array (loop)
@@ -1008,7 +1008,7 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
             std::make_shared<tir::Mem>(
                 std::make_shared<tir::Temp>(cast_result)),
             std::make_shared<tir::Temp>(
-                Constants::uniqueClassLabel(cast_result), nullptr, true));
+                codeGenLabels->getClassLabel(cast_result), nullptr, true));
 
         return std::make_shared<tir::ESeq>(
             std::make_shared<tir::Seq>({create_cast_result, add_DV}),

@@ -16,7 +16,8 @@ class Temp : public Expr {
 public:
   bool isGlobal = false; // Is a static field
 
-  Temp(std::string name, std::shared_ptr<parsetree::ast::AstNode> astNode = nullptr,
+  Temp(std::string name,
+       std::shared_ptr<parsetree::ast::AstNode> astNode = nullptr,
        bool isGlobal = false)
       : name{name}, astNode{astNode}, isGlobal{isGlobal} {}
 
