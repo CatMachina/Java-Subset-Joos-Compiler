@@ -29,7 +29,7 @@ public:
     return (prefix.empty() ? "temp" : prefix) + std::to_string(num_temps);
   }
 
-  std::string label() { return "TEMP(" + name + ")"; }
+  std::string label() const override { return "TEMP(" + name + ")"; }
 };
 
 } // namespace tir

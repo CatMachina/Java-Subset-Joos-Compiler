@@ -21,7 +21,7 @@ public:
   std::vector<std::shared_ptr<Expr>> &getArgs() { return args; };
 
   int getNumArgs() { return args.size(); };
-  std::string label() { return "CALL"; }
+  std::string label() const override { return "CALL"; }
 
   static std::shared_ptr<Expr>
   makeExpr(std::shared_ptr<Expr> target, std::shared_ptr<Expr> _this,

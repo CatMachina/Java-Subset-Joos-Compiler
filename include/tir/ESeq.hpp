@@ -18,7 +18,7 @@ public:
 
   std::shared_ptr<Stmt> &getStmt() { return stmt; }
   std::shared_ptr<Expr> &getExpr() { return expr; }
-  std::string label() { return "ESEQ"; }
+  std::string label() const override { return "ESEQ"; }
   static std::shared_ptr<Expr> makeExpr(std::shared_ptr<Stmt> stmt,
                                         std::shared_ptr<Expr> expr) {
     return std::make_unique<ESeq>(stmt, expr);

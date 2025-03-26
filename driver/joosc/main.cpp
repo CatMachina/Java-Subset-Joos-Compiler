@@ -14,16 +14,17 @@
 #include "parseTree/sourceNode.hpp"
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/astValidator.hpp"
-#include "staticCheck/envManager.hpp"
-#include "staticCheck/hierarchyCheck.hpp"
-// #include "staticCheck/nameDisambiguator.hpp"
 #include "staticCheck/cfgBuilder.hpp"
+#include "staticCheck/envManager.hpp"
 #include "staticCheck/exprResolver.hpp"
 #include "staticCheck/forwardChecker.hpp"
+#include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/liveVariableAnalysis.hpp"
 #include "staticCheck/reachabilityAnalysis.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
+
+#include "tir/TIRBuilder.hpp"
 
 #include <memory>
 
@@ -267,6 +268,10 @@ int main(int argc, char **argv) {
       }
     }
     std::cout << "Done building CFGs....\n";
+
+    // code gen
+    auto tirBuilder = std::make_shared<tir::TIRBuilder>(astManager);
+    tirBuilder->run();
 
     return retCode;
   } catch (const std::runtime_error &err) {

@@ -1,42 +1,44 @@
 #pragma once
 
 #include "tir/Expr.hpp"
-#include "tir/IRVisitor.hpp"
+// #include "tir/IRVisitor.hpp"
 #include "tir/Stmt.hpp"
-#include "tirAggregateVisitor.hpp"
+// #include "tirAggregateVisitor.hpp"
 
+#include <memory>
 #include <string>
 
 namespace tir {
 class Return : public Stmt {
 protected:
-  Expr *ret;
+  std::shared_ptr<Expr> ret;
 
 public:
-  Return(Expr *ret) { this->ret = ret; }
+  Return(std::shared_ptr<Expr> ret) { this->ret = ret; }
 
-  Expr *ret() const { return ret; }
+  std::shared_ptr<Expr> getRet() const { return ret; }
 
   std::string label() const override { return "RETURN"; }
 
-  Node *visitChildren(IRVisitor *v) override {
-    bool modified = false;
+  // Node *visitChildren(IRVisitor *v) override {
+  //   bool modified = false;
 
-    Expr *newExpr = dynamic_cast<Expr *>(v->visit(this, ret));
-    if (newExpr != ret)
-      modified = true;
-    Expr *result = newExpr;
+  //   std::shared_ptr<Expr> newExpr = dynamic_cast<std::shared_ptr<Expr>
+  //   >(v->visit(this, ret)); if (newExpr != ret)
+  //     modified = true;
+  //   std::shared_ptr<Expr> result = newExpr;
 
-    if (modified)
-      return v->nodeFactory()->IRReturn(result);
+  //   if (modified)
+  //     return v->nodeFactory()->IRReturn(result);
 
-    return this;
-  }
+  //   return this;
+  // }
 
-  template <typename T> T aggregateChildren(AggregateVisitor<T> *v) {
-    T result = v->unit();
-    result = v->bind(result, v->visit(ret));
-    return result;
-  }
-}
+  // template <typename T> T aggregateChildren(AggregateVisitor<T> *v) {
+  //   T result = v->unit();
+  //   result = v->bind(result, v->visit(ret));
+  //   return result;
+  // }
+};
+
 }; // namespace tir

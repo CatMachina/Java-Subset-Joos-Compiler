@@ -12,7 +12,9 @@ class Const : public Expr {
 public:
   Const(int64_t value) : value(value) {}
   int getValue() { return value; }
-  std::string label() { return "CONST (" + std::to_string(value) + ")"; }
+  std::string label() const override {
+    return "CONST (" + std::to_string(value) + ")";
+  }
   bool isConstant() const override { return true; }
 
   static std::shared_ptr<Expr> makeExpr(int64_t value) {

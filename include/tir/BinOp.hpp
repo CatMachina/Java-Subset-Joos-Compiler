@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include <magic_enum.hpp>
+#include "3rd_party/magic_enum.hpp"
 
 #include "Expr.hpp"
 
@@ -20,7 +20,9 @@ public:
       : op(op), left{left}, right{right} {}
   std::shared_ptr<Expr> &getLeft() { return left; }
   std::shared_ptr<Expr> &getRight() { return right; }
-  std::string label() { return std::string(magic_enum::enum_name(op)); }
+  std::string label() const override {
+    return std::string(magic_enum::enum_name(op));
+  }
 
   bool isConstant() const override {
     return left->isConstant() && right->isConstant();

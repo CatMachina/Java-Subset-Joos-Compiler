@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 
+#include "tir/FuncDecl.hpp"
 #include "tir/Node.hpp"
 
 namespace tir {
@@ -24,13 +25,16 @@ class CompUnit : public Node {
   std::vector<std::pair<std::string, std::shared_ptr<Stmt>>>
       child_canonical_static_fields;
 
+  std::vector<std::shared_ptr<Node>> nodes;
+
 public:
-  CompUnit(std::string name) : name(name) {}
+  CompUnit(std::string name, std::vector<std::shared_ptr<Node>> nodes)
+      : name(name), nodes(nodes) {}
 
   std::vector<std::shared_ptr<Stmt>> start_statements;
 
   // Getters
-  std::shared_ptr<FuncDecl> getFunc(std::string name) const {
+  std::shared_ptr<FuncDecl> getFunc(std::string name) {
     if (functions.find(name) == functions.end()) {
       throw std::runtime_error("Could not find function with name " + name +
                                " in the IR.");
@@ -49,11 +53,11 @@ public:
   }
   std::string label() const override { return "COMPUNIT (" + class_name + ")"; }
 
-  std::vector<std::shared_ptr<FuncDecl>> &getFunctionList() const {
+  std::vector<std::shared_ptr<FuncDecl>> getFunctionList() const {
     return child_functions;
   }
 
-  std::vector<std::pair<std::string, std::shared_ptr<Expr>>> &
+  std::vector<std::pair<std::string, std::shared_ptr<Expr>>>
   getFieldList() const {
     if (staticFieldsCanonicalized)
       throw std::runtime_error(
@@ -61,7 +65,7 @@ public:
     return child_static_fields;
   }
 
-  std::vector<std::pair<std::string, std::shared_ptr<Stmt>>> &
+  std::vector<std::pair<std::string, std::shared_ptr<Stmt>>>
   getCanonFieldList() const {
     if (!staticFieldsCanonicalized)
       throw std::runtime_error(
@@ -78,12 +82,12 @@ public:
 
   void appendFunc(std::string name, std::shared_ptr<FuncDecl> func) {
     child_functions.push_back(func);
-    functions[name] = child_functions.back().get();
+    functions[name] = child_functions.back();
   }
 
   void appendField(std::string name, std::shared_ptr<Expr> value) {
     child_static_fields.push_back(std::make_pair(name, value));
-    static_fields[name] = child_static_fields.back().second.get();
+    static_fields[name] = child_static_fields.back().second;
   }
 
   void appendStartStmt(std::shared_ptr<Stmt> stmt) {
