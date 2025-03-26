@@ -2,6 +2,43 @@
 
 namespace codegen {
 
+// Taken from HierarchyCheck
+static bool isClass(std::shared_ptr<parsetree::ast::AstNode> decl) {
+  return !!std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl);
+}
+
+static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
+                         std::shared_ptr<parsetree::ast::AstNode> child) const {
+  if (!child || !super) {
+    return false;
+  }
+  if (!isClass(child)) {
+    return false;
+  }
+  if (!isClass(super)) {
+    return false;
+  }
+  auto childDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(child);
+  auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
+
+  for (auto &superClass : childDecl->getSuperClasses()) {
+    if (!superClass || !superClass->getResolvedDecl() ||
+        !superClass->getResolvedDecl())
+      continue;
+    // Cast to class
+    auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+        superClass->getResolvedDecl()->getAstNode());
+
+    if (superClassDecl == superDecl)
+      return true;
+
+    if (isSuperClass(super, std::dynamic_pointer_cast<parsetree::ast::AstNode>(
+                                superClassDecl)))
+      return true;
+  }
+  return false;
+}
+
 std::shared_ptr<tir::Expr>
 mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
   /*
@@ -48,7 +85,6 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
     } else if (value->getLiteralType() ==
                parsetree::ast::Literal::Type::String) {
 
-      // TODO!
       /*
       essentially doing:
       String s = new String();
@@ -77,93 +113,131 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
 
       // get the string value
       auto val = value->getAsString();
+      std::vector<tir::Stmt> seqVec;
 
-      // constants
-      auto zero = std::make_shared<tir::Const>(0);
-      auto four = std::make_shared<tir::Const>(4);
-      auto eight = std::make_shared<tir::Const>(8);
+      auto stringClass = astManager->java_lang.String;
+      int numFields = stringClass->getFields().size();
 
-      // temps
-      auto t1 = std::make_shared<tir::Temp>("t1");
-      auto t2 = std::make_shared<tir::Temp>("t2");
+      // create string reference
+      std::string stringRefName = tir::Temp::generateName("string_ref");
 
-      // t1 = malloc(12)
-      auto mallocString =
-          tir::Call::makeMalloc(std::make_shared<tir::Const>(12));
-      auto moveT1 = std::make_shared<tir::Move>(t1, mallocString);
+      // allocate space for class
+      seqVec.push_back(std::make_shared<tir::Move>(
+          std::make_shared<tir::Temp>(stringRefName),
+          tir::Call::makeMalloc(
+              std::make_shared<tir::Const>((numFields + 1) * 4))));
 
-      // Mem[t1] = @DV_String
-      auto dvString =
-          std::make_shared<tir::Name>("@DV_String", /* isGlobal */ true);
-      auto memT1 = std::make_shared<tir::Mem>(t1);
-      auto moveDvString = std::make_shared<tir::Move>(memT1, dvString);
+      // first location is DV
+      seqVec.push_back(std::make_shared<tir::Move>(
+          std::make_shared<tir::Mem>(
+              std::make_shared<tir::Temp>(stringRefName), ),
+          // location
+          std::make_shared<tir::Temp>(Constants::uniqueClassLabel(stringClass),
+                                      nullptr, true)));
 
-      // Mem[t1 + 4] = 0
-      auto t1Plus4 = std::make_shared<tir::BinOp>(ADD, t1, four);
-      auto memT1Plus4 = std::make_shared<tir::Mem>(t1Plus4);
-      auto moveMemT1Plus4 = std::make_shared<tir::Move>(memT1Plus4, zero);
-
-      // Mem[t1 + 8] = 0
-      auto t1Plus8 = std::make_shared<tir::BinOp>(ADD, t1, eight);
-      auto memT1Plus8 = std::make_shared<tir::Mem>(t1Plus8);
-      auto moveMemT1Plus8 = std::make_shared<tir::Move>(memT1Plus8, zero);
-
-      // CALL @String::<init>(), this = t1
-      auto init =
-          std::make_shared<tir::Name>("@String::<init>", /* isGlobal */ true);
-      std::vector<std::shared_ptr<tir::Expr>> args = {t1};
-      auto call = std::make_shared<tir::Call>(init, args);
-      auto callStmt = std::make_shared<tir::Exp>(call);
-
-      // t2 = t1 + 8
-      auto moveT2 = std::make_shared<tir::Move>(t2, t1Plus8);
-
-      // allocate char array
-      // Mem[t2] = malloc(28)
-      auto mallocCharArray = tir::Call::makeMalloc(
-          std::make_shared<tir::Const>(8 + 4 * val.size()));
-      auto memT2 = std::make_shared<tir::Mem>(t2);
-      auto moveMemT2 = std::make_shared<tir::Move>(memT2, mallocCharArray);
-
-      // char array length
-      // Mem[Mem[t2]]     = 5
-      auto memMemT2 = std::make_shared<tir::Mem>(memT2);
-      auto moveLength = std::make_shared<tir::Move>(
-          memMemT2, std::make_shared<tir::Const>(val.size()));
-
-      // Mem[Mem[t2] + 4] = @DV_Array
-      auto dvArray =
-          std::make_shared<tir::Name>("@DV_Array", /* isGlobal */ true);
-      auto memT2Plus4 =
-          std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD, memT2, four);
-      auto moveDvArray = std::make_shared<tir::Move>(memT2Plus4, dvArray);
-
-      // individual characters, for example:
-      // Mem[Mem[t2] + 8]  = 104  // 'h'
-      // Mem[Mem[t2] + 12] = 101  // 'e'
-      // Mem[Mem[t2] + 16] = 108  // 'l'
-      // Mem[Mem[t2] + 20] = 108  // 'l'
-      // Mem[Mem[t2] + 24] = 111  // 'o'
-      std::vector<std::shared_ptr<tir::Stmt>> moveChars;
-      auto addr = memT2Plus4;
-      for (const char c : val) {
-        addr =
-            std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD, addr, four);
-        auto memAddr = std::make_shared<tir::Mem>(addr);
-        auto moveChar =
-            std::make_shared<tir::Move>(addr, std::make_shared<tir::Const>(c));
-        moveChars.push_back(moveChar);
+      // initialize all fields
+      // TODO: should we actually initialize them or placeholder 0 is fine
+      int count = 0;
+      for (auto &field : stringClass->getFields()) {
+        seqVec.push_back(std::make_shared<tir::Move>(
+            std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+                tir::BinOp::OpType::ADD,
+                std::make_shared<tir::Temp>(stringRefName),
+                std::make_shared<tir::Const>((count + 1) * 4))),
+            std::make_shared<tir::Const>(0)));
+        count++;
       }
 
-      std::vector<std::shared_ptr<tir::Stmt>> stmts = {
-          moveT1, moveDvString, moveMemT1Plus4, moveMemT1Plus8, callStmt,
-          moveT2, moveMemT2,    moveLength,     moveDvArray};
+      // arg vector
+      std::vector<std::shared_ptr<tir::Expr>> args;
 
-      stmts.insert(stmts.end(), moveChars.begin(), moveChars.end());
+      // find the zero arg constructor for string
+      auto constructor = nullptr;
+      for (auto &method : stringClass->getConstructors()) {
+        if (method->getArgs().size() == 0) {
+          constructor = method;
+          break;
+        }
+      }
+      if (constructor == nullptr) {
+        throw std::runtime_error("No zero arg constructor for String found");
+      }
 
-      auto seq = std::make_shared<tir::Seq>(stmts);
+      // call the constructor
+      seqVec.push_back(std::make_shared<tir::Exp>(std::make_shared<tir::Call>(
+          std::make_shared<tir::Name>(
+              Constants::uniqueMethodLabel(constructor), ),
+          std::make_shared<tir::Temp>(stringRefName), args)));
 
-      return std::maked_shared<tir::ESeq>(seq, t1);
+      // get chars field
+      std::shared_ptr<parsetree::ast::FieldDecl> charsField = nullptr;
+      int charsFieldIndex = 0;
+      for (auto &field : stringClass->getFields()) {
+        if (field->getName() == "chars") {
+          charsField = field;
+          break;
+        }
+        charsFieldIndex++;
+      }
+      if (charsField == nullptr) {
+        throw std::runtime_error("Chars field not found in String class");
+      }
+
+      // create chars ref
+      std::string charsRefName = tir::Temp::generateName("chars_ref");
+
+      // move mem location of chars to chars ref
+      seqVec.push_back(std::make_shared<tir::Move>(
+          std::make_shared<tir::Temp>(charsRefName),
+          std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD,
+              std::make_shared<tir::Temp>(stringRefName),
+              std::make_shared<tir::Const>(charsFieldIndex * 4))));
+
+      // resize the chars field to 4 * sizeof(value) + 8
+      seqVec.push_back(std::make_shared<tir::Move>(
+          std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(charsRefName)),
+          std::make_shared<tir::Const>(4 * val.length() + 8)));
+
+      // write size
+      seqVec.push_back(std::make_shared<tir::Move>(
+          std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(charsRefName)),
+          std::make_shared<tir::Const>(val.size())));
+
+      // attach array DV
+      auto arrayClass = astManager->java_lang.Array;
+      seqVec.push_back(std::make_shared<tir::Move>(
+          // MEM(arr + 4) = DV for arrays
+          std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD,
+              std::make_shared<tir::Mem>(
+                  std::make_shared<tir::Temp>(charsRefName)),
+              std::make_shared<tir::Const>(4))),
+          std::make_shared<tir::Temp>(Constants::uniqueClassLabel(arrayClass),
+                                      nullptr, true)));
+
+      // initialize the new chars array, starting at MEM[arr + 8]
+      for (int i = 0; i < val.length(); i++) {
+        char c = val[i];
+        seqVec.push_back(std::make_shared<tir::Move>(
+            std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+                tir::BinOp::OpType::ADD,
+                std::make_shared<tir::Mem>(
+                    std::make_shared<tir::Temp>(charsRefName)),
+                std::make_shared<tir::Const>(8 + i * 4))),
+            std::make_shared<tir::Const>(c)));
+      }
+      seqVec.push_back(std::make_shared<tir::Move>(
+          std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(charsRefName)),
+          std::make_shared<tir::BinOp>(
+              tir::BinOp::OpType::ADD,
+              std::make_shared<tir::Mem>(
+                  std::make_shared<tir::Temp>(charsRefName)),
+              std::make_shared<tir::Const>(4))));
+
+      return std::make_shared<tir::ESeq>(
+          std::make_shared<tir::Seq>(seqVec),
+          std::make_shared<tir::Temp>(stringRefName));
 
     } else if (value->getLiteralType() == parsetree::ast::Literal::Type::Null) {
       return std::make_shared<tir::Const>(0);
@@ -811,8 +885,143 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
     throw std::runtime_error("Invalid cast, type is not a TypeNode");
   }
 
-  // TODO:
   // if rhs is literal check promotion or narrowing
+  if (op->hasRhsLiteral()) {
+    auto literal = op->getRhsLiteral();
+    auto resultType = op->getResultType();
+    if (!resultType) {
+      throw std::runtime_error("Invalid cast, result type is not resolved");
+    }
+
+    const int16_t short_cast = 0xFFFF;
+    const uint16_t char_cast = 0xFFFF;
+    const int8_t byte_cast = 0xFF;
+
+    // cast result type is basic type
+    if (auto basicType =
+            std::dynamic_pointer_cast<parsetree::ast::BasicType>(resultType)) {
+      switch (literal->getType()) {
+
+        // cast from int to numeric type
+      case parsetree::ast::Literal::Type::Integer: {
+        if (!(basicType->isNumeric()))
+          throw std::runtime_error(
+              "Invalid cast from integer to non numeric type");
+        auto literal_val = literal->getAsInt();
+        switch (basicType->getType()) {
+        case parsetree::ast::BasicType::Type::Int:
+          return std::make_shared<tir::Const>(literal_val);
+        case parsetree::ast::BasicType::Type::Short:
+          return std::make_shared<tir::Const>((int16_t)literal_val &
+                                              short_cast);
+        case parsetree::ast::BasicType::Type::Byte:
+          return std::make_shared<tir::Const>((int8_t)literal_val & byte_cast);
+        case parsetree::ast::BasicType::Type::Char:
+          return std::make_shared<tir::Const>((uint16_t)literal_val &
+                                              char_cast);
+        default:
+          throw std::runtime_error(
+              "Invalid cast from integer to non numeric type");
+        }
+      }
+
+      // cast from char to numeric type
+      case parsetree::ast::Literal::Type::Character: {
+        if (!(basicType->isNumeric()))
+          throw std::runtime_error(
+              "Invalid cast from char to non numeric type");
+        auto literal_val = literal->getAsInt();
+        switch (basicType->getType()) {
+        case parsetree::ast::BasicType::Type::Short:
+          return std::make_shared<tir::Const>((int16_t)literal_val &
+                                              short_cast);
+        case parsetree::ast::BasicType::Type::Byte:
+          return std::make_shared<tir::Const>((int8_t)literal_val & byte_cast);
+
+        case parsetree::ast::BasicType::Type::Int:
+        case parsetree::ast::BasicType::Type::Char:
+          return std::make_shared<tir::Const>(literal_val);
+        default:
+          throw std::runtime_error(
+              "Invalid cast from char to non numeric type");
+        }
+      }
+
+      // cast from string to basic type, error!
+      case parsetree::ast::Literal::Type::String:
+        throw std::runtime_error("Invalid cast from string to basic type");
+
+      // if source bool, we can only cast to bool
+      case parsetree::ast::Literal::Type::Boolean: {
+        if (!(basicType->isBoolean()))
+          throw std::runtime_error(
+              "Invalid cast from boolean to non boolean type");
+        auto literal_val = literal->getAsInt();
+        if (literal_val != 0 && literal_val != 1) {
+          throw std::runtime_error(
+              "Invalid cast with wrong boolean literal value");
+        }
+        return std::make_shared<tir::Const>(literal_val);
+      }
+
+      // if source null, we can only cast to null
+      case parsetree::ast::Literal::Type::Null: {
+        if (!(basicType->isNull()))
+          throw std::runtime_error("Invalid cast from null to non null type");
+        return std::make_shared<tir::Const>(0);
+      }
+      }
+    }
+    // cast result type is not basic type and src type is string
+    else if (literal->getType() == parsetree::ast::Literal::Type::String) {
+      auto typeRef = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+          typeNode->getType());
+      if (!typeRef) {
+        throw std::runtime_error(
+            "Invalid cast from string to non reference type");
+      }
+      if (!typeRef->isResolved()) {
+        throw std::runtime_error("Invalid cast to non resolved reference type");
+      }
+      auto resultClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+          typeRef->getResolvedDecl()->getAstNode());
+      if (!resultClass) {
+        throw std::runtime_error(
+            "Invalid cast to reference type not resolved to class");
+      }
+
+      auto sourceClass = astManager->java_lang.String;
+
+      if (sourceClass == resultClass) {
+        // do nothing
+        return value;
+      } else if (isSuperClass(resultClass, sourceClass)) {
+        // upcasting
+
+        // create cast result
+        std::string cast_result = tir::Temp::generateName("cast_result");
+        auto create_cast_result = std::make_shared<tir::Move>(
+            std::make_shared<tir::Temp>(cast_result), value);
+
+        // change the DV
+        auto add_DV = std::make_shared<tir::Move>(
+            std::make_shared<tir::Mem>(
+                std::make_shared<tir::Temp>(cast_result)),
+            std::make_shared<tir::Temp>(
+                Constants::uniqueClassLabel(cast_result), nullptr, true));
+
+        return std::make_shared<tir::ESeq>(
+            std::make_shared<tir::Seq>({create_cast_result, add_DV}),
+            std::make_shared<tir::Temp>(cast_result));
+      }
+    }
+    // target not basic type and src is null
+    else if (literal->getType() == parsetree::ast::Literal::Type::Null) {
+      return std::make_shared<tir::Const>(0);
+    }
+
+    throw std::runtime_error("Invalid cast");
+  }
 
   return value;
 }
@@ -820,6 +1029,44 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
 std::shared_ptr<tir::Expr>
 ExprIRConverter::evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
                                 const std::shared_ptr<tir::Expr> lhs,
-                                const std::shared_ptr<tir::Expr> rhs) {}
+                                const std::shared_ptr<tir::Expr> rhs) {
+  if (std::dynamic_pointer_cast<tir::TempTIR>(lhs) ||
+      std::dynamic_pointer_cast<tir::TempTIR>(rhs)) {
+    throw std::runtime_error(
+        "Invalid assignment, lhs or rhs should not be TempTIR");
+  }
+
+  std::vector<std::shared_ptr<tir::Stmt>> seq_vec;
+  std::shared_ptr<tir::Expr> dest = lhs;
+
+  // lhs either Temp or Mem, and handle ESeq if needed
+  if (auto lhsESeq = std::dynamic_pointer_cast<tir::ESeq>(lhs)) {
+
+    // replace lhs with ESeq expr
+    if (auto lhsSeq = std::dynamic_pointer_cast<tir::Seq>(lhsESeq->getStmt())) {
+      for (auto stmt : lhsSeq->getStmts()) {
+        seq_vec.push_back(stmt);
+      }
+    } else {
+      throw std::runtime_error("Invalid assignment, ESeq not composed of Seq");
+    }
+    dest = lhsESeq->getExpr();
+
+  } else if (!(std::dynamic_pointer_cast<tir::Temp>(lhs) ||
+               std::dynamic_pointer_cast<tir::Mem>(lhs))) {
+    throw std::runtime_error(
+        "Invalid assignment, lhs should be Temp or Mem or ESeq");
+  }
+
+  auto assign_src = tir::Temp::generateName("assign_src");
+  seq_vec.push_back(std::make_shared<tir::Move>(
+      std::make_shared<tir::Temp>(assign_src), rhs));
+
+  seq_vec.push_back(std::make_shared<tir::Move>(
+      dest, std::make_shared<tir::Temp>(assign_src)));
+
+  return std::make_shared<tir::ESeq>(std::make_shared<tir::Seq>(seq_vec),
+                                     std::make_shared<tir::Temp>(assign_src));
+}
 
 } // namespace codegen

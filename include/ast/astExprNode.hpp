@@ -452,12 +452,18 @@ public:
 };
 
 class Cast : public ExprOp {
+  std::shared_ptr<Literal> rhsLiteral = nullptr;
+
 public:
   Cast() : ExprOp(2) {}
 
+  bool hasRhsLiteral() const { return rhsLiteral != nullptr; }
+  void setRhsLiteral(std::shared_ptr<Literal> literal) { rhsLiteral = literal; }
+  std::shared_ptr<Literal> getRhsLiteral() const { return rhsLiteral; }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Cast)\n";
+    os << "(Cast, rhs is literal?: " << hasRhsLiteral() << ")\n";
     return os;
   }
 };
