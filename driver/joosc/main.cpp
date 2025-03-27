@@ -25,7 +25,7 @@
 #include "staticCheck/typeResolver.hpp"
 
 #include "codeGen/astVisitor.hpp"
-#include "codeGen/codeGenLables.hpp"
+#include "codeGen/codeGenLabels.hpp"
 #include "tir/TIRBuilder.hpp"
 
 #include <memory>
