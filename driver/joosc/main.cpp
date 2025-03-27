@@ -14,16 +14,19 @@
 #include "parseTree/sourceNode.hpp"
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/astValidator.hpp"
-#include "staticCheck/envManager.hpp"
-#include "staticCheck/hierarchyCheck.hpp"
-// #include "staticCheck/nameDisambiguator.hpp"
 #include "staticCheck/cfgBuilder.hpp"
+#include "staticCheck/envManager.hpp"
 #include "staticCheck/exprResolver.hpp"
 #include "staticCheck/forwardChecker.hpp"
+#include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/liveVariableAnalysis.hpp"
 #include "staticCheck/reachabilityAnalysis.hpp"
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
+
+#include "codeGen/astVisitor.hpp"
+#include "codeGen/codeGenLabels.hpp"
+#include "tir/TIRBuilder.hpp"
 
 #include <memory>
 
@@ -232,13 +235,13 @@ int main(int argc, char **argv) {
       for (auto decl : ast->getBody()->getDecls()) {
         if (auto method =
                 std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl)) {
-          std::cout << "=== Start building CFG for method " << method->getName()
-                    << " ===" << std::endl;
+          // std::cout << "=== Start building CFG for method " << method->getName()
+          //           << " ===" << std::endl;
           std::shared_ptr<CFG> cfg = cfgBuilder->buildCFG(method);
-          std::cout << "=== Done building CFG for method " << method->getName()
-                    << " ===" << std::endl;
+          // std::cout << "=== Done building CFG for method " << method->getName()
+          //           << " ===" << std::endl;
           if (cfg) {
-            cfg->print(std::cout);
+            // cfg->print(std::cout);
             if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
                     cfg)) {
               std::cerr << "Method " << method->getName()
@@ -267,6 +270,15 @@ int main(int argc, char **argv) {
       }
     }
     std::cout << "Done building CFGs....\n";
+
+    // code gen
+    auto tirBuilder = std::make_shared<tir::TIRBuilder>(astManager);
+    tirBuilder->run();
+    tirBuilder->print(std::cout);
+    // auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
+    // auto astVisitor =
+    //     std::make_shared<codegen::ASTVisitor>(astManager, codeGenLabels);
+    // astVisitor->visit();
 
     return retCode;
   } catch (const std::runtime_error &err) {
