@@ -49,6 +49,9 @@ TIRBuilder::buildStmt(std::shared_ptr<parsetree::ast::Stmt> node) {
   } else if (auto declStmt =
                  std::dynamic_pointer_cast<parsetree::ast::DeclStmt>(node)) {
     irStmt = buildDeclStmt(declStmt);
+  } else if (auto nullStmt =
+                 std::dynamic_pointer_cast<parsetree::ast::NullStmt>(node)) {
+    irStmt = nullptr;
   } else {
     throw std::runtime_error("TIRBuilder::buildStmt: not an AST Stmt");
   }
