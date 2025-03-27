@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
           std::cout << "=== Done building CFG for method " << method->getName()
                     << " ===" << std::endl;
           if (cfg) {
-            cfg->print(std::cout);
+            // cfg->print(std::cout);
             if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
                     cfg)) {
               std::cerr << "Method " << method->getName()

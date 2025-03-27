@@ -32,8 +32,14 @@ public:
       exprConverter->setCurrentClass(classDecl);
     } else if (auto expr =
                    std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
+
+      std::cout << "********************" << std::endl;
+      std::cout << "Expr: " << std::endl;
+      expr->print(std::cout);
       std::shared_ptr<tir::Expr> tirExpr =
           exprConverter->evaluateList(expr->getExprNodes());
+
+      std::cout << "Expr IR: " << std::endl;
       tirExpr->print(std::cout);
     }
     for (const auto &child : node->getChildren()) {

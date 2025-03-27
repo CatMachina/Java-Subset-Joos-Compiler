@@ -19,7 +19,13 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    return os << "(!!! TempTIR " << magic_enum::enum_name(type) << ")\n";
+    os << "(!!! TempTIR" << std::endl;
+    printIndent(os, indent + 1);
+    os << magic_enum::enum_name(type) << std::endl;
+    astNode->print(std::cout, indent + 1);
+    printIndent(os, indent);
+    os << "!!!)\n";
+    return os;
   }
 
   Type type;

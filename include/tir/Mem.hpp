@@ -3,23 +3,25 @@
 #include <memory>
 #include <string>
 
+#include "ast/ast.hpp"
 #include "tir/Expr.hpp"
 
 namespace tir {
 
 class Mem : public Expr {
   std::shared_ptr<Expr> address;
+  std::shared_ptr<parsetree::ast::FieldDecl> field;
 
 public:
-  Mem(std::shared_ptr<Expr> address) : address{address} {}
+  Mem(std::shared_ptr<Expr> address,
+      std::shared_ptr<parsetree::ast::FieldDecl> field = nullptr)
+      : address{address}, field{field} {}
 
   std::shared_ptr<Expr> &getAddress() { return address; }
 
   std::string label() const override { return "MEM"; }
 
-  static std::shared_ptr<Expr> makeExpr(std::shared_ptr<Expr> address) {
-    return std::make_shared<Mem>(address);
-  }
+  std::shared_ptr<parsetree::ast::FieldDecl> getField() const { return field; }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

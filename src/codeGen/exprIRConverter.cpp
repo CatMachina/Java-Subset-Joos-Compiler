@@ -41,6 +41,8 @@ static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
 
 std::shared_ptr<tir::Expr>
 ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
+  // std::cout << "mapValue: " << std::endl;
+  // value->print(std::cout);
   /*
   MemberName, MethodName
   TypeNode
@@ -273,11 +275,13 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
         if (offset == -1)
           throw std::runtime_error("cannot find field " + fieldDecl->getName() +
                                    " in current class");
-        return std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
-            tir::BinOp::OpType::ADD,
-            std::make_shared<tir::Temp>("this", currentClass),
-            std::make_shared<tir::Const>(4 * (offset + 1)) // +1 for header
-            ));
+        return std::make_shared<tir::Mem>(
+            std::make_shared<tir::BinOp>(
+                tir::BinOp::OpType::ADD,
+                std::make_shared<tir::Temp>("this", currentClass),
+                std::make_shared<tir::Const>(4 * (offset + 1)) // +1 for header
+                ),
+            fieldDecl);
       }
       // obj.field
       // left for field access to handle
@@ -293,6 +297,8 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
                            const std::shared_ptr<tir::Expr> lhs,
                            const std::shared_ptr<tir::Expr> rhs) {
 
+  // std::cout << "evalBinOp: " << std::endl;
+  // op->print(std::cout);
   if (!lhs || !rhs)
     throw std::runtime_error("BinOp operands are null");
 
@@ -449,6 +455,8 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     const std::shared_ptr<tir::Expr> lhs,
     const std::shared_ptr<tir::Expr> field) {
 
+  // std::cout << "evalFieldAccess: " << std::endl;
+  // op->print(std::cout);
   if (!(op->getResultType())) {
     throw std::runtime_error(
         "Invalid field access, field type is not resolved");
@@ -456,19 +464,44 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
 
   auto fieldType = op->getResultType();
 
-  if (!std::dynamic_pointer_cast<tir::TempTIR>(field)) {
-    throw std::runtime_error("Invalid field access, field is not a TempTIR");
-  }
-  auto fieldTIR = std::dynamic_pointer_cast<tir::TempTIR>(field);
-  if (fieldTIR->type != tir::TempTIR::Type::FieldAccess) {
-    throw std::runtime_error(
-        "Invalid field access, field is not a field access");
-  }
+  std::shared_ptr<parsetree::ast::FieldDecl> fieldDecl = nullptr;
 
-  auto fieldDecl =
-      std::dynamic_pointer_cast<parsetree::ast::VarDecl>(fieldTIR->astNode);
-  if (!fieldDecl) {
-    throw std::runtime_error("Invalid field access, field is not a VarDecl");
+  if (std::dynamic_pointer_cast<tir::TempTIR>(field)) {
+
+    auto fieldTIR = std::dynamic_pointer_cast<tir::TempTIR>(field);
+    if (fieldTIR->type == tir::TempTIR::Type::MethodName) {
+      // special case: field is method, defer
+      return fieldTIR;
+    }
+    if (fieldTIR->type != tir::TempTIR::Type::FieldAccess) {
+      throw std::runtime_error(
+          "Invalid field access, field is not a field access");
+    }
+
+    auto fieldMember = std::dynamic_pointer_cast<parsetree::ast::MemberName>(
+        fieldTIR->astNode);
+    if (!fieldMember) {
+      throw std::runtime_error(
+          "Invalid field access, field is not a MemberName");
+    }
+
+    fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(
+        fieldMember->getResolvedDecl());
+    if (!fieldDecl) {
+      throw std::runtime_error(
+          "Invalid field access, field is not a FieldDecl");
+    }
+  } else if (auto memIR = std::dynamic_pointer_cast<tir::Mem>(field)) {
+
+    // this.field
+    fieldDecl = memIR->getField();
+    if (!fieldDecl) {
+      throw std::runtime_error(
+          "Invalid field access, field mem is not a FieldDecl");
+    }
+  } else {
+    throw std::runtime_error(
+        "Invalid field access, field is not a TempTIR or Mem");
   }
 
   // Special case: array length field
@@ -477,6 +510,9 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     if (field->getName() == "length") {
       lengthDecl = field;
     }
+  }
+  if (!lengthDecl) {
+    throw std::runtime_error("Cannot find array length field");
   }
   if (fieldDecl == lengthDecl) {
     // Get array
@@ -523,19 +559,14 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     }
 
     // Instance field access
-    auto fieldRefType =
-        std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(fieldType);
-    if (fieldRefType && !fieldRefType->isResolved())
-      throw std::runtime_error(
-          "Invalid field access, field ref type is not resolved");
+    auto classDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+        fieldDecl->getParent());
 
-    if (fieldRefType && fieldRefType->isResolved() &&
-        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-            fieldRefType->getResolvedDecl()->getAstNode())) {
+    if (classDecl) {
       return std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
           tir::BinOp::OpType::ADD, lhs,
           std::make_shared<tir::Const>(
-              4 * (currentClass->getFieldOffset(castedFieldDecl) + 1))));
+              4 * (classDecl->getFieldOffset(castedFieldDecl) + 1))));
     }
   }
 
@@ -546,6 +577,9 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
     std::shared_ptr<parsetree::ast::MethodInvocation> &op,
     const std::shared_ptr<tir::Expr> method,
     const std::vector<std::shared_ptr<tir::Expr>> &args) {
+
+  // std::cout << "evalMethodInvocation: " << std::endl;
+  // op->print(std::cout);
   if (!std::dynamic_pointer_cast<tir::TempTIR>(method)) {
     throw std::runtime_error(
         "Invalid method invocation, method is not a TempTIR");
@@ -556,8 +590,15 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
         "Invalid method invocation, method is not a method name");
   }
 
-  auto methodDecl =
-      std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(methodTIR->astNode);
+  auto methodName =
+      std::dynamic_pointer_cast<parsetree::ast::MethodName>(methodTIR->astNode);
+  if (!methodName) {
+    throw std::runtime_error(
+        "Invalid method invocation, method is not a method name");
+  }
+
+  auto methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+      methodName->getResolvedDecl());
   if (!methodDecl) {
     throw std::runtime_error(
         "Invalid method invocation, method is not a method decl");
@@ -596,6 +637,9 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
     std::shared_ptr<parsetree::ast::ClassCreation> &op,
     const std::shared_ptr<tir::Expr> object,
     const std::vector<std::shared_ptr<tir::Expr>> &args) {
+
+  // std::cout << "evalNewObject: " << std::endl;
+  // op->print(std::cout);
   if (!std::dynamic_pointer_cast<tir::TempTIR>(object)) {
     throw std::runtime_error("Invalid new object, object is not a TempTIR");
   }
@@ -682,6 +726,9 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewArray(
     std::shared_ptr<parsetree::ast::ArrayCreation> &op,
     const std::shared_ptr<tir::Expr> type,
     const std::shared_ptr<tir::Expr> size) {
+
+  // std::cout << "evalNewArray: " << std::endl;
+  // op->print(std::cout);
   auto array_obj = astManager->java_lang.Array;
 
   // get inner expression
@@ -816,6 +863,9 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalArrayAccess(
     std::shared_ptr<parsetree::ast::ArrayAccess> &op,
     const std::shared_ptr<tir::Expr> array,
     const std::shared_ptr<tir::Expr> index) {
+
+  // std::cout << "evalArrayAccess: " << std::endl;
+  // op->print(std::cout);
   /*
   Temp array
   CJump(NEQ(array, 0), not_null, error)
@@ -896,6 +946,9 @@ std::shared_ptr<tir::Expr>
 ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
                           const std::shared_ptr<tir::Expr> type,
                           const std::shared_ptr<tir::Expr> value) {
+
+  // std::cout << "evalCast: " << std::endl;
+  // op->print(std::cout);
   if (!std::dynamic_pointer_cast<tir::TempTIR>(type)) {
     throw std::runtime_error("Invalid cast, type is not a TempTIR");
   }
@@ -1056,6 +1109,9 @@ std::shared_ptr<tir::Expr>
 ExprIRConverter::evalAssignment(std::shared_ptr<parsetree::ast::Assignment> &op,
                                 const std::shared_ptr<tir::Expr> lhs,
                                 const std::shared_ptr<tir::Expr> rhs) {
+
+  // std::cout << "evalAssignment: " << std::endl;
+  // op->print(std::cout);
   if (std::dynamic_pointer_cast<tir::TempTIR>(lhs) ||
       std::dynamic_pointer_cast<tir::TempTIR>(rhs)) {
     throw std::runtime_error(
