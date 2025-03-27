@@ -80,7 +80,7 @@ public:
   void setEndNode(std::shared_ptr<CFGNode> endNode) { this->endNode = endNode; }
 
   void addNode(std::shared_ptr<CFGNode> node) {
-    // std::cout << "Adding node " << node->getId() << std::endl;
+    std::cout << "Adding node " << node->getId() << std::endl;
     nodes.insert({node->getId(), node});
   }
 

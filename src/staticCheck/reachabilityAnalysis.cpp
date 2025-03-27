@@ -35,7 +35,7 @@ bool ReachabilityAnalysis::checkUnreachableStatements(
     if (!node->getReachabilityAnalysisInfo()->out())
       continue;
 
-    // std::cout << "Neighbours\n";
+    std::cout << "Neighbours\n";
     // Otherwise, compute reachability for successors
     for (auto successor : node->getSuccessors()) {
       if (!successor->getReachabilityAnalysisInfo()->in()) {

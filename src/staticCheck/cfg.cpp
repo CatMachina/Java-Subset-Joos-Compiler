@@ -2,15 +2,15 @@
 
 void CFG::addEdge(std::shared_ptr<CFGNode> src, std::shared_ptr<CFGNode> dst) {
   if (!src) {
-    // std::cout << "addEdge: src is null" << std::endl;
+    std::cout << "addEdge: src is null" << std::endl;
     return;
   }
   if (!dst) {
-    // std::cout << "addEdge: dst is null" << std::endl;
+    std::cout << "addEdge: dst is null" << std::endl;
     return;
   }
-  // std::cout << "Adding edge from node " << src->getId() << " to node "
-  // << dst->getId() << std::endl;
+  std::cout << "Adding edge from node " << src->getId() << " to node "
+            << dst->getId() << std::endl;
   src->addSuccessor(dst);
   dst->addPredecessor(src);
 }
