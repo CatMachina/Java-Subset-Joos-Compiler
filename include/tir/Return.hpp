@@ -22,7 +22,7 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Return \n";
+    os << "(Return\n";
     ret->print(os, indent + 1);
     printIndent(os, indent);
     os << ")\n";

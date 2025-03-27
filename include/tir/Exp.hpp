@@ -18,7 +18,7 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Exp \n";
+    os << "(Exp\n";
     expr->print(os, indent + 1);
     printIndent(os, indent);
     os << ")\n";

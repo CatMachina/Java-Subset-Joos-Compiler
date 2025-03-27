@@ -24,12 +24,12 @@ std::ostream &BinOp::print(std::ostream &os, int indent) const {
   printIndent(os, indent);
   os << "(BinOp " << magic_enum::enum_name(op) << "\n";
   printIndent(os, indent + 1);
-  os << "lhs: { \n";
+  os << "lhs: {\n";
   left->print(os, indent + 2);
   printIndent(os, indent + 1);
   os << "}\n";
   printIndent(os, indent + 1);
-  os << "rhs: { \n";
+  os << "rhs: {\n";
   right->print(os, indent + 2);
   printIndent(os, indent + 1);
   os << "}\n";
@@ -40,14 +40,14 @@ std::ostream &BinOp::print(std::ostream &os, int indent) const {
 
 std::ostream &Call::print(std::ostream &os, int indent) const {
   printIndent(os, indent);
-  os << "(Call \n";
+  os << "(Call\n";
   printIndent(os, indent + 1);
-  os << "target: { \n";
+  os << "target: {\n";
   target->print(os, indent + 2);
   printIndent(os, indent + 1);
   os << "}\n";
   printIndent(os, indent + 1);
-  os << "arg: { \n";
+  os << "arg: {\n";
   for (auto &arg : args) {
     arg->print(os, indent + 2);
   }
@@ -60,9 +60,9 @@ std::ostream &Call::print(std::ostream &os, int indent) const {
 
 std::ostream &CJump::print(std::ostream &os, int indent) const {
   printIndent(os, indent);
-  os << "(CJump \n";
+  os << "(CJump\n";
   printIndent(os, indent + 1);
-  os << "condition: { \n";
+  os << "condition: {\n";
   condition->print(os, indent + 2);
   printIndent(os, indent + 1);
   os << "}\n";

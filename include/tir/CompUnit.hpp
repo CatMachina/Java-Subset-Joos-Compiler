@@ -9,6 +9,7 @@
 namespace tir {
 
 class CompUnit : public Node {
+  // Question: are they the same?
   std::string name;
   std::string class_name;
 
@@ -101,9 +102,18 @@ public:
     staticFieldsCanonicalized = true;
   }
 
-  // TODO: implement
   std::ostream &print(std::ostream &os, int indent = 0) const override {
-    os << "(CompUnit)\n";
+    printIndent(os, indent);
+    os << "(CompUnit " << name << "\n";
+    printIndent(os, indent + 1);
+    os << "nodes: [\n";
+    for (const auto node : nodes) {
+      node->print(os, indent + 2);
+    }
+    printIndent(os, indent + 1);
+    os << "]\n";
+    printIndent(os, indent);
+    os << ")\n";
     return os;
   }
 };

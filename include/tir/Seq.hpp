@@ -32,7 +32,7 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Seq \n";
+    os << "(Seq\n";
     for (const auto &stmt : stmts) {
       stmt->print(os, indent + 1);
     }

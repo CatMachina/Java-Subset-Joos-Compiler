@@ -14,6 +14,8 @@ public:
 
   void run();
 
+  std::ostream &print(std::ostream &os);
+
 private:
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::vector<std::shared_ptr<CompUnit>> compUnits;

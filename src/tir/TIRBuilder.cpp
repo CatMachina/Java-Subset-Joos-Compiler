@@ -24,7 +24,8 @@ TIRBuilder::buildExpr(std::shared_ptr<parsetree::ast::Expr> expr) {
 std::shared_ptr<Stmt>
 TIRBuilder::buildStmt(std::shared_ptr<parsetree::ast::Stmt> node) {
   if (!node) {
-    throw std::runtime_error("TIRBuilder::buildStmt: node is null");
+    std::cout << "TIRBuilder::buildStmt: node is null" << std::endl;
+    return nullptr;
   }
   std::shared_ptr<Stmt> irStmt;
   if (auto block = std::dynamic_pointer_cast<parsetree::ast::Block>(node)) {
@@ -57,7 +58,8 @@ TIRBuilder::buildStmt(std::shared_ptr<parsetree::ast::Stmt> node) {
 std::shared_ptr<Stmt>
 TIRBuilder::buildBlock(std::shared_ptr<parsetree::ast::Block> node) {
   if (!node) {
-    throw std::runtime_error("TIRBuilder::buildBlock: node is null");
+    std::cout << "TIRBuilder::buildBlock: node is null" << std::endl;
+    return nullptr;
   }
   std::vector<std::shared_ptr<Stmt>> irStmts;
   for (auto astStmt : node->getStatements()) {
@@ -69,7 +71,8 @@ TIRBuilder::buildBlock(std::shared_ptr<parsetree::ast::Block> node) {
 std::shared_ptr<Stmt>
 TIRBuilder::buildIfStmt(std::shared_ptr<parsetree::ast::IfStmt> node) {
   if (!node) {
-    throw std::runtime_error("TIRBuilder::buildIfStmt: node is null");
+    std::cout << "TIRBuilder::buildIfStmt: node is null" << std::endl;
+    return nullptr;
   }
   auto ltName = getNextLabelName();
   auto lfName = getNextLabelName();
@@ -87,7 +90,8 @@ TIRBuilder::buildIfStmt(std::shared_ptr<parsetree::ast::IfStmt> node) {
 std::shared_ptr<Stmt>
 TIRBuilder::buildWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> node) {
   if (!node) {
-    throw std::runtime_error("TIRBuilder::buildWhileStmt: node is null");
+    std::cout << "TIRBuilder::buildWhileStmt: node is null" << std::endl;
+    return nullptr;
   }
   auto lh = getNewLabel();
   auto ltName = getNextLabelName();
@@ -108,7 +112,8 @@ TIRBuilder::buildWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> node) {
 std::shared_ptr<Stmt>
 TIRBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> node) {
   if (!node) {
-    throw std::runtime_error("TIRBuilder::buildForStmt: node is null");
+    std::cout << "TIRBuilder::buildForStmt: node is null" << std::endl;
+    return nullptr;
   }
   auto lh = getNewLabel();
   auto ltName = getNextLabelName();
@@ -131,7 +136,8 @@ TIRBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> node) {
 std::shared_ptr<Stmt>
 TIRBuilder::buildReturnStmt(std::shared_ptr<parsetree::ast::ReturnStmt> node) {
   if (!node) {
-    throw std::runtime_error("TIRBuilder::buildReturnStmt: node is null");
+    std::cout << "TIRBuilder::buildReturnStmt: node is null" << std::endl;
+    return nullptr;
   }
   auto returnExpr = buildExpr(node->getReturnExpr());
   return std::make_shared<Return>(returnExpr);
@@ -140,7 +146,8 @@ TIRBuilder::buildReturnStmt(std::shared_ptr<parsetree::ast::ReturnStmt> node) {
 std::shared_ptr<Stmt> TIRBuilder::buildExpressionStmt(
     std::shared_ptr<parsetree::ast::ExpressionStmt> node) {
   if (!node) {
-    throw std::runtime_error("TIRBuilder::buildExpressionStmt: node is null");
+    std::cout << "TIRBuilder::buildExpressionStmt: node is null" << std::endl;
+    return nullptr;
   }
   return std::make_shared<Exp>(buildExpr(node->getStatementExpr()));
 }
@@ -148,7 +155,8 @@ std::shared_ptr<Stmt> TIRBuilder::buildExpressionStmt(
 std::shared_ptr<Stmt>
 TIRBuilder::buildDeclStmt(std::shared_ptr<parsetree::ast::DeclStmt> node) {
   if (!node) {
-    throw std::runtime_error("TIRBuilder::buildDeclStmt: node is null");
+    std::cout << "TIRBuilder::buildDeclStmt: node is null" << std::endl;
+    return nullptr;
   }
   return buildVarDecl(node->getDecl());
 }
@@ -197,9 +205,13 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl)) {
     auto classNodes = buildClassDecl(classDecl);
     nodes.insert(nodes.end(), classNodes.begin(), classNodes.end());
+  } else if (auto interfaceDecl =
+                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                     decl)) {
+    // TODO
   } else {
-    throw std::runtime_error(
-        "TIRBuilder::buildProgram: only ClassDecl supported at top level");
+    throw std::runtime_error("TIRBuilder::buildProgram: only ClassDecl and "
+                             "InterfaceDecl supported at top level");
   }
 
   return std::make_shared<CompUnit>(className, nodes);
@@ -217,7 +229,7 @@ TIRBuilder::buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node) {
     params.push_back(std::make_shared<Temp>(name));
   }
 
-  auto body = buildStmt(node->getMethodBody());
+  auto body = buildBlock(node->getMethodBody());
 
   return std::make_shared<FuncDecl>(node->getName(), params, body);
 }
@@ -268,6 +280,13 @@ void TIRBuilder::run() {
     auto compUnit = buildProgram(ast);
     compUnits.push_back(compUnit);
   }
+}
+
+std::ostream &TIRBuilder::print(std::ostream &os) {
+  for (auto compUnit : compUnits) {
+    compUnit->print(os, 0);
+  }
+  return os;
 }
 
 } // namespace tir

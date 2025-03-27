@@ -26,10 +26,10 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(ESeq \n";
+    os << "(ESeq\n";
     stmt->print(os, indent + 1);
     printIndent(os, indent + 1);
-    os << "expr: { \n";
+    os << "expr: {\n";
     expr->print(os, indent + 2);
     printIndent(os, indent + 1);
     os << "}\n";
