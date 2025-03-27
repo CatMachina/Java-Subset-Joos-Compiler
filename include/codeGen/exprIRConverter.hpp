@@ -2,7 +2,7 @@
 
 #include "ast/ast.hpp"
 #include "ast/astManager.hpp"
-#include "codeGen/codeGenLables.hpp"
+#include "codeGen/codeGenLabels.hpp"
 #include "staticCheck/evaluator.hpp"
 #include "tir/TIR.hpp"
 
