@@ -274,6 +274,7 @@ int main(int argc, char **argv) {
     // code gen
     auto tirBuilder = std::make_shared<tir::TIRBuilder>(astManager);
     tirBuilder->run();
+    tirBuilder->print(std::cout);
     // auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
     // auto astVisitor =
     //     std::make_shared<codegen::ASTVisitor>(astManager, codeGenLabels);

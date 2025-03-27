@@ -19,7 +19,7 @@ public:
   std::string label() const override { return "JUMP"; }
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Jump \n";
+    os << "(Jump\n";
     target->print(os, indent + 1);
     printIndent(os, indent);
     os << ")\n";

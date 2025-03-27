@@ -8,7 +8,6 @@
 #include "tir/Label.hpp"
 #include "tir/Mem.hpp"
 #include "tir/Name.hpp"
-#include "tir/Return.hpp"
 #include "tir/Temp.hpp"
 
 // Statements
