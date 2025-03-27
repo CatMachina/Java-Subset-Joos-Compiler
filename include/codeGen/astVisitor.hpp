@@ -12,12 +12,12 @@ namespace codegen {
 class ASTVisitor {
 private:
   std::shared_ptr<ExprIRConverter> exprConverter = nullptr;
-  std::shared_ptr<ast::ASTManager> astManager = nullptr;
-  std::shared_ptr<CodegenLables> codeGenLabels = nullptr;
+  std::shared_ptr<parsetree::ast::ASTManager> astManager = nullptr;
+  std::shared_ptr<CodeGenLabels> codeGenLabels = nullptr;
 
 public:
-  ASTVisitor(std::shared_ptr<ast::ASTManager> astManager,
-             std::shared_ptr<CodegenLables> codeGenLabels) {
+  ASTVisitor(std::shared_ptr<parsetree::ast::ASTManager> astManager,
+             std::shared_ptr<CodeGenLabels> codeGenLabels) {
     this->astManager = astManager;
     this->codeGenLabels = codeGenLabels;
     this->exprConverter =

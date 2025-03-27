@@ -26,6 +26,10 @@ public:
   static std::shared_ptr<Expr> makeException() {
     return makeExpr("__exception");
   }
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    return os << "(Name " << name << ")\n";
+  }
 };
 
 } // namespace tir

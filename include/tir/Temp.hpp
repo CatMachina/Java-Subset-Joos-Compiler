@@ -9,7 +9,7 @@
 namespace tir {
 
 class Temp : public Expr {
-  static size_t num_temps;
+  static int numTemps;
   std::string name;
   std::shared_ptr<parsetree::ast::AstNode> astNode;
 
@@ -25,11 +25,15 @@ public:
   std::shared_ptr<parsetree::ast::AstNode> getAstNode() { return astNode; }
 
   static std::string generateName(std::string prefix = "") {
-    num_temps++;
-    return (prefix.empty() ? "temp" : prefix) + std::to_string(num_temps);
+    numTemps++;
+    return (prefix.empty() ? "temp" : prefix) + std::to_string(numTemps);
   }
 
   std::string label() const override { return "TEMP(" + name + ")"; }
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    return os << "(Temp " << name << ")\n";
+  }
 };
 
 } // namespace tir

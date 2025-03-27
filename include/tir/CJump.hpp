@@ -27,6 +27,7 @@ public:
   bool hasFalseLabel() { return !falseLabel.empty(); }
 
   std::string label() const override { return "CJUMP"; }
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 } // namespace tir

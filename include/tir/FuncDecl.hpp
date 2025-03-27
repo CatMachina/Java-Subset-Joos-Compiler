@@ -28,6 +28,19 @@ public:
   void setBody(std::shared_ptr<Stmt> other) { body = other; }
 
   std::string label() const override { return "FUNC " + name; }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(FuncDecl " << name << "\n";
+    printIndent(os, indent + 1);
+    os << "body: { \n";
+    body->print(os, indent + 2);
+    printIndent(os, indent + 1);
+    os << "}\n";
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
 } // namespace tir

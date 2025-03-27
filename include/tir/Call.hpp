@@ -17,6 +17,24 @@ public:
   Call(std::shared_ptr<Expr> target, std::vector<std::shared_ptr<Expr>> args)
       : target{target}, args{args} {}
 
+  Call(std::shared_ptr<Expr> target, std::shared_ptr<Expr> _this,
+       std::vector<std::shared_ptr<Expr>> args) {
+    this->target = target;
+
+    if (!_this) {
+      this->args = args;
+      return;
+    }
+
+    std::vector<std::shared_ptr<Expr>> passed_args;
+    passed_args.push_back(_this);
+    for (auto &arg : args) {
+      passed_args.push_back(arg);
+    }
+
+    this->args = passed_args;
+  }
+
   std::shared_ptr<Expr> &getTarget() { return target; }
   std::vector<std::shared_ptr<Expr>> &getArgs() { return args; };
 
@@ -41,6 +59,7 @@ public:
 
   static std::shared_ptr<Expr> makeMalloc(std::shared_ptr<Expr> arg);
   static std::shared_ptr<Expr> makeException();
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 } // namespace tir

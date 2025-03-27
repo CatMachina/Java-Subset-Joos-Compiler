@@ -24,6 +24,8 @@
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
 
+#include "codeGen/astVisitor.hpp"
+#include "codeGen/codeGenLables.hpp"
 #include "tir/TIRBuilder.hpp"
 
 #include <memory>
@@ -272,6 +274,10 @@ int main(int argc, char **argv) {
     // code gen
     auto tirBuilder = std::make_shared<tir::TIRBuilder>(astManager);
     tirBuilder->run();
+    // auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
+    // auto astVisitor =
+    //     std::make_shared<codegen::ASTVisitor>(astManager, codeGenLabels);
+    // astVisitor->visit();
 
     return retCode;
   } catch (const std::runtime_error &err) {

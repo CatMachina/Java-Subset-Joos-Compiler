@@ -100,6 +100,12 @@ public:
     this->child_canonical_static_fields = child_canonical_static_fields;
     staticFieldsCanonicalized = true;
   }
+
+  // TODO: implement
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    os << "(CompUnit)\n";
+    return os;
+  }
 };
 
 } // namespace tir

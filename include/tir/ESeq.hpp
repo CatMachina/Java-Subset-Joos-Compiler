@@ -23,6 +23,20 @@ public:
                                         std::shared_ptr<Expr> expr) {
     return std::make_unique<ESeq>(stmt, expr);
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(ESeq \n";
+    stmt->print(os, indent + 1);
+    printIndent(os, indent + 1);
+    os << "expr: { \n";
+    expr->print(os, indent + 2);
+    printIndent(os, indent + 1);
+    os << "}\n";
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
 } // namespace tir

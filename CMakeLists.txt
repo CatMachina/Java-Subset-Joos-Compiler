@@ -79,6 +79,8 @@ add_library(CompilerLib
 
     # code generation
     "src/tir/TIRBuilder.cpp"
+    "src/tir/TIR.cpp"
+    "src/codeGen/exprIRConverter.cpp"
 )
 target_include_directories(
     CompilerLib

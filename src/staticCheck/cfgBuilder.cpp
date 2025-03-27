@@ -102,10 +102,10 @@ std::shared_ptr<CFGNode>
 CFGBuilder::buildIfStmt(std::shared_ptr<parsetree::ast::IfStmt> stmt,
                         std::shared_ptr<CFGNode> successor) {
   if (!stmt) {
-    std::cout << "CFGBuilder::buildIfStmt: stmt is null" << std::endl;
+    // std::cout << "CFGBuilder::buildIfStmt: stmt is null" << std::endl;
     return nullptr;
   }
-  std::cout << "CFGBuilder::buildIfStmt" << std::endl;
+  // std::cout << "CFGBuilder::buildIfStmt" << std::endl;
 
   std::shared_ptr<parsetree::ast::Expr> condition = stmt->getCondition();
   std::shared_ptr<parsetree::ast::Stmt> ifBody = stmt->getIfBody();
@@ -131,10 +131,10 @@ std::shared_ptr<CFGNode>
 CFGBuilder::buildWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> stmt,
                            std::shared_ptr<CFGNode> successor) {
   if (!stmt) {
-    std::cout << "CFGBuilder::buildWhileStmt: stmt is null" << std::endl;
+    // std::cout << "CFGBuilder::buildWhileStmt: stmt is null" << std::endl;
     return nullptr;
   }
-  std::cout << "CFGBuilder::buildWhileStmt" << std::endl;
+  // std::cout << "CFGBuilder::buildWhileStmt" << std::endl;
 
   std::shared_ptr<parsetree::ast::Expr> condition = stmt->getCondition();
   std::shared_ptr<parsetree::ast::Stmt> whileBody = stmt->getWhileBody();
@@ -145,17 +145,17 @@ CFGBuilder::buildWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> stmt,
   auto eval = evaluateBoolConstantExpr(condition);
   auto evalResult = std::get_if<bool>(&eval);
   if (evalResult == nullptr) {
-    std::cout << "Cannot constant fold" << std::endl;
+    // std::cout << "Cannot constant fold" << std::endl;
     cfg->addEdge(branchNode, bodyNode);  // true branch
     cfg->addEdge(branchNode, successor); // false branch
     return branchNode;
   }
 
   if (*evalResult) {
-    std::cout << "True branch only" << std::endl;
+    // std::cout << "True branch only" << std::endl;
     cfg->addEdge(branchNode, bodyNode); // true branch
   } else {
-    std::cout << "False branch only" << std::endl;
+    // std::cout << "False branch only" << std::endl;
     cfg->addEdge(branchNode, successor); // false branch
   }
 
@@ -166,10 +166,10 @@ std::shared_ptr<CFGNode>
 CFGBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> stmt,
                          std::shared_ptr<CFGNode> successor) {
   if (!stmt) {
-    std::cout << "CFGBuilder::buildForStmt: stmt is null" << std::endl;
+    // std::cout << "CFGBuilder::buildForStmt: stmt is null" << std::endl;
     return nullptr;
   }
-  std::cout << "CFGBuilder::buildForStmt" << std::endl;
+  // std::cout << "CFGBuilder::buildForStmt" << std::endl;
 
   std::shared_ptr<parsetree::ast::Stmt> forInit = stmt->getForInit();
   std::shared_ptr<parsetree::ast::Expr> condition = stmt->getCondition();
@@ -187,17 +187,17 @@ CFGBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> stmt,
   auto eval = evaluateBoolConstantExpr(condition);
   auto evalResult = std::get_if<bool>(&eval);
   if (evalResult == nullptr) {
-    std::cout << "Cannot constant fold" << std::endl;
+    // std::cout << "Cannot constant fold" << std::endl;
     cfg->addEdge(branchNode, bodyNode);  // true branch
     cfg->addEdge(branchNode, successor); // false branch
     return initNode;
   }
 
   if (*evalResult) {
-    std::cout << "True branch only" << std::endl;
+    // std::cout << "True branch only" << std::endl;
     cfg->addEdge(branchNode, bodyNode); // true branch
   } else {
-    std::cout << "False branch only" << std::endl;
+    // std::cout << "False branch only" << std::endl;
     cfg->addEdge(branchNode, successor); // false branch
   }
 
@@ -207,10 +207,10 @@ CFGBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> stmt,
 std::shared_ptr<CFGNode>
 CFGBuilder::buildReturnStmt(std::shared_ptr<parsetree::ast::ReturnStmt> stmt) {
   if (!stmt) {
-    std::cout << "CFGBuilder::buildReturnStmt: stmt is null" << std::endl;
+    // std::cout << "CFGBuilder::buildReturnStmt: stmt is null" << std::endl;
     return nullptr;
   }
-  std::cout << "CFGBuilder::buildReturnStmt" << std::endl;
+  // std::cout << "CFGBuilder::buildReturnStmt" << std::endl;
   // no successor
   auto node = std::make_shared<CFGNode>(getNextId(), stmt);
   cfg->addNode(node);
@@ -223,7 +223,7 @@ CFGBuilder::buildOtherStmt(std::shared_ptr<parsetree::ast::Stmt> stmt,
   if (!stmt) {
     throw std::runtime_error("CFGBuilder::buildOtherStmt: stmt is null");
   }
-  std::cout << "CFGBuilder::buildOtherStmt" << std::endl;
+  // std::cout << "CFGBuilder::buildOtherStmt" << std::endl;
   auto node = std::make_shared<CFGNode>(getNextId(), stmt);
   cfg->addNode(node);
   cfg->addEdge(node, successor);
@@ -234,7 +234,7 @@ std::shared_ptr<CFGNode>
 CFGBuilder::buildStmt(std::shared_ptr<parsetree::ast::Stmt> stmt,
                       std::shared_ptr<CFGNode> successor) {
   if (!stmt) {
-    std::cout << "CFGBuilder::buildStmt: stmt is null" << std::endl;
+    // std::cout << "CFGBuilder::buildStmt: stmt is null" << std::endl;
     return nullptr;
   }
   std::shared_ptr<CFGNode> node;
@@ -264,7 +264,7 @@ CFGBuilder::buildBlock(std::shared_ptr<parsetree::ast::Block> block,
   if (!block) {
     throw std::runtime_error("CFGBuilder::buildBlock: block is null");
   }
-  std::cout << "CFGBuilder::buildBlock" << std::endl;
+  // std::cout << "CFGBuilder::buildBlock" << std::endl;
 
   auto stmts = block->getStatements();
   if (stmts.empty()) {

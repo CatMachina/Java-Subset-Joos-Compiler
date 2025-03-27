@@ -16,7 +16,7 @@ std::shared_ptr<Label> TIRBuilder::getNewLabel() {
 
 std::shared_ptr<Expr>
 TIRBuilder::buildExpr(std::shared_ptr<parsetree::ast::Expr> expr) {
-  return std::make_shared<Expr>();
+  return std::make_shared<Const>(0); // placeholder
 }
 
 //////////////////// Statement Builders ////////////////////

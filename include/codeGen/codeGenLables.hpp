@@ -3,7 +3,7 @@
 #include "ast/ast.hpp"
 #include "tir/TIR.hpp"
 
-namespace codeGen {
+namespace codegen {
 
 class CodeGenLabels {
 public:
@@ -22,7 +22,7 @@ public:
 
   std::string
   getStaticMethodLabel(std::shared_ptr<parsetree::ast::MethodDecl> method) {
-    if (method->ast_reference->hasModifier(Modifier::NATIVE)) {
+    if (method->getModifiers()->isNative()) {
       return "NATIVE" + method->getFullName();
     }
     return getUniqueLabel(method, method->getFullName(), "_STATIC_METHOD",
@@ -96,4 +96,4 @@ private:
       class_labels_;
 };
 
-} // namespace codeGen
+} // namespace codegen

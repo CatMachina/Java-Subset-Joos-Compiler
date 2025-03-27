@@ -29,6 +29,17 @@ public:
   std::vector<std::shared_ptr<Stmt>> getStmts() const { return stmts; }
 
   std::string label() const override { return "SEQ"; }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Seq \n";
+    for (const auto &stmt : stmts) {
+      stmt->print(os, indent + 1);
+    }
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
 } // namespace tir

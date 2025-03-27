@@ -8,7 +8,7 @@ static bool isClass(std::shared_ptr<parsetree::ast::AstNode> decl) {
 }
 
 static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
-                         std::shared_ptr<parsetree::ast::AstNode> child) const {
+                         std::shared_ptr<parsetree::ast::AstNode> child) {
   if (!child || !super) {
     return false;
   }
@@ -40,7 +40,7 @@ static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
 }
 
 std::shared_ptr<tir::Expr>
-mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
+ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
   /*
   MemberName, MethodName
   TypeNode
@@ -53,13 +53,12 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
   } else if (auto methodName =
                  std::dynamic_pointer_cast<parsetree::ast::MethodName>(value)) {
     // TODO: This is a hack, delay the eval to method invocation
-    return std::make_shared<tir::TempTIR>(methodName,
+    return std::make_shared<tir::TempTIR>(value,
                                           tir::TempTIR::Type::MethodName);
   } else if (auto typeNode =
                  std::dynamic_pointer_cast<parsetree::ast::TypeNode>(value)) {
     // TODO: This is a hack, delay the eval to cast, class creation, array *
-    return std::make_shared<tir::TempTIR>(typeNode,
-                                          tir::TempTIR::Type::TypeNode);
+    return std::make_shared<tir::TempTIR>(value, tir::TempTIR::Type::TypeNode);
   }
 
   // left case Literal and MemberName
@@ -67,22 +66,22 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
   if (auto literal =
           std::dynamic_pointer_cast<parsetree::ast::Literal>(value)) {
     // int64_t, bool, char, std::string, std::nullptr_t
-    if (value->getLiteralType() == parsetree::ast::Literal::Type::Integer) {
+    if (literal->getLiteralType() == parsetree::ast::Literal::Type::Integer) {
       int64_t val = literal->getAsInt();
       return std::make_shared<tir::Const>(val);
-    } else if (value->getLiteralType() ==
+    } else if (literal->getLiteralType() ==
                parsetree::ast::Literal::Type::Boolean) {
       int64_t val = literal->getAsInt();
       if (val != 0 && val != 1)
         throw std::runtime_error("Invalid boolean literal in codegen");
       return std::make_shared<tir::Const>(val);
-    } else if (value->getLiteralType() ==
+    } else if (literal->getLiteralType() ==
                parsetree::ast::Literal::Type::Character) {
       int64_t val = literal->getAsInt();
       if (val < 0 || val > 255)
         throw std::runtime_error("Invalid character literal in codegen");
       return std::make_shared<tir::Const>(val);
-    } else if (value->getLiteralType() ==
+    } else if (literal->getLiteralType() ==
                parsetree::ast::Literal::Type::String) {
 
       /*
@@ -112,8 +111,8 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       */
 
       // get the string value
-      auto val = value->getAsString();
-      std::vector<tir::Stmt> seqVec;
+      auto val = literal->getAsString();
+      std::vector<std::shared_ptr<tir::Stmt>> seqVec;
 
       auto stringClass = astManager->java_lang.String;
       int numFields = stringClass->getFields().size();
@@ -130,7 +129,7 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       // first location is DV
       seqVec.push_back(std::make_shared<tir::Move>(
           std::make_shared<tir::Mem>(
-              std::make_shared<tir::Temp>(stringRefName), ),
+              std::make_shared<tir::Temp>(stringRefName)),
           // location
           std::make_shared<tir::Temp>(codeGenLabels->getClassLabel(stringClass),
                                       nullptr, true)));
@@ -152,9 +151,9 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       std::vector<std::shared_ptr<tir::Expr>> args;
 
       // find the zero arg constructor for string
-      auto constructor = nullptr;
+      std::shared_ptr<parsetree::ast::MethodDecl> constructor = nullptr;
       for (auto &method : stringClass->getConstructors()) {
-        if (method->getArgs().size() == 0) {
+        if (method->getParams().size() == 0) {
           constructor = method;
           break;
         }
@@ -166,7 +165,7 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       // call the constructor
       seqVec.push_back(std::make_shared<tir::Exp>(std::make_shared<tir::Call>(
           std::make_shared<tir::Name>(
-              codeGenLabels->getMethodLabel(constructor), ),
+              codeGenLabels->getMethodLabel(constructor)),
           std::make_shared<tir::Temp>(stringRefName), args)));
 
       // get chars field
@@ -239,7 +238,8 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
           std::make_shared<tir::Seq>(seqVec),
           std::make_shared<tir::Temp>(stringRefName));
 
-    } else if (value->getLiteralType() == parsetree::ast::Literal::Type::Null) {
+    } else if (literal->getLiteralType() ==
+               parsetree::ast::Literal::Type::Null) {
       return std::make_shared<tir::Const>(0);
     } else {
       throw std::runtime_error("Invalid literal in codegen");
@@ -274,7 +274,7 @@ mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
           throw std::runtime_error("cannot find field " + fieldDecl->getName() +
                                    " in current class");
         return std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
-            tir::BinOp::Type::Add,
+            tir::BinOp::OpType::ADD,
             std::make_shared<tir::Temp>("this", currentClass),
             std::make_shared<tir::Const>(4 * (offset + 1)) // +1 for header
             ));
@@ -305,10 +305,11 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
         std::make_shared<tir::Temp>(temp_string, nullptr), lhs);
 
     // CJump(lhs == 0, false, true)
-    auto true_name = LabelIR::generateName("sc_true");
-    auto false_name = LabelIR::generateName("sc_false");
+    auto true_name = tir::Label::generateName("sc_true");
+    auto false_name = tir::Label::generateName("sc_false");
     auto cjump1 = std::make_shared<tir::CJump>(
-        BinOp::makeNegate(std::make_shared<tir::Temp>(temp_string, nullptr)),
+        tir::BinOp::makeNegate(
+            std::make_shared<tir::Temp>(temp_string, nullptr)),
         false_name, true_name);
 
     // sc_true:
@@ -324,8 +325,8 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
 
     // ESEQ({...}, t_and)
     return std::make_shared<tir::ESeq>(
-        std::make_shared<tir::Seq>(
-            {move1, cjump1, true_label, move2, false_label}),
+        std::make_shared<tir::Seq>(std::vector<std::shared_ptr<tir::Stmt>>{
+            move1, cjump1, true_label, move2, false_label}),
         std::make_shared<tir::Temp>(temp_string, nullptr));
   }
 
@@ -338,8 +339,8 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
         std::make_shared<tir::Temp>(temp_string, nullptr), lhs);
 
     // CJump(t_or, true, false)
-    auto true_name = LabelIR::generateName("sc_true");
-    auto false_name = LabelIR::generateName("sc_false");
+    auto true_name = tir::Label::generateName("sc_true");
+    auto false_name = tir::Label::generateName("sc_false");
     auto cjump1 = std::make_shared<tir::CJump>(
         std::make_shared<tir::Temp>(temp_string, nullptr), true_name,
         false_name);
@@ -357,8 +358,8 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
 
     // ESEQ({...}, t_or)
     return std::make_shared<tir::ESeq>(
-        std::make_shared<tir::Seq>(
-            {move1, cjump1, false_label, move2, true_label}),
+        std::make_shared<tir::Seq>(std::vector<std::shared_ptr<tir::Stmt>>{
+            move1, cjump1, false_label, move2, true_label}),
         std::make_shared<tir::Temp>(temp_string, nullptr));
   }
 
@@ -448,6 +449,13 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     const std::shared_ptr<tir::Expr> lhs,
     const std::shared_ptr<tir::Expr> field) {
 
+  if (!(op->getResultType())) {
+    throw std::runtime_error(
+        "Invalid field access, field type is not resolved");
+  }
+
+  auto fieldType = op->getResultType();
+
   if (!std::dynamic_pointer_cast<tir::TempTIR>(field)) {
     throw std::runtime_error("Invalid field access, field is not a TempTIR");
   }
@@ -464,9 +472,9 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
   }
 
   // Special case: array length field
-  auto lengthDecl = nullptr;
+  std::shared_ptr<parsetree::ast::FieldDecl> lengthDecl = nullptr;
   for (auto field : astManager->java_lang.Array->getFields()) {
-    if (field->name() == "length") {
+    if (field->getName() == "length") {
       lengthDecl = field;
     }
   }
@@ -495,8 +503,9 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
 
     return std::make_shared<tir::ESeq>(
         // null check
-        std::make_shared<tir::Seq>({get_array, not_null_check, error_label,
-                                    exception_call_stmt, not_null_label}),
+        std::make_shared<tir::Seq>(std::vector<std::shared_ptr<tir::Stmt>>{
+            get_array, not_null_check, error_label, exception_call_stmt,
+            not_null_label}),
 
         // Length stored at MEM[array - 4]
         std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
@@ -514,8 +523,15 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     }
 
     // Instance field access
-    if (std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-            castedFieldDecl->getResolvedDecl()->getAstNode())) {
+    auto fieldRefType =
+        std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(fieldType);
+    if (fieldRefType && !fieldRefType->isResolved())
+      throw std::runtime_error(
+          "Invalid field access, field ref type is not resolved");
+
+    if (fieldRefType && fieldRefType->isResolved() &&
+        std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+            fieldRefType->getResolvedDecl()->getAstNode())) {
       return std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
           tir::BinOp::OpType::ADD, lhs,
           std::make_shared<tir::Const>(
@@ -551,7 +567,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
   if (methodDecl->isStatic()) {
     return tir::Call::makeExpr(
         std::make_shared<tir::Name>(
-            codeGenLabels->getStaticFieldLabel(methodDecl)),
+            codeGenLabels->getStaticMethodLabel(methodDecl)),
         (methodDecl->getModifiers()->isNative())
             ? nullptr
             : std::make_shared<tir::Const>(0),
@@ -566,15 +582,14 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
       // gets method NameIR
       std::make_shared<tir::Mem>(
           // *this + 4*offset
+          // TODO: how to get offset?
           std::make_shared<tir::BinOp>(
-              tir::BinOp::OpType::ADD,
-              std::make_shared<tir::Temp>("this", nullptr),
-              std::make_shared<tir::Const>(
-                  4 * (currentClass->getMethodOffset(methodDecl) + 1)))),
+              tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>("this"),
+              std::make_shared<tir::Const>(4 * /* placeholder */ 0))),
       (methodDecl->getModifiers()->isNative())
           ? nullptr
           : std::make_shared<tir::Temp>("this", nullptr),
-      args, );
+      args);
 }
 
 std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
@@ -595,14 +610,14 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
   if (!typeNode) {
     throw std::runtime_error("Invalid new object, object is not a TypeNode");
   }
-  if (!type->isDeclResolved() || type->getResolvedDecl() == nullptr) {
+  if (!typeNode->isDeclResolved() || typeNode->getResolvedDecl() == nullptr) {
     throw std::runtime_error("Invalid new object, type is not decl resolved");
   }
-  if (!type->isTypeResolved()) {
+  if (!typeNode->isTypeResolved()) {
     throw std::runtime_error("Invalid new object, type is not type resolved");
   }
-  auto typeRefType =
-      std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type->getType());
+  auto typeRefType = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+      typeNode->getType());
   if (!typeRefType) {
     throw std::runtime_error("Invalid new object, type is not a ReferenceType");
   }
@@ -611,18 +626,26 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
         "Invalid new object, type is not resolved ReferenceType");
   }
 
-  auto constructor = type->getResolvedDecl();
-  auto typeClass = std::make_shared<parsetree::ast::ClassDecl>(
+  auto constructor = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+      typeNode->getResolvedDecl());
+  if (!constructor) {
+    throw std::runtime_error("type node is not a method decl");
+  }
+  if (!constructor->isConstructor()) {
+    throw std::runtime_error("type node is not a constructor");
+  }
+
+  auto typeClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
       typeRefType->getResolvedDecl()->getAstNode());
 
-  int num_fields = typeClass->getFields()->size();
+  int num_fields = typeClass->getFields().size();
   std::string obj_ref = tir::Temp::generateName("obj_ref");
 
   // allocate space for class
   auto move1 = std::make_shared<tir::Move>(
       std::make_shared<tir::Temp>(obj_ref),
       tir::Call::makeMalloc(
-          std::make_shared<tir::Const>(4 * (num_fields + 1)), ));
+          std::make_shared<tir::Const>(4 * (num_fields + 1))));
 
   // write dispatch vector to first location
   auto move2 = std::make_shared<tir::Move>(
@@ -640,7 +663,8 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
         std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
             tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(obj_ref),
             std::make_shared<tir::Const>(4 * (count + 1)))),
-        std::make_shared<tir::Const>(0))) count++;
+        std::make_shared<tir::Const>(0)));
+    count++;
   }
 
   // TODO: super constructor?
@@ -666,11 +690,11 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewArray(
       std::make_shared<tir::Move>(std::make_shared<tir::Temp>(size_name), size);
 
   // check not negative
-  std::string error_name = LabelIR::generateName("error");
-  std::string not_negative_name = LabelIR::generateName("not_negative");
+  std::string error_name = tir::Label::generateName("error");
+  std::string not_negative_name = tir::Label::generateName("not_negative");
   auto cjump = std::make_shared<tir::CJump>(
       // size >= 0
-      std::make_shared<tir::BinOp>(tir::BinOp::OpType::GTE,
+      std::make_shared<tir::BinOp>(tir::BinOp::OpType::GEQ,
                                    std::make_shared<tir::Temp>(size_name),
                                    std::make_shared<tir::Const>(0)),
       not_negative_name, error_name);
@@ -679,8 +703,8 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewArray(
   auto error_label = std::make_shared<tir::Label>(error_name);
   auto error_call_stmt = std::make_shared<tir::Exp>(tir::Call::makeException());
 
-  std::vector<std::shared_ptr<tir::Stmt>> seq_vec = {move1, cjump, error_label,
-                                                     error_call_stmt};
+  auto seq_vec = std::vector<std::shared_ptr<tir::Stmt>>{
+      move1, cjump, error_label, error_call_stmt};
 
   // allocate space
   auto array_name = tir::Temp::generateName("array");
@@ -807,10 +831,10 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalArrayAccess(
   // get array in temp
   std::string array_name = tir::Temp::generateName("array");
   auto get_array = std::make_shared<tir::Move>(
-      std::make_shared<tir::Temp>(array_name), array)
+      std::make_shared<tir::Temp>(array_name), array);
 
-      // check not null
-      std::string error_name = tir::Temp::generateName("error");
+  // check not null
+  std::string error_name = tir::Temp::generateName("error");
   std::string not_null_name = tir::Label::generateName("not_null");
   auto check_not_null = std::make_shared<tir::CJump>(
       // NEQ(array, 0)
@@ -827,10 +851,10 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalArrayAccess(
   auto not_null_label = std::make_shared<tir::Label>(not_null_name);
   std::string index_name = tir::Temp::generateName("index");
   auto get_index = std::make_shared<tir::Move>(
-      std::make_shared<tir::Temp>(index_name), index)
+      std::make_shared<tir::Temp>(index_name), index);
 
-      // check bound
-      auto still_in_bounds_name = tir::Label::generateName("still_in_bounds");
+  // check bound
+  auto still_in_bounds_name = tir::Label::generateName("still_in_bounds");
   auto check_bound = std::make_shared<tir::CJump>(
       // index < 0 || index >= MEM(array - 4)
       std::make_shared<tir::BinOp>(
@@ -850,21 +874,21 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalArrayAccess(
 
   // still in bound
   auto inbound_label = std::make_shared<tir::Label>(still_in_bounds_name);
-  auto inbound_call = std::make_shared<tir::Exp>(
+  auto inbound_call = std::make_shared<tir::Mem>(
       // array + 4 + (4 * index)
       std::make_shared<tir::BinOp>(
           tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(array_name),
-          std::make_shared<tir::BinOp>(std::make_shared<tir::BinOp>(
+          std::make_shared<tir::BinOp>(
               tir::BinOp::OpType::ADD, std::make_shared<tir::Const>(4),
               std::make_shared<tir::BinOp>(
                   tir::BinOp::OpType::MUL,
                   std::make_shared<tir::Temp>(index_name),
-                  std::make_shared<tir::Const>(4))))));
+                  std::make_shared<tir::Const>(4)))));
 
   return std::make_shared<tir::ESeq>(
-      std::make_shared<tir::Seq>({get_array, check_not_null, error_label,
-                                  throw_exception, not_null_label, get_index,
-                                  check_bound, inbound_label}),
+      std::make_shared<tir::Seq>(std::vector<std::shared_ptr<tir::Stmt>>{
+          get_array, check_not_null, error_label, throw_exception,
+          not_null_label, get_index, check_bound, inbound_label}),
       inbound_call);
 }
 
@@ -900,7 +924,7 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
     // cast result type is basic type
     if (auto basicType =
             std::dynamic_pointer_cast<parsetree::ast::BasicType>(resultType)) {
-      switch (literal->getType()) {
+      switch (literal->getLiteralType()) {
 
         // cast from int to numeric type
       case parsetree::ast::Literal::Type::Integer: {
@@ -973,7 +997,8 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
       }
     }
     // cast result type is not basic type and src type is string
-    else if (literal->getType() == parsetree::ast::Literal::Type::String) {
+    else if (literal->getLiteralType() ==
+             parsetree::ast::Literal::Type::String) {
       auto typeRef = std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
           typeNode->getType());
       if (!typeRef) {
@@ -1008,15 +1033,16 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
             std::make_shared<tir::Mem>(
                 std::make_shared<tir::Temp>(cast_result)),
             std::make_shared<tir::Temp>(
-                codeGenLabels->getClassLabel(cast_result), nullptr, true));
+                codeGenLabels->getClassLabel(resultClass), nullptr, true));
 
         return std::make_shared<tir::ESeq>(
-            std::make_shared<tir::Seq>({create_cast_result, add_DV}),
+            std::make_shared<tir::Seq>(std::vector<std::shared_ptr<tir::Stmt>>{
+                create_cast_result, add_DV}),
             std::make_shared<tir::Temp>(cast_result));
       }
     }
     // target not basic type and src is null
-    else if (literal->getType() == parsetree::ast::Literal::Type::Null) {
+    else if (literal->getLiteralType() == parsetree::ast::Literal::Type::Null) {
       return std::make_shared<tir::Const>(0);
     }
 

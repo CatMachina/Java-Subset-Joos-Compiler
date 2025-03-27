@@ -15,6 +15,15 @@ public:
   std::shared_ptr<Expr> getExpr() const { return expr; }
 
   std::string label() const override { return "EXP"; }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Exp \n";
+    expr->print(os, indent + 1);
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
 } // namespace tir

@@ -14,8 +14,13 @@ class TempTIR : public Expr {
 public:
   enum class Type { MethodName, TypeNode, FieldAccess };
 
-  TempTIR(std::shared_ptr<parsetree::ast::ExprValue> &astNode, Type type)
+  TempTIR(std::shared_ptr<parsetree::ast::ExprValue> astNode, Type type)
       : astNode{astNode}, type{type} {}
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    return os << "(!!! TempTIR " << magic_enum::enum_name(type) << ")\n";
+  }
 
   Type type;
   std::shared_ptr<parsetree::ast::ExprValue> astNode;
@@ -26,11 +31,11 @@ public:
 namespace codegen {
 
 class ExprIRConverter final
-    : public static_check::ExprEvaluator<std::shared_ptr<tir::Expr>> {
+    : public static_check::Evaluator<std::shared_ptr<tir::Expr>> {
 
 public:
-  ExprIRConverter(std::shared_ptr<ast::ASTManager> astManager,
-                  std::shared_ptr<CodegenLables> codeGenLabels) {
+  ExprIRConverter(std::shared_ptr<parsetree::ast::ASTManager> astManager,
+                  std::shared_ptr<CodeGenLabels> codeGenLabels) {
     this->astManager = astManager;
     this->codeGenLabels = codeGenLabels;
   }
@@ -89,7 +94,7 @@ private:
   mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) override;
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
-  std::shared_ptr<tir::CodegenLables> codeGenLabels;
+  std::shared_ptr<CodeGenLabels> codeGenLabels;
   std::shared_ptr<parsetree::ast::ClassDecl> currentClass = nullptr;
 };
 

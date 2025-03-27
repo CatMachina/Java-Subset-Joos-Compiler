@@ -24,6 +24,11 @@ public:
   static std::shared_ptr<Expr> makeWords(int num_words = 1) {
     return makeExpr(4 * num_words);
   }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    return os << "(Const " << value << ")\n";
+  }
 };
 
 } // namespace tir

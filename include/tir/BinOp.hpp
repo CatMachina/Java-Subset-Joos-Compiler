@@ -33,6 +33,8 @@ public:
     return std::make_shared<BinOp>(op, left, right);
   }
   static std::shared_ptr<Expr> makeNegate(std::shared_ptr<Expr> negated);
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 };
 
 } // namespace tir
