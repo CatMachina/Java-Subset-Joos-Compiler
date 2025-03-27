@@ -182,7 +182,7 @@ TIRBuilder::buildDecl(std::shared_ptr<parsetree::ast::Decl> node) {
   }
 }
 
-std::shared_ptr<CompUnit>
+std::shared_ptr<tir::CompUnit>
 TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildProgram: node is null");
@@ -198,8 +198,8 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
     throw std::runtime_error("TIRBuilder::buildProgram: body is not a Decl");
   }
 
-  std::string className = decl->getName();
-  std::vector<std::shared_ptr<Node>> nodes;
+  std::string unitName = decl->getName();
+  std::vector<std::shared_ptr<tir::Node>> nodes;
 
   if (auto classDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl)) {
@@ -208,13 +208,12 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   } else if (auto interfaceDecl =
                  std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                      decl)) {
-    // TODO
   } else {
     throw std::runtime_error("TIRBuilder::buildProgram: only ClassDecl and "
                              "InterfaceDecl supported at top level");
   }
 
-  return std::make_shared<CompUnit>(className, nodes);
+  return std::make_shared<tir::CompUnit>(unitName, nodes);
 }
 
 std::shared_ptr<FuncDecl>
@@ -242,7 +241,9 @@ TIRBuilder::buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node) {
 
   auto temp = std::make_shared<Temp>(node->getName());
   if (node->hasInit()) {
+
     auto expr = buildExpr(node->getInitializer());
+
     return std::make_shared<Move>(temp, expr);
   } else {
     return std::make_shared<Move>(temp, std::make_shared<Const>(0));
@@ -278,6 +279,7 @@ TIRBuilder::buildClassDecl(std::shared_ptr<parsetree::ast::ClassDecl> node) {
 void TIRBuilder::run() {
   for (auto ast : astManager->getASTs()) {
     auto compUnit = buildProgram(ast);
+    compUnit->print(std::cout);
     compUnits.push_back(compUnit);
   }
 }
