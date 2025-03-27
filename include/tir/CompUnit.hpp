@@ -34,7 +34,7 @@ public:
   std::vector<std::shared_ptr<Stmt>> start_statements;
 
   // Getters
-  std::shared_ptr<FuncDecl> getFunc(std::string name) {
+  std::shared_ptr<FuncDecl> getFunction(std::string name) {
     if (functions.find(name) == functions.end()) {
       throw std::runtime_error("Could not find function with name " + name +
                                " in the IR.");
@@ -53,12 +53,11 @@ public:
   }
   std::string label() const override { return "COMPUNIT (" + class_name + ")"; }
 
-  std::vector<std::shared_ptr<FuncDecl>> getFunctionList() const {
+  std::vector<std::shared_ptr<FuncDecl>> &getFunctionList() {
     return child_functions;
   }
 
-  std::vector<std::pair<std::string, std::shared_ptr<Expr>>>
-  getFieldList() const {
+  std::vector<std::pair<std::string, std::shared_ptr<Expr>>> &getFieldList() {
     if (staticFieldsCanonicalized)
       throw std::runtime_error(
           "Static field initalizers are canonicalized; use getCanonFieldList");

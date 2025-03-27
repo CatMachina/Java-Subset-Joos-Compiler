@@ -22,7 +22,9 @@ public:
       : name{name}, params{params}, body{body} {}
 
   std::string getName() const { return name; }
-  std::shared_ptr<Stmt> getBody() const { return body; }
+
+  // mutable
+  std::shared_ptr<Stmt> &getBody() { return body; }
   int getNumParams() const { return num_params; }
 
   void setBody(std::shared_ptr<Stmt> other) { body = other; }

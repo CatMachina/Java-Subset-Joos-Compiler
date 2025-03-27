@@ -235,11 +235,11 @@ int main(int argc, char **argv) {
       for (auto decl : ast->getBody()->getDecls()) {
         if (auto method =
                 std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl)) {
-          std::cout << "=== Start building CFG for method " << method->getName()
-                    << " ===" << std::endl;
+          // std::cout << "=== Start building CFG for method " << method->getName()
+          //           << " ===" << std::endl;
           std::shared_ptr<CFG> cfg = cfgBuilder->buildCFG(method);
-          std::cout << "=== Done building CFG for method " << method->getName()
-                    << " ===" << std::endl;
+          // std::cout << "=== Done building CFG for method " << method->getName()
+          //           << " ===" << std::endl;
           if (cfg) {
             // cfg->print(std::cout);
             if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
