@@ -290,14 +290,12 @@ void ParseTreeVisitor::visitStatementList(
 
   check_node_type(node, NodeType::StatementList);
   check_num_children(node, 1, 2);
-  auto statement = node->child_at(0);
-  if (!statement) {
-    throw std::runtime_error("Invalid StatementList");
-  }
-  std::shared_ptr<ast::Stmt> astNode = visitStatement(statement);
-  statements.push_back(astNode);
-  if (node->num_children() == 2) {
-    visitStatementList(node->child_at(1), statements);
+
+  if (node->num_children() == 1) {
+    statements.push_back(visitStatement(node->child_at(0)));
+  } else {
+    visitStatementList(node->child_at(0), statements);
+    statements.push_back(visitStatement(node->child_at(1)));
   }
 }
 

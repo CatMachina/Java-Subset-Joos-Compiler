@@ -377,7 +377,7 @@ statements_opt:
 
 statements:
     statement { $$ = lexer.make_node(@$, NodeType::StatementList, std::move($1)); }
-    | statement statements { $$ = lexer.make_node(@$, NodeType::StatementList, std::move($1), std::move($2)); }
+    | statements statement { $$ = lexer.make_node(@$, NodeType::StatementList, std::move($1), std::move($2)); }
 ;
 
 statement:
