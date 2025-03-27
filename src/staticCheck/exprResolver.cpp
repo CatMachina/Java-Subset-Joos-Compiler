@@ -101,6 +101,11 @@ void ExprResolver::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     staticState.isStaticContext = method->isStatic();
   }
 
+  // temporary fix for resolving varDecl twice:
+  if (std::dynamic_pointer_cast<parsetree::ast::DeclStmt>(node)) {
+    return;
+  }
+
   // only check Expr
   if (auto expr = std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
     evaluate(expr);
