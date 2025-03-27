@@ -5,8 +5,6 @@
 
 namespace parsetree::ast {
 
-class Literal;
-
 // Expressions /////////////////////////////////////////////////////////////
 
 class ExprValue : public ExprNode {
@@ -454,22 +452,12 @@ public:
 };
 
 class Cast : public ExprOp {
-  std::shared_ptr<parsetree::ast::Literal> rhsLiteral = nullptr;
-
 public:
   Cast() : ExprOp(2) {}
 
-  bool hasRhsLiteral() const { return rhsLiteral != nullptr; }
-  void setRhsLiteral(std::shared_ptr<parsetree::ast::Literal> literal) {
-    rhsLiteral = literal;
-  }
-  std::shared_ptr<parsetree::ast::Literal> getRhsLiteral() const {
-    return rhsLiteral;
-  }
-
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Cast, rhs is literal?: " << hasRhsLiteral() << ")\n";
+    os << "(Cast)\n";
     return os;
   }
 };
@@ -533,8 +521,6 @@ class Literal : public ExprValue {
 public:
   enum class Type { Integer, Character, String, Boolean, Null };
 
-  Literal::Type literalType;
-
   // Literal(Type type, std::string value) : type{type}, value{value} {}
   Literal(std::shared_ptr<parsetree::Literal> node,
           std::shared_ptr<parsetree::ast::BasicType> type)
@@ -543,14 +529,12 @@ public:
 
     // 1. Check if the type is numeric
     if (type->isNumeric()) {
-      int64_t val = 0;
+      uint32_t val = 0;
       if (type->getType() == BasicType::Type::Char) {
-        literalType = Literal::Type::Character;
         val = parseChar(str);
       } else {
         // Convert the string to an integer
         try {
-          literalType = Literal::Type::Integer;
           if (node->isNegativeVal())
             val = std::stoi("-" + std::string(str));
           else
@@ -563,7 +547,6 @@ public:
     }
     // 2. Otherwise, check if the type is boolean
     else if (type->isBoolean()) {
-      literalType = Literal::Type::Boolean;
       if (str == "true") {
         value = 1U;
       } else if (str == "false") {
@@ -574,14 +557,12 @@ public:
     }
     // 3. Otherwise, its a string
     else if (type->isString()) {
-      literalType = Literal::Type::String;
       // Unescape the string
       value = std::string{};
       unescapeString(str, std::get<std::string>(value));
     }
     // 4. Maybe it's a NoneType (i.e., NULL)
     else if (type->getType() == BasicType::Type::Void) {
-      literalType = Literal::Type::Null;
       value = 0U;
     }
     // 5. Otherwise, it's an invalid type
@@ -606,9 +587,9 @@ public:
   bool isString() const { return std::holds_alternative<std::string>(value); }
 
   // Getters
-  Type getLiteralType() const { return literalType; }
+  // Type getType() const { return type; }
   // std::string getValue() const { return value; }
-  int64_t getAsInt() const { return std::get<int64_t>(value); }
+  uint32_t getAsInt() const { return std::get<uint32_t>(value); }
   auto const &getAsString() const { return std::get<std::string>(value); }
   std::shared_ptr<BasicType> getBasicType() const {
     return std::dynamic_pointer_cast<BasicType>(getType());
@@ -617,7 +598,7 @@ public:
 private:
   // Type type;
   // std::string value;
-  std::variant<int64_t, std::string> value;
+  std::variant<uint32_t, std::string> value;
 };
 
 } // namespace parsetree::ast

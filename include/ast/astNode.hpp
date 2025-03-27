@@ -49,7 +49,6 @@ protected:
   std::string name;
   std::weak_ptr<CodeBody> parent;
   source::SourceRange loc;
-  std::string fullName = "";
 
 public:
   explicit Decl(std::string name,
@@ -66,13 +65,6 @@ public:
 
   virtual void setParent(std::shared_ptr<CodeBody> rawParent);
   virtual std::shared_ptr<CodeBody> asCodeBody() const { return nullptr; }
-
-  std::string getFullName() const {
-    if (fullName.empty()) {
-      return name;
-    }
-    return fullName;
-  }
 };
 
 class CodeBody : virtual public AstNode {
@@ -401,20 +393,6 @@ public:
     }
 
     return fields;
-  }
-
-  int getFieldOffset(std::shared_ptr<FieldDecl> field) const {
-    int offset = 0;
-    for (const auto &decl : classBodyDecls) {
-      if (auto fieldDecl = std::dynamic_pointer_cast<FieldDecl>(decl)) {
-        if (fieldDecl == field) {
-          return offset;
-        }
-        offset += 1;
-      }
-    }
-
-    return -1;
   }
 
   std::vector<std::shared_ptr<MethodDecl>> getMethods() const {

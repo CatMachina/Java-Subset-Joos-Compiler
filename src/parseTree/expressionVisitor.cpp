@@ -269,16 +269,7 @@ ParseTreeVisitor::visitCast(const NodePtr &node) {
   } else {
     throw std::runtime_error("Invalid Cast Expression");
   }
-
-  std::shared_ptr<ast::Cast> castOp = std::make_shared<ast::Cast>();
-
   auto exprNodes = visitExpression(node->child_at(1))->getExprNodes();
-  if (exprNodes.size() == 1 &&
-      std::dynamic_pointer_cast<ast::Literal>(exprNodes[0])) {
-    castOp->setRhsLiteral(
-        std::dynamic_pointer_cast<ast::Literal>(exprNodes[0]));
-  }
-
   ops.insert(ops.end(), std::make_move_iterator(exprNodes.begin()),
              std::make_move_iterator(exprNodes.end()));
   ops.push_back(std::make_shared<ast::Cast>());

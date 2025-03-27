@@ -122,10 +122,7 @@ void ClassDecl::setParent(std::shared_ptr<CodeBody> parent) {
   Decl::setParent(parent);
   if (!(program->isDefaultPackage())) {
     // change name
-    fullName = program->getPackageName();
-    fullName += ".";
   }
-  fullName += getName();
 
   for (auto &field : getFields())
     field->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
@@ -205,11 +202,7 @@ void InterfaceDecl::setParent(std::shared_ptr<CodeBody> parent) {
   Decl::setParent(parent);
   if (!program->isDefaultPackage()) {
     // change name
-    fullName = program->getPackageName();
-    fullName += ".";
   }
-  fullName += getName();
-
   for (auto &method : getMethods())
     method->setParent(std::static_pointer_cast<CodeBody>(shared_from_this()));
 }
@@ -323,9 +316,6 @@ void MethodDecl::setParent(std::shared_ptr<CodeBody> parent) {
   }
   if (modifiers->isStatic()) {
     // change name
-    fullName = parentDecl->getFullName();
-    fullName += ".";
-    fullName += getName();
   }
 
   for (auto &local : localDecls) {
@@ -756,9 +746,6 @@ void FieldDecl::setParent(std::shared_ptr<CodeBody> parent) {
     throw std::runtime_error("Field Decl Parent must be a Decl");
   if (modifiers->isStatic()) {
     // change name
-    fullName = parentDecl->getFullName();
-    fullName += ".";
-    fullName += getName();
   }
 }
 
