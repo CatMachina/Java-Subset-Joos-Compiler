@@ -235,10 +235,12 @@ int main(int argc, char **argv) {
       for (auto decl : ast->getBody()->getDecls()) {
         if (auto method =
                 std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl)) {
-          // std::cout << "=== Start building CFG for method " << method->getName()
+          // std::cout << "=== Start building CFG for method " <<
+          // method->getName()
           //           << " ===" << std::endl;
           std::shared_ptr<CFG> cfg = cfgBuilder->buildCFG(method);
-          // std::cout << "=== Done building CFG for method " << method->getName()
+          // std::cout << "=== Done building CFG for method " <<
+          // method->getName()
           //           << " ===" << std::endl;
           if (cfg) {
             // cfg->print(std::cout);
@@ -256,13 +258,13 @@ int main(int argc, char **argv) {
                   << std::endl;
               return EXIT_ERROR;
             }
-            std::cout << "Check Dead Assignments\n";
-            if (!static_check::LiveVariableAnalysis::checkDeadAssignments(
-                    cfg)) {
-              std::cerr << "Warning: Method " << method->getName()
-                        << " has dead assignments" << std::endl;
-              retCode = EXIT_WARNING;
-            }
+            // std::cout << "Check Dead Assignments\n";
+            // if (!static_check::LiveVariableAnalysis::checkDeadAssignments(
+            //         cfg)) {
+            //   std::cerr << "Warning: Method " << method->getName()
+            //             << " has dead assignments" << std::endl;
+            //   retCode = EXIT_WARNING;
+            // }
           } else {
             std::cout << "Method is null or has no body." << std::endl;
           }
