@@ -5,7 +5,6 @@
 #include "tir/Call.hpp"
 #include "tir/Const.hpp"
 #include "tir/ESeq.hpp"
-#include "tir/Label.hpp"
 #include "tir/Mem.hpp"
 #include "tir/Name.hpp"
 #include "tir/Temp.hpp"

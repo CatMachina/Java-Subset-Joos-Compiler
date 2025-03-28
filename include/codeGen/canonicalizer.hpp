@@ -1,3 +1,4 @@
+#include "codeGen/codeGenLabels.hpp"
 #include "tir/TIR.hpp"
 
 namespace codegen {
@@ -11,9 +12,10 @@ public:
 
   std::vector<tir::Stmt> getStatements() { return statements; }
 
-  template <typename... StatementIRs> LoweredStatement(StatementIRs &&...args) {
-    (statements.emplace_back(args), ...);
-  }
+  // template <typename... StatementIRs> LoweredStatement(StatementIRs
+  // &&...args) {
+  //   (statements.emplace_back(args), ...);
+  // }
 };
 
 class LoweredExpression {
@@ -28,11 +30,11 @@ public:
   std::vector<tir::Stmt> getStatements() { return statements; }
   std::shared_ptr<tir::Expr> getExpression() { return expression; }
 
-  template <typename... StatementIRs>
-  LoweredExpression(tir::Expr expression, StatementIRs &&...args) {
-    this->expression = std::make_shared<tir::Expr>(expression);
-    (statements.emplace_back(args), ...);
-  }
+  // template <typename... StatementIRs>
+  // LoweredExpression(tir::Expr expression, StatementIRs &&...args) {
+  //   this->expression = std::make_shared<tir::Expr>(expression);
+  //   (statements.emplace_back(args), ...);
+  // }
 };
 
 class TIRCanonicalizer {
@@ -41,7 +43,13 @@ class TIRCanonicalizer {
   std::shared_ptr<LoweredExpression>
   canonicalize(std::shared_ptr<tir::Expr> expression);
 
+  std::shared_ptr<CodeGenLabels> codeGenLabels;
+
 public:
+  TIRCanonicalizer(std::shared_ptr<CodeGenLabels> codeGenLabels) {
+    this->codeGenLabels = codeGenLabels;
+  }
+
   void canonicalizeCompUnit(std::shared_ptr<tir::CompUnit> root);
 };
 
