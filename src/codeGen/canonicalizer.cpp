@@ -144,4 +144,89 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Stmt> statement) {
   // TODO: the rest of Stmt IR
 }
 
+std::shared_ptr<LoweredStatement>
+TIRCanonicalizer::canonicalizeSeq(std::shared_ptr<tir::Seq> seq) {
+  if (!seq) {
+    std::cout << "TIRCanonicalizer::canonicalizeSeq: seq is null";
+    return nullptr;
+  }
+  std::vector<std::shared_ptr<tir::Stmt>> loweredStmts;
+  for (auto stmt : seq->getStmts()) {
+    std::vector<std::shared_ptr<tir::Stmt>> stmts =
+        canonicalize(stmt)->getStatements();
+    loweredStmts.insert(loweredStmts.end(), stmts.begin(), stmts.end());
+  }
+  return std::make_shared<LoweredStatement>(loweredStmts);
+}
+
+std::shared_ptr<LoweredStatement>
+TIRCanonicalizer::canonicalizeJump(std::shared_ptr<tir::Jump> jump) {
+  if (!jump) {
+    std::cout << "TIRCanonicalizer::canonicalizeJump: jump is null";
+    return nullptr;
+  }
+  auto canonicalizedExpr = canonicalize(jump->getTarget());
+  std::vector<std::shared_ptr<tir::Stmt>> stmts =
+      canonicalizedExpr->getStatements();
+  std::shared_ptr<tir::Expr> expr = canonicalizedExpr->getExpression();
+  auto newJump = std::make_shared<tir::Jump>(expr);
+  stmts.push_back(newJump);
+  return std::make_shared<LoweredStatement>(stmts);
+}
+
+std::shared_ptr<LoweredStatement>
+TIRCanonicalizer::canonicalizeCJump(std::shared_ptr<tir::CJump> cJump) {
+  if (!cJump) {
+    std::cout << "TIRCanonicalizer::canonicalizeCJump: cJump is null";
+    return nullptr;
+  }
+  auto canonicalizedExpr = canonicalize(cJump->getCondition());
+  std::vector<std::shared_ptr<tir::Stmt>> stmts =
+      canonicalizedExpr->getStatements();
+  std::shared_ptr<tir::Expr> expr = canonicalizedExpr->getExpression();
+  auto newCJump = std::make_shared<tir::CJump>(expr, cJump->getTrueLabel(),
+                                               cJump->getFalseLabel());
+  stmts.push_back(newJump);
+  return std::make_shared<LoweredStatement>(stmts);
+}
+
+std::shared_ptr<LoweredStatement>
+TIRCanonicalizer::canonicalizeLabel(std::shared_ptr<tir::Label> label) {
+  return std::make_shared<LoweredStatement>({label});
+}
+
+std::shared_ptr<LoweredStatement>
+TIRCanonicalizer::canonicalizeMove(std::shared_ptr<tir::Move> move) {
+  if (!move) {
+    std::cout << "TIRCanonicalizer::canonicalizeMove: move is null";
+    return nullptr;
+  }
+  std::shared_ptr<tir::Expr> target = move->getTarget();
+  std::shared_ptr<tir::Expr> source = move->getSource();
+  auto canonicalizedSource = canonicalize(source);
+  std::vector<std::shared_ptr<tir::Stmt>> sourceStmts =
+      canonicalizedSource->getStatements();
+  std::shared_ptr<tir::Expr> sourceExpr = canonicalizedSource->getExpression();
+  if (auto tempTarget = std::dynamic_pointer_cast<tir::Temp>(target)) {
+    auto newMove = std::make_shared<tir::Move>(tempTarget, expr);
+    sourceStmts.push_back(newMove);
+    return std::make_shared<LoweredStatement>(sourceStmts);
+  } else {
+    auto memTarget = std::dynamic_pointer_cast<tir::Mem>(target);
+    auto canonicalizedAddr = canonicalize(memTarget->getAddress());
+    std::vector<std::shared_ptr<tir::Stmt>> addrStmts =
+        canonicalizedAddr->getStatements();
+    std::shared_ptr<tir::Expr> addrExpr = canonicalizedAddr->getExpression();
+    // TODO: implement
+    auto temp = getNewTemp();
+    auto newMove1 = std::make_shared<tir::Move>(temp, addrExpr);
+    addrStmts.push_back(newMove1);
+    addrStmts.insert(addrStmts.end(), sourceStmts.begin(), sourceStmts.end());
+    auto newMove2 =
+        std::make_shared<tir::Move>(std::make_shared<tir::Mem>(temp), addrExpr);
+    addrStmts.push_back(newMove2);
+    return std::make_shared<LoweredStatement>(addrStmt);
+  }
+}
+
 } // namespace codegen
