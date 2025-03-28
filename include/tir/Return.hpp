@@ -35,19 +35,7 @@ public:
     return children;
   }
 
-  // Node *visitChildren(IRVisitor *v) override {
-  //   bool modified = false;
-
-  //   std::shared_ptr<Expr> newExpr = dynamic_cast<std::shared_ptr<Expr>
-  //   >(v->visit(this, ret)); if (newExpr != ret)
-  //     modified = true;
-  //   std::shared_ptr<Expr> result = newExpr;
-
-  //   if (modified)
-  //     return v->nodeFactory()->IRReturn(result);
-
-  //   return this;
-  // }
+  void visitChildren(InsnMapsBuilder &v) { v.visit(ret); }
 
   // template <typename T> T aggregateChildren(AggregateVisitor<T> *v) {
   //   T result = v->unit();

@@ -18,6 +18,12 @@ public:
   std::shared_ptr<Expr> getSource() const { return src; }
 
   std::string label() const override { return "MOVE"; }
+
+  void visitChildren(InsnMapsBuilder &v) {
+    v.visit(target);
+    v.visit(src);
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(Move\n";

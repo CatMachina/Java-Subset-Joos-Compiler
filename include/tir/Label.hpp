@@ -23,10 +23,13 @@ public:
     return ((prefix.empty() ? "label" : prefix) + std::to_string(numLabels));
   }
 
-  // InsnMapsBuilder *buildInsnMapsEnter(InsnMapsBuilder *v) override {
-  //   v->addNameToCurrentIndex(name);
-  //   return v;
-  // }
+  std::shared_ptr<Node> buildInsnMaps(InsnMapsBuilder &v) override {
+    v.addNameToCurrentIndex(name);
+    return std::make_shared<Node>(this);
+  }
+
+  void visitChildren(InsnMapsBuilder &v) { v.visit(nullptr); }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(Label " << name << ")\n";

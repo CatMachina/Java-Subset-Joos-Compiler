@@ -16,6 +16,8 @@ public:
 
   std::string label() const override { return "EXP"; }
 
+  void visitChildren(InsnMapsBuilder &v) { v.visit(expr); }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(Exp\n";

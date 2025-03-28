@@ -57,6 +57,13 @@ public:
     return std::make_shared<Call>(target, passed_args);
   }
 
+  void visitChildren(InsnMapsBuilder &v) {
+    v.visit(target);
+    for (auto arg : args) {
+      v.visit(arg);
+    }
+  }
+
   static std::shared_ptr<Expr> makeMalloc(std::shared_ptr<Expr> arg);
   static std::shared_ptr<Expr> makeException();
   std::ostream &print(std::ostream &os, int indent = 0) const override;

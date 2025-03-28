@@ -103,6 +103,12 @@ public:
     staticFieldsCanonicalized = true;
   }
 
+  void visitChildren(InsnMapsBuilder &v) {
+    for (auto &[name, func] : functions) {
+      v.visit(func);
+    }
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(CompUnit " << name << "\n";

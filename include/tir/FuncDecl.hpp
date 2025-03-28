@@ -31,6 +31,13 @@ public:
 
   std::string label() const override { return "FUNC " + name; }
 
+  void buildInsnMapsEnter(InsnMapsBuilder &v) {
+    v.addNameToCurrentIndex(name);
+    v.addInsn(std::make_shared<Node>(this));
+  }
+
+  void visitChildren(InsnMapsBuilder &v) { v.visit(body); }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(FuncDecl " << name << "\n";

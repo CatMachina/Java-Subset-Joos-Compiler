@@ -1,3 +1,5 @@
+#pragma once
+
 #include "tir/TIR.hpp";
 #include <memory>
 #include <random>
@@ -303,11 +305,10 @@ public:
     libraryFunctions.insert("__exception");
     libraryFunctions.insert("NATIVEjava.io.OutputStream.nativeWrite");
 
-    // TODO: probably needed
-    // InsnMapsBuilder imb = new InsnMapsBuilder();
-    // compUnit = (CompUnit)imb.visit(compUnit);
-    // indexToInsn = imb.indexToInsn();
-    // nameToIndex = imb.nameToIndex();
+    InsnMapsBuilder imb = InsnMapsBuilder();
+    imb.visit(compUnit);
+    indexToInsn = imb.getIndexToInsn();
+    nameToIndex = imb.getNameToIndex();
   }
 
   /**
@@ -401,7 +402,7 @@ public:
     if (libraryFunctions.contains(name)) {
       ret = libraryCall(name, args);
     } else {
-      std::shared_ptr<FuncDecl> fDecl = compUnit->getFunc(name);
+      std::shared_ptr<FuncDecl> fDecl = compUnit->getFunction(name);
       if (fDecl == nullptr)
         throw std::runtime_error("Tried to call an unknown function: '" + name +
                                  "'");

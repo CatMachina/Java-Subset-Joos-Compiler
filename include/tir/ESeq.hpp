@@ -24,6 +24,11 @@ public:
     return std::make_unique<ESeq>(stmt, expr);
   }
 
+  void visitChildren(InsnMapsBuilder &v) {
+    v.visit(stmt);
+    v.visit(expr);
+  }
+
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     os << "(ESeq\n";
