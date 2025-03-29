@@ -23,7 +23,7 @@ public:
 
   std::shared_ptr<parsetree::ast::FieldDecl> getField() const { return field; }
 
-  void visitChildren(InsnMapsBuilder &v) { v.visit(address); }
+  void visitChildren(InsnMapsBuilder &v) override { v.visit(address); }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

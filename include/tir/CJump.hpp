@@ -30,7 +30,7 @@ public:
   void deleteFalseLabel() { falseLabel = ""; }
   bool hasFalseLabel() { return !falseLabel.empty(); }
 
-  void visitChildren(InsnMapsBuilder &v) { v.visit(condition); }
+  void visitChildren(InsnMapsBuilder &v) override { v.visit(condition); }
 
   std::string label() const override { return "CJUMP"; }
   std::ostream &print(std::ostream &os, int indent = 0) const override;

@@ -7,7 +7,7 @@
 
 namespace tir {
 
-class Node {
+class Node : public std::enable_shared_from_this<Node> {
 protected:
   std::ostream &printIndent(std::ostream &os, int indent = 0) const {
     for (int i = 0; i < indent; ++i) {
@@ -22,8 +22,8 @@ public:
   virtual std::vector<std::shared_ptr<Node>> getChildren() const;
   virtual void visitChildren(InsnMapsBuilder &v) = 0;
   virtual std::shared_ptr<Node> buildInsnMaps(InsnMapsBuilder &v) {
-    v.addInsn(std::make_shared<Node>(this));
-    return std::make_shared<Node>(this);
+    v.addInsn(shared_from_this());
+    return shared_from_this();
   }
 };
 

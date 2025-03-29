@@ -57,7 +57,7 @@ public:
     return std::make_shared<Call>(target, passed_args);
   }
 
-  void visitChildren(InsnMapsBuilder &v) {
+  void visitChildren(InsnMapsBuilder &v) override {
     v.visit(target);
     for (auto arg : args) {
       v.visit(arg);

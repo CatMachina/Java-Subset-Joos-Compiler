@@ -24,7 +24,7 @@ public:
     return std::make_unique<ESeq>(stmt, expr);
   }
 
-  void visitChildren(InsnMapsBuilder &v) {
+  void visitChildren(InsnMapsBuilder &v) override {
     v.visit(stmt);
     v.visit(expr);
   }

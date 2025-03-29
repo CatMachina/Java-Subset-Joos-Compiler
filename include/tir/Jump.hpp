@@ -18,7 +18,7 @@ public:
 
   std::string label() const override { return "JUMP"; }
 
-  void visitChildren(InsnMapsBuilder &v) { v.visit(target); }
+  void visitChildren(InsnMapsBuilder &v) override { v.visit(target); }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

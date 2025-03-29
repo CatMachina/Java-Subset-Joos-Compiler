@@ -78,6 +78,7 @@ add_library(CompilerLib
     "src/staticCheck/liveVariableAnalysis.cpp"
 
     # code generation
+    "src/tir/InsnMapsBuilder.cpp"
     "src/tir/TIRBuilder.cpp"
     "src/tir/TIR.cpp"
     "src/codeGen/exprIRConverter.cpp"

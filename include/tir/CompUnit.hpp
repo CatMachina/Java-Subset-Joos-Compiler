@@ -103,7 +103,7 @@ public:
     staticFieldsCanonicalized = true;
   }
 
-  void visitChildren(InsnMapsBuilder &v) {
+  void visitChildren(InsnMapsBuilder &v) override {
     for (auto &[name, func] : functions) {
       v.visit(func);
     }

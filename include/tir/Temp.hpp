@@ -31,7 +31,7 @@ public:
 
   std::string label() const override { return "TEMP(" + name + ")"; }
 
-  void visitChildren(InsnMapsBuilder &v) { v.visit(nullptr); }
+  void visitChildren(InsnMapsBuilder &v) override { v.visit(nullptr); }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

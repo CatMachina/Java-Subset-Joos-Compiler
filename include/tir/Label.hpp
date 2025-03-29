@@ -25,10 +25,10 @@ public:
 
   std::shared_ptr<Node> buildInsnMaps(InsnMapsBuilder &v) override {
     v.addNameToCurrentIndex(name);
-    return std::make_shared<Node>(this);
+    return shared_from_this();
   }
 
-  void visitChildren(InsnMapsBuilder &v) { v.visit(nullptr); }
+  void visitChildren(InsnMapsBuilder &v) override { v.visit(nullptr); }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

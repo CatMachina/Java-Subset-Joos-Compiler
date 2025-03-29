@@ -35,7 +35,7 @@ public:
     return children;
   }
 
-  void visitChildren(InsnMapsBuilder &v) { v.visit(ret); }
+  void visitChildren(InsnMapsBuilder &v) override { v.visit(ret); }
 
   // template <typename T> T aggregateChildren(AggregateVisitor<T> *v) {
   //   T result = v->unit();

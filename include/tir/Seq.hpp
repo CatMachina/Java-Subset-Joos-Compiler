@@ -30,7 +30,7 @@ public:
 
   std::string label() const override { return "SEQ"; }
 
-  void visitChildren(InsnMapsBuilder &v) {
+  void visitChildren(InsnMapsBuilder &v) override {
     for (auto stmt : stmts) {
       v.visit(stmt);
     }

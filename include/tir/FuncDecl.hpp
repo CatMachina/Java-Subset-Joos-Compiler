@@ -31,12 +31,13 @@ public:
 
   std::string label() const override { return "FUNC " + name; }
 
-  void buildInsnMapsEnter(InsnMapsBuilder &v) {
+  std::shared_ptr<Node> buildInsnMaps(InsnMapsBuilder &v) override {
     v.addNameToCurrentIndex(name);
-    v.addInsn(std::make_shared<Node>(this));
+    v.addInsn(shared_from_this());
+    return shared_from_this();
   }
 
-  void visitChildren(InsnMapsBuilder &v) { v.visit(body); }
+  void visitChildren(InsnMapsBuilder &v) override { v.visit(body); }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

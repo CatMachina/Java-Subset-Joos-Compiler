@@ -30,7 +30,7 @@ public:
 
   static std::shared_ptr<Expr> makeNegate(std::shared_ptr<Expr> negated);
 
-  void visitChildren(InsnMapsBuilder &v) {
+  void visitChildren(InsnMapsBuilder &v) override {
     v.visit(left);
     v.visit(right);
   }

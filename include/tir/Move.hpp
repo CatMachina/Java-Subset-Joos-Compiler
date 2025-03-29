@@ -19,7 +19,7 @@ public:
 
   std::string label() const override { return "MOVE"; }
 
-  void visitChildren(InsnMapsBuilder &v) {
+  void visitChildren(InsnMapsBuilder &v) override {
     v.visit(target);
     v.visit(src);
   }
