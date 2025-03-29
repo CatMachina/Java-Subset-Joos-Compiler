@@ -4,8 +4,8 @@
 #include "ast/astManager.hpp"
 #include "codeGen/codeGenLabels.hpp"
 #include "staticCheck/evaluator.hpp"
-#include "tir/TIR.hpp"
 #include "tir/InsnMapsBuilder.hpp"
+#include "tir/TIR.hpp"
 
 namespace tir {
 
@@ -18,9 +18,7 @@ public:
   TempTIR(std::shared_ptr<parsetree::ast::ExprValue> astNode, Type type)
       : astNode{astNode}, type{type} {}
 
-  void visitChildren(InsnMapsBuilder &v) override {
-    v.visit(nullptr);
-  }
+  void visitChildren(InsnMapsBuilder &v) override { v.visit(nullptr); }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
