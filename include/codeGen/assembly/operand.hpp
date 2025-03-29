@@ -5,6 +5,9 @@ namespace codegen::assembly {
 // operand of assembly instruction can be:
 // memory address, label use, register (real or abstract) or immediate
 class Operand {
+  bool isRead = false;
+  bool isWrite = false;
+
 protected:
   std::ostream &printIndent(std::ostream &os, int indent = 0) const {
     for (int i = 0; i < indent; ++i) {
@@ -12,6 +15,9 @@ protected:
     }
     return os;
   }
+
+  void setRead() { isRead = true; }
+  void setWrite() { isWrite = true; }
 
 public:
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;

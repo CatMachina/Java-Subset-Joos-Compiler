@@ -38,7 +38,8 @@ public:
   InstructionSelector() {}
 
   // ExprTile and StmtTile defined in tile.hpp
-  ExprTile selectTile(std::shared_ptr<tir::Expr> expr, const std::string &regName);
+  ExprTile selectTile(std::shared_ptr<tir::Expr> expr,
+                      const std::string &regName);
   StmtTile selectTile(std::shared_ptr<tir::Stmt> stmt);
 };
 
