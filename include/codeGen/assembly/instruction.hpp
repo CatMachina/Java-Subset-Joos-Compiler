@@ -12,7 +12,7 @@ class Instruction {
   std::vector<std::shared_ptr<Operand>> operands;
 
   // general purpose registers the instruction always use
-  // eg. imul uses eax
+  // eg. imul uses 32 bit eax and edx
   std::unordered_set<std::string> readGPRs;
   std::unordered_set<std::string> writeGPRs;
 
@@ -108,11 +108,11 @@ public:
     multiplicand->setRead();
     addOperand(multiplicand);
 
-    addReadGPR("eax");
-    addWriteGPR("eax");
+    addReadGPR(assembly::R32_EAX);
+    addWriteGPR(assembly::R32_EAX);
 
-    addReadGPR("edx");
-    addWriteGPR("edx");
+    addReadGPR(assembly::R32_EDX);
+    addWriteGPR(assembly::R32_EDX);
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
@@ -130,11 +130,11 @@ public:
     divisor->setRead();
     addOperand(divisor);
 
-    addReadGPR("eax");
-    addWriteGPR("eax");
+    addReadGPR(assembly::R32_EAX);
+    addWriteGPR(assembly::R32_EAX);
 
-    addReadGPR("edx");
-    addWriteGPR("edx");
+    addReadGPR(assembly::R32_EDX);
+    addWriteGPR(assembly::R32_EDX);
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
