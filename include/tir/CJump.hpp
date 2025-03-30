@@ -21,9 +21,13 @@ public:
       : condition(condition), trueLabel(trueLabel), falseLabel(falseLabel) {}
 
   std::shared_ptr<Expr> getCondition() { return condition; }
+  void setCondition(std::shared_ptr<Expr> condition) {
+    this->condition = condition;
+  }
 
   std::string getTrueLabel() { return trueLabel; }
   std::string getFalseLabel() { return falseLabel; }
+  void deleteFalseLabel() { falseLabel = ""; }
   bool hasFalseLabel() { return !falseLabel.empty(); }
 
   std::string label() const override { return "CJUMP"; }

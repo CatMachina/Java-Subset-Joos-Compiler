@@ -52,6 +52,8 @@ public:
     nodes.insert({node->getId(), node});
   }
 
+  int getNumNodes() const { return nodes.size(); }
+
   void addEdge(std::shared_ptr<BasicBlock> src,
                std::shared_ptr<BasicBlock> dst) {
     if (!src) {
