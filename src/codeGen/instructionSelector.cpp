@@ -175,7 +175,36 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
 
   } else if (auto temp = std::dynamic_pointer_cast<tir::Temp>(expr)) {
 
-    // TODO!
+    // special case: abstract return is r32 eax
+    if (temp->getName() == codeGenLabels->kAbstractReturn) {
+      tile = std::make_shared<Tile>(
+          std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
+              Tile::VIRTUAL_REG, assembly::R32_EAX)});
+    }
+    // special case: kAbstractArgPrefixa a is stack offset from caller
+    else if (temp->getName().rfind(codeGenLabels->kAbstractArgPrefix, 0) == 0) {
+      std::string suffix =
+          temp->getName().substr(strlen(codeGenLabels->kAbstractArgPrefix));
+      int argNum = std::stoi(suffix);
+
+      tile = std::make_shared<Tile>(
+          std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
+              Tile::VIRTUAL_REG, std::make_shared<assembly::MemAddrOp>(
+                                     assembly::R32_ESP, (argNum + 2) * 4))});
+    }
+    // special case: static variable is in data segment
+    else if (temp->isGlobal) {
+      tile = std::make_shared<Tile>(
+          std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
+              Tile::VIRTUAL_REG,
+              std::make_shared<assembly::MemAddrOp>(temp->getName()))});
+    } else {
+      tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+          std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG,
+                                          "%" + "temp" + "%" +
+                                              std::to_string(temp->getName())),
+      });
+    }
 
   } else {
     throw std::runtime_error("Invalid expression type, should not happen!");
@@ -189,8 +218,32 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
   if (tile->getCost() < currentOptimalTile->getCost()) {
     exprTileCache[expr] = tile;
   }
-  
+
   return std::make_pair(exprTileCache[expr], regName);
+}
+
+StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
+  if (stmtTileCache.find(stmt) != stmtTileCache.end()) {
+    return stmtTileCache[stmt];
+  }
+
+  std::shared_ptr<Tile> tile = std::make_shared<Tile>();
+
+  if (auto cjump = std::dynamic_pointer_cast<tir::CJump>(stmt)) {
+    // TODO
+  }
+  // TODO
+
+  if (tile->getCost() == INT_MAX) {
+    throw std::runtime_error("No tile for statement!");
+  }
+
+  auto currentOptimalTile = stmtTileCache[stmt];
+  if (tile->getCost() < currentOptimalTile->getCost()) {
+    stmtTileCache[stmt] = tile;
+  }
+
+  return stmtTileCache[stmt];
 }
 
 } // namespace codegen

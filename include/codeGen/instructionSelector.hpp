@@ -1,6 +1,7 @@
 #pragma once
 
 #include "codeGen/assembly.hpp"
+#include "codeGen/codeGenLabels.hpp"
 #include "codeGen/tile.hpp"
 #include "tir/TIR.hpp"
 
@@ -28,6 +29,8 @@ class InstructionSelector {
   std::unordered_map<std::shared_ptr<tir::Stmt>, std::shared_ptr<Tile>>
       stmtTileCache;
 
+  std::shared_ptr<CodeGenLabels> codeGenLabels;
+
   // static for new virtual register name
   static size_t virtualRegCounter;
   static std::string newVirtualRegister() {
@@ -35,7 +38,8 @@ class InstructionSelector {
   }
 
 public:
-  InstructionSelector() {}
+  InstructionSelector(std::shared_ptr<CodeGenLabels> codeGenLabels)
+      : codeGenLabels(codeGenLabels) {}
 
   // ExprTile and StmtTile defined in tile.hpp
   ExprTile selectTile(std::shared_ptr<tir::Expr> expr,
