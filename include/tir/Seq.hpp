@@ -40,6 +40,14 @@ public:
     os << ")\n";
     return os;
   }
+
+  std::vector<std::shared_ptr<Node>> getChildren() const override {
+    std::vector<std::shared_ptr<Node>> children;
+    for (const auto &stmt : stmts) {
+      children.push_back(stmt);
+    }
+    return children;
+  }
 };
 
 } // namespace tir

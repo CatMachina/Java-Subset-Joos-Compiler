@@ -29,6 +29,12 @@ public:
     return os;
   }
 
+  std::vector<std::shared_ptr<Node>> getChildren() const override {
+    std::vector<std::shared_ptr<Node>> children;
+    children.push_back(ret);
+    return children;
+  }
+
   // Node *visitChildren(IRVisitor *v) override {
   //   bool modified = false;
 

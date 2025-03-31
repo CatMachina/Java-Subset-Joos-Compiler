@@ -28,13 +28,16 @@ public:
     return left->isConstant() && right->isConstant();
   }
 
-  static std::shared_ptr<Expr> makeExpr(OpType op, std::shared_ptr<Expr> left,
-                                        std::shared_ptr<Expr> right) {
-    return std::make_shared<BinOp>(op, left, right);
-  }
   static std::shared_ptr<Expr> makeNegate(std::shared_ptr<Expr> negated);
 
   std::ostream &print(std::ostream &os, int indent = 0) const override;
+
+  std::vector<std::shared_ptr<Node>> getChildren() const override {
+    std::vector<std::shared_ptr<Node>> children;
+    children.push_back(left);
+    children.push_back(right);
+    return children;
+  }
 };
 
 } // namespace tir

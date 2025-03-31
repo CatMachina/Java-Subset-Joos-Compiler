@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace tir {
 
@@ -15,9 +16,9 @@ protected:
   }
 
 public:
-  virtual ~Node() = default;
   virtual std::string label() const = 0;
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
+  virtual std::vector<std::shared_ptr<Node>> getChildren() const;
 };
 
 } // namespace tir

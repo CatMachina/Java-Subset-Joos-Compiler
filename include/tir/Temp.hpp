@@ -34,6 +34,8 @@ public:
     printIndent(os, indent);
     return os << "(Temp " << name << ")\n";
   }
+
+  std::vector<std::shared_ptr<Node>> getChildren() const override { return {}; }
 };
 
 } // namespace tir

@@ -60,6 +60,15 @@ public:
   static std::shared_ptr<Expr> makeMalloc(std::shared_ptr<Expr> arg);
   static std::shared_ptr<Expr> makeException();
   std::ostream &print(std::ostream &os, int indent = 0) const override;
+
+  std::vector<std::shared_ptr<Node>> getChildren() const override {
+    std::vector<std::shared_ptr<Node>> children;
+    children.push_back(target);
+    for (auto &arg : args) {
+      children.push_back(arg);
+    }
+    return children;
+  }
 };
 
 } // namespace tir

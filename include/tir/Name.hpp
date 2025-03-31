@@ -22,14 +22,16 @@ public:
     return std::make_shared<Name>(name, isGlobal);
   }
 
-  static std::shared_ptr<Expr> makeMalloc() { return makeExpr("__malloc"); }
+  static std::shared_ptr<Expr> makeMalloc() { return makeExpr("__MALLOC__"); }
   static std::shared_ptr<Expr> makeException() {
-    return makeExpr("__exception");
+    return makeExpr("__EXEPTION__");
   }
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
     return os << "(Name " << name << ")\n";
   }
+
+  std::vector<std::shared_ptr<Node>> getChildren() const override { return {}; }
 };
 
 } // namespace tir

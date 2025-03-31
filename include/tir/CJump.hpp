@@ -32,6 +32,12 @@ public:
 
   std::string label() const override { return "CJUMP"; }
   std::ostream &print(std::ostream &os, int indent = 0) const override;
+
+  std::vector<std::shared_ptr<Node>> getChildren() const override {
+    std::vector<std::shared_ptr<Node>> children;
+    children.push_back(condition);
+    return children;
+  }
 };
 
 } // namespace tir

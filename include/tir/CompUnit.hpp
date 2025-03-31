@@ -115,6 +115,30 @@ public:
     os << ")\n";
     return os;
   }
+
+  std::vector<std::shared_ptr<Node>> getChildren() const override {
+    std::vector<std::shared_ptr<Node>> children;
+
+    for (auto pair : getFunctions()) {
+      children.push_back(pair.second);
+    }
+
+    if (areStaticFieldsCanonicalized()) {
+      for (auto pair : getCanonFieldList()) {
+        children.push_back(pair.second);
+      }
+    } else {
+      for (auto pair : getFieldList()) {
+        children.push_back(pair.second);
+      }
+    }
+
+    for (auto stmt : start_statements) {
+      children.push_back(stmt);
+    }
+
+    return children;
+  }
 };
 
 } // namespace tir

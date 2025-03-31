@@ -32,6 +32,8 @@ public:
     os << "(Label " << name << ")\n";
     return os;
   }
+
+  std::vector<std::shared_ptr<Node>> getChildren() const override { return {}; }
 };
 
 }; // namespace tir
