@@ -10,7 +10,7 @@ namespace codegen {
 class GreedyReordering {
 public:
   GreedyReordering(std::shared_ptr<CFG> cfg) : cfg{cfg} {}
-  void run();
+  void reorder();
 
 private:
   std::shared_ptr<CFG> cfg;
