@@ -43,6 +43,12 @@ public:
               << std::to_string(scale) << " - " << std::to_string(disp)
               << ")\n";
   }
+
+  std::string getBase() const { return base; }
+  void setBase(std::string base) { this->base = base; }
+
+  std::string getIndex() const { return index; }
+  void setIndex(std::string index) { this->index = index; }
 };
 
 // labels used in places like jumps or data references
@@ -69,6 +75,9 @@ public:
     printIndent(os, indent);
     return os << "(RegisterOp " << reg << ")\n";
   }
+
+  std::string getReg() const { return reg; }
+  void setReg(std::string reg) { this->reg = reg; }
 };
 
 // immediate constant

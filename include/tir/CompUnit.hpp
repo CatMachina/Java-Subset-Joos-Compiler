@@ -28,11 +28,11 @@ class CompUnit : public Node {
 
   std::vector<std::shared_ptr<Node>> nodes;
 
+  std::vector<std::shared_ptr<Stmt>> start_statements;
+
 public:
   CompUnit(std::string name, std::vector<std::shared_ptr<Node>> nodes)
       : name(name), nodes(nodes) {}
-
-  std::vector<std::shared_ptr<Stmt>> start_statements;
 
   // Getters
   std::shared_ptr<FuncDecl> getFunction(std::string name) {
@@ -72,6 +72,8 @@ public:
           "Static field initalizers are not canonicalized; use getFieldList");
     return child_canonical_static_fields;
   }
+
+  std::vector<std::shared_ptr<Stmt>> getStartStmts() { return start_statements; }
 
   bool areStaticFieldsCanonicalized() const {
     return staticFieldsCanonicalized;
@@ -133,7 +135,7 @@ public:
       }
     }
 
-    for (auto stmt : start_statements) {
+    for (auto stmt : getStartStmts()) {
       children.push_back(stmt);
     }
 

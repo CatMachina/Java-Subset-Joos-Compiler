@@ -36,6 +36,24 @@ protected:
 
 public:
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
+
+  void replaceRegister(std::string oldReg, std::string newReg) {
+    for (auto &operand : operands) {
+      if (auto memAddrOp = std::dynamic_pointer_cast<MemAddrOp>(operand)) {
+        if (memAddrOp->getBase() == oldReg) {
+          memAddrOp->setBase(newReg);
+        }
+        if (memAddrOp->getIndex() == oldReg) {
+          memAddrOp->setIndex(newReg);
+        }
+      } else if (auto registerOp =
+                     std::dynamic_pointer_cast<RegisterOp>(operand)) {
+        if (registerOp->getReg() == oldReg) {
+          registerOp->setReg(newReg);
+        }
+      }
+    }
+  }
 };
 
 // mov	move data from src to dest
