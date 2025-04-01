@@ -3,31 +3,33 @@
 
 namespace codegen {
 
+/*
 class LoweredStatement {
-  std::vector<tir::Stmt> statements;
+  std::vector<std::shared_ptr<tir::Stmt>> statements;
 
 public:
-  LoweredStatement(std::vector<tir::Stmt> statements)
+  LoweredStatement(std::vector<std::shared_ptr<tir::Stmt>> statements)
       : statements{statements} {}
 
-  std::vector<tir::Stmt> getStatements() { return statements; }
+  std::vector<std::shared_ptr<tir::Stmt>> getStatements() { return statements; }
 
   // template <typename... StatementIRs> LoweredStatement(StatementIRs
   // &&...args) {
   //   (statements.emplace_back(args), ...);
   // }
 };
+*/
 
 class LoweredExpression {
-  std::vector<tir::Stmt> statements;
+  std::vector<std::shared_ptr<tir::Stmt>> statements;
   std::shared_ptr<tir::Expr> expression;
 
 public:
-  LoweredExpression(std::vector<tir::Stmt> statements,
+  LoweredExpression(std::vector<std::shared_ptr<tir::Stmt>> statements,
                     std::shared_ptr<tir::Expr> expression)
       : statements{statements}, expression{expression} {}
 
-  std::vector<tir::Stmt> getStatements() { return statements; }
+  std::vector<std::shared_ptr<tir::Stmt>> getStatements() { return statements; }
   std::shared_ptr<tir::Expr> getExpression() { return expression; }
 
   // template <typename... StatementIRs>
@@ -64,9 +66,6 @@ public:
 
   std::vector<std::shared_ptr<tir::Stmt>>
   canonicalizeCJump(std::shared_ptr<tir::CJump> cJump);
-
-  std::vector<std::shared_ptr<tir::Stmt>>
-  canonicalizeLabel(std::shared_ptr<tir::Label> label);
 
   std::vector<std::shared_ptr<tir::Stmt>>
   canonicalizeMove(std::shared_ptr<tir::Move> move);

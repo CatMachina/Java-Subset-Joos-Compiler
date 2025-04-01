@@ -11,6 +11,7 @@
 
 // Statements
 #include "tir/CJump.hpp"
+#include "tir/CallStmt.hpp"
 #include "tir/Exp.hpp"
 #include "tir/Jump.hpp"
 #include "tir/Label.hpp"

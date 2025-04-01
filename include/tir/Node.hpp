@@ -19,13 +19,13 @@ protected:
 public:
   virtual std::string label() const = 0;
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
-  virtual std::vector<std::shared_ptr<Node>> getChildren() const;
   virtual void visitChildren(InsnMapsBuilder &v) = 0;
   virtual void buildInsnMapsEnter(InsnMapsBuilder &v) { return; }
   virtual std::shared_ptr<Node> buildInsnMaps(InsnMapsBuilder &v) {
     v.addInsn(shared_from_this());
     return shared_from_this();
   }
+  virtual std::vector<std::shared_ptr<Node>> getChildren() const { return {}; };
 };
 
 } // namespace tir

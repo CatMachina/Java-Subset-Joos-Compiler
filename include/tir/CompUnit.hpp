@@ -61,7 +61,8 @@ public:
     return child_functions;
   }
 
-  std::vector<std::pair<std::string, std::shared_ptr<Expr>>> &getFieldList() {
+  std::vector<std::pair<std::string, std::shared_ptr<Expr>>>
+  getFieldList() const {
     if (staticFieldsCanonicalized)
       throw std::runtime_error(
           "Static field initalizers are canonicalized; use getCanonFieldList");
@@ -76,7 +77,9 @@ public:
     return child_canonical_static_fields;
   }
 
-  std::vector<std::shared_ptr<Stmt>> getStartStmts() { return start_statements; }
+  std::vector<std::shared_ptr<Stmt>> getStartStmts() const {
+    return start_statements;
+  }
 
   bool areStaticFieldsCanonicalized() const {
     return staticFieldsCanonicalized;

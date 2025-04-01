@@ -83,6 +83,7 @@ add_library(CompilerLib
     "src/tir/TIRBuilder.cpp"
     "src/tir/TIR.cpp"
     "src/codeGen/exprIRConverter.cpp"
+    "src/codeGen/canonicalizer.cpp"
 )
 target_include_directories(
     CompilerLib

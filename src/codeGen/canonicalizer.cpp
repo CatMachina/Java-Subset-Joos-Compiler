@@ -1,4 +1,4 @@
-#include "codegen/canonicalizer.hpp"
+#include "codeGen/canonicalizer.hpp"
 
 namespace codegen {
 
@@ -6,18 +6,17 @@ void TIRCanonicalizer::canonicalizeCompUnit(
     std::shared_ptr<tir::CompUnit> root) {
 
   // start statements
-  for (auto &stmt : root->start_statements) {
-    stmt = std::make_shared<tir::Seq>(canonicalize(stmt)->getStatements());
+  for (auto &stmt : root->getStartStmts()) {
+    stmt = std::make_shared<tir::Seq>(canonicalize(stmt));
   }
 
   // functions
   for (auto &func : root->getFunctionList()) {
-    func->getBody() = std::make_shared<tir::Seq>(
-        canonicalize(func->getBody())->getStatements());
+    func->getBody() = std::make_shared<tir::Seq>(canonicalize(func->getBody()));
   }
 
   // child canonical static fields
-  std::vector<std::pair<std::string, std::shared_ptr<Stmt>>>
+  std::vector<std::pair<std::string, std::shared_ptr<tir::Stmt>>>
       child_canonical_static_fields;
   for (auto &fieldPair : root->getFieldList()) {
     auto name = fieldPair.first;
@@ -48,14 +47,12 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Expr> expression) {
     std::string tempName = tir::Temp::generateName();
     auto statements = loweredLeft->getStatements();
 
-    auto newExpression =
-        std::make_shared<tir::BinOp>(expression->op,
-                                     std::make_shared<tir::Temp>(tempName),
-                                     loweredRight->getExpression())
+    auto newExpression = std::make_shared<tir::BinOp>(
+        binOp->op, std::make_shared<tir::Temp>(tempName),
+        loweredRight->getExpression());
 
-            statements.push_back(std::make_shared<tir::Move>(
-                strd::make_shared<tir::Temp>(tempName),
-                loweredLeft->getExpression()));
+    statements.push_back(std::make_shared<tir::Move>(
+        std::make_shared<tir::Temp>(tempName), loweredLeft->getExpression()));
     statements.insert(statements.end(), loweredRight->getStatements().begin(),
                       loweredRight->getStatements().end());
 
@@ -80,16 +77,17 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Expr> expression) {
 
     if (std::dynamic_pointer_cast<tir::Name>(call->getTarget())) {
       // target is label
-      statements.push_back(
-          std::make_shared<tir::Call>(call->getTarget(), tempArgs));
+      statements.push_back(std::make_shared<tir::CallStmt>(
+          std::make_shared<tir::Call>(call->getTarget(), tempArgs)));
     } else {
       // target is other expression
       auto loweredTarget = canonicalize(call->getTarget());
       statements.insert(statements.end(),
                         loweredTarget->getStatements().begin(),
                         loweredTarget->getStatements().end());
-      statements.push_back(std::make_shared<tir::Call>(
-          loweredTarget->getExpression(), tempArgs));
+      statements.push_back(
+          std::make_shared<tir::CallStmt>(std::make_shared<tir::Call>(
+              loweredTarget->getExpression(), tempArgs)));
     }
 
     return std::make_shared<LoweredExpression>(
@@ -105,12 +103,12 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Expr> expression) {
   } else if (auto eseq = std::dynamic_pointer_cast<tir::ESeq>(expression)) {
     // we can eliminate eseq nodes completely
     auto loweredExpr = canonicalize(eseq->getExpr());
-    auto loweredStmt = canonicalize(eseq->getStmt());
+    auto loweredStmts = canonicalize(eseq->getStmt());
 
-    auto statements = loweredStmt->getStatements();
-    statements.insert(statements.end(), loweredExpr->getStatements().begin(),
-                      loweredExpr->getStatements().end());
-    return std::make_shared<LoweredExpression>(statements,
+    loweredStmts.insert(loweredStmts.end(),
+                        loweredExpr->getStatements().begin(),
+                        loweredExpr->getStatements().end());
+    return std::make_shared<LoweredExpression>(loweredStmts,
                                                loweredExpr->getExpression());
 
   } else if (auto mem = std::dynamic_pointer_cast<tir::Mem>(expression)) {
@@ -139,7 +137,7 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Stmt> stmt) {
   if (auto seq = std::dynamic_pointer_cast<tir::Seq>(stmt)) {
     return canonicalizeSeq(seq);
   } else if (auto exp = std::dynamic_pointer_cast<tir::Exp>(stmt)) {
-    return canonicalize(exp->getExpr()->getStatements());
+    return canonicalize(exp->getExpr())->getStatements();
   } else if (auto jump = std::dynamic_pointer_cast<tir::Jump>(stmt)) {
     return canonicalizeJump(jump);
   } else if (auto cjump = std::dynamic_pointer_cast<tir::CJump>(stmt)) {
@@ -148,7 +146,7 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Stmt> stmt) {
     return {label};
   } else if (auto move = std::dynamic_pointer_cast<tir::Move>(stmt)) {
     return canonicalizeMove(move);
-  } else if (auto ret = std::dynamic_pointer_cast<tir::Return>(ret)) {
+  } else if (auto ret = std::dynamic_pointer_cast<tir::Return>(stmt)) {
     return canonicalizeReturn(ret);
   } else {
     throw std::runtime_error(
@@ -193,7 +191,7 @@ TIRCanonicalizer::canonicalizeCJump(std::shared_ptr<tir::CJump> cjump) {
     throw std::runtime_error(
         "TIRCanonicalizer::canonicalizeCJump: cjump is null");
   }
-  std::shared_ptr<LoweredExpression> lowered =
+  std::shared_ptr<LoweredExpression> loweredCondition =
       canonicalize(cjump->getCondition());
   std::vector<std::shared_ptr<tir::Stmt>> loweredStmts =
       loweredCondition->getStatements();
@@ -223,7 +221,7 @@ TIRCanonicalizer::canonicalizeMove(std::shared_ptr<tir::Move> move) {
   // Case 1: L[e] = s'; e'
   // Case 2: L[e2] = s2'; e2'
   std::shared_ptr<LoweredExpression> loweredSource = canonicalize(source);
-  std::vector<std::shared_ptr<LoweredStatement>> loweredStmts =
+  std::vector<std::shared_ptr<tir::Stmt>> loweredStmts =
       loweredSource->getStatements();
   // Case 1: target is a Temp
   if (auto tempTarget = std::dynamic_pointer_cast<tir::Temp>(target)) {
