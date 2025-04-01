@@ -23,9 +23,9 @@ public:
     return ((prefix.empty() ? "label" : prefix) + std::to_string(numLabels));
   }
 
-  std::shared_ptr<Node> buildInsnMaps(InsnMapsBuilder &v) override {
+  void buildInsnMapsEnter(InsnMapsBuilder &v) override {
     v.addNameToCurrentIndex(name);
-    return shared_from_this();
+    return;
   }
 
   void visitChildren(InsnMapsBuilder &v) override { v.visit(nullptr); }

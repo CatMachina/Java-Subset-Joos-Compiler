@@ -79,6 +79,7 @@ add_library(CompilerLib
 
     # code generation
     "src/tir/InsnMapsBuilder.cpp"
+    "src/tir/Simulator.cpp"
     "src/tir/TIRBuilder.cpp"
     "src/tir/TIR.cpp"
     "src/codeGen/exprIRConverter.cpp"
@@ -120,4 +121,9 @@ add_tool(
 add_tool(
     joosc
     "driver/joosc/main.cpp"
+)
+
+add_tool(
+    simulator
+    "driver/simulator/main.cpp"
 )

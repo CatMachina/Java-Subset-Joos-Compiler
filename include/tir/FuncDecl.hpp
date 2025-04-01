@@ -31,9 +31,13 @@ public:
 
   std::string label() const override { return "FUNC " + name; }
 
-  std::shared_ptr<Node> buildInsnMaps(InsnMapsBuilder &v) override {
+  void buildInsnMapsEnter(InsnMapsBuilder &v) override {
     v.addNameToCurrentIndex(name);
     v.addInsn(shared_from_this());
+    return;
+  }
+
+  std::shared_ptr<Node> buildInsnMaps(InsnMapsBuilder &v) override {
     return shared_from_this();
   }
 

@@ -31,6 +31,9 @@ class CompUnit : public Node {
   std::vector<std::shared_ptr<Stmt>> start_statements;
 
 public:
+  CompUnit(std::string name)
+      : name(name), nodes(std::vector<std::shared_ptr<Node>>()) {}
+
   CompUnit(std::string name, std::vector<std::shared_ptr<Node>> nodes)
       : name(name), nodes(nodes) {}
 
