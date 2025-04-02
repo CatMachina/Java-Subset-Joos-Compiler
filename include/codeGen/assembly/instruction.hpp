@@ -351,13 +351,117 @@ public:
 };
 
 // test, cmp	perform ALU operations (and, sub) but only set condition codes.
+class Test : public Instruction {
+public:
+  Test(std::shared_ptr<Operand> left, std::shared_ptr<Operand> right) {
+    left->setRead();
+    right->setRead();
+    addOperand(left);
+    addOperand(right);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Test ";
+    getOperands()[0]->print(os);
+    os << ", ";
+    getOperands()[1]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "test " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
+};
+
+class Cmp : public Instruction {
+public:
+  Cmp(std::shared_ptr<Operand> left, std::shared_ptr<Operand> right) {
+    left->setRead();
+    right->setRead();
+    addOperand(left);
+    addOperand(right);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Cmp ";
+    getOperands()[0]->print(os);
+    os << ", ";
+    getOperands()[1]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "cmp " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
+};
 
 // call	subroutine call
+class Call : public Instruction {
+public:
+  Call(std::shared_ptr<Operand> target) {
+    target->setRead();
+    addOperand(target);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Call ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "call " + getOperands()[0]->toString();
+  }
+};
 
 // ret	subroutine return
+class Ret : public Instruction {
+public:
+  Ret() = default;
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Ret)\n";
+    return os;
+  }
+
+  std::string toString() const override { return "ret"; }
+};
 
 // lea computes the address of a memory operand and moves that address
 // into a register rather than loading the data from that address
+class Lea : public Instruction {
+public:
+  Lea(std::shared_ptr<Operand> dest, std::shared_ptr<Operand> src) {
+    dest->setWrite();
+    src->setRead();
+    addOperand(dest);
+    addOperand(src);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Lea ";
+    getOperands()[0]->print(os);
+    os << ", ";
+    getOperands()[1]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "lea " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
+};
 
 // setz, setnz, setl setg, setle, setge
 // set destination to 1 or 0 based on flags from Cmp
