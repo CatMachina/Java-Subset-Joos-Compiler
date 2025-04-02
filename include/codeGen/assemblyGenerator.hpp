@@ -15,7 +15,8 @@ class AssembyGenerator {
   std::vector<std::vector<AssemblyInstruction>> startInstructions;
   std::vector<AssemblyInstruction> staticInitializers;
 
-  std::string entryMethod; // TODO!
+  std::string entryMethod;                              // TODO!
+  std::shared_ptr<RegisterAllocator> registerAllocator; // TODO!
 
   // Callee save
   std::string emitFunctionPrologue(size_t stackSize) {
@@ -90,8 +91,7 @@ public:
       // label
       outputFile << function->getName() << ":\n";
       // prologue
-      // TODO: allocate / on stack
-      size_t stackSize = 0;
+      size_t stackSize = registerAllocator->allocateFor(bodyInstructions);
       outputFile << emitFunctionPrologue(stackSize) << "\n";
       // method body
       for (auto &instruction : bodyInstructions) {
@@ -147,7 +147,26 @@ public:
     }
     outputFile << "\n";
 
-    // TODO: continue
+    outputFile << "__start:\n";
+
+    // initialize all the static fields of all the compilation units in order
+    int stackSize = registerAllocator->allocateFor(staticInitializers);
+    outputFile << emitFunctionPrologue(stackSize) << "\n";
+    for (auto &instruction : staticInitializers) {
+      outputFile << instruction->toString() << "\n";
+    }
+    outputFile << "mov " << assembly::R32_ESP << ", " << assembly::R32_EBP
+               << "\n";
+    outputFile << "pop " << assembly::R32_EBP << "\n";
+    outputFile << "\n";
+
+    // call entrypoint method and execute exit() system call with return value
+    // in R32_EBP
+    outputFile << "call " << entryMethod << "\n";
+    outputFile << "mov " << assembly::R32_EBP << ", " << assembly::R32_EAX
+               << "\n";
+    outputFile << "mov " << assembly::R32_EAX << ", 1\n";
+    outputFile << "int 0x80\n";
   }
 };
 
