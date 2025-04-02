@@ -268,10 +268,87 @@ public:
 };
 
 // jmp	unconditional jump
+class Jmp : public Instruction {
+public:
+  Jmp(std::shared_ptr<Operand> target) {
+    target->setRead();
+    addOperand(target);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Jmp ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "jmp " + getOperands()[0]->toString();
+  }
+};
 
 // je	conditional jump on equal
+class Je : public Instruction {
+public:
+  Je(std::shared_ptr<Operand> target) {
+    target->setRead();
+    addOperand(target);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Je ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "je " + getOperands()[0]->toString();
+  }
+};
 
 // push, pop	stack operations (single operand)
+class Push : public Instruction {
+public:
+  Push(std::shared_ptr<Operand> operand) {
+    operand->setRead();
+    addOperand(operand);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Push ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "push " + getOperands()[0]->toString();
+  }
+};
+
+class Pop : public Instruction {
+public:
+  Pop(std::shared_ptr<Operand> operand) {
+    operand->setWrite();
+    addOperand(operand);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Pop ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "pop " + getOperands()[0]->toString();
+  }
+};
 
 // test, cmp	perform ALU operations (and, sub) but only set condition codes.
 
