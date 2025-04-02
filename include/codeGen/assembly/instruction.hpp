@@ -465,5 +465,28 @@ public:
 
 // setz, setnz, setl setg, setle, setge
 // set destination to 1 or 0 based on flags from Cmp
+class Setcc : public Instruction {
+public:
+  Setcc(std::string condition, std::shared_ptr<Operand> dest)
+      : cond{condition} {
+    dest->setWrite();
+    addOperand(dest);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Set" << condition << " ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "set" + condition + " " + getOperands()[0]->toString();
+  }
+
+private:
+  std::string condition;
+};
 
 } // namespace codegen::assembly
