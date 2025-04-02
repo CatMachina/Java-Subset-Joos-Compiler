@@ -86,7 +86,7 @@ public:
 // add, sub, imul, idiv	arithmetic operations
 class Add : public Instruction {
 public:
-  Add(std::shared_ptr<Operand> arg1, std::shared_ptr<Operand> arg1) {
+  Add(std::shared_ptr<Operand> arg1, std::shared_ptr<Operand> arg2) {
     arg1->setWrite();
     arg1->setRead();
     arg2->setRead();
@@ -112,7 +112,7 @@ public:
 
 class Sub : public Instruction {
 public:
-  Sub(std::shared_ptr<Operand> arg1, std::shared_ptr<Operand> arg1) {
+  Sub(std::shared_ptr<Operand> arg1, std::shared_ptr<Operand> arg2) {
     arg1->setWrite();
     arg1->setRead();
     arg2->setRead();
@@ -189,6 +189,83 @@ public:
 };
 
 // and, or, xor 	bitwise logical operators
+class And : public Instruction {
+public:
+  And(std::shared_ptr<Operand> arg1, std::shared_ptr<Operand> arg2) {
+    arg1->setWrite();
+    arg1->setRead();
+    arg2->setRead();
+    addOperand(arg1);
+    addOperand(arg2);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(And ";
+    getOperands()[0]->print(os);
+    os << " ";
+    getOperands()[1]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "and " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
+};
+
+class Or : public Instruction {
+public:
+  Or(std::shared_ptr<Operand> arg1, std::shared_ptr<Operand> arg2) {
+    arg1->setWrite();
+    arg1->setRead();
+    arg2->setRead();
+    addOperand(arg1);
+    addOperand(arg2);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Or ";
+    getOperands()[0]->print(os);
+    os << " ";
+    getOperands()[1]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "or " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
+};
+
+class Xor : public Instruction {
+public:
+  Xor(std::shared_ptr<Operand> arg1, std::shared_ptr<Operand> arg2) {
+    arg1->setWrite();
+    arg1->setRead();
+    arg2->setRead();
+    addOperand(arg1);
+    addOperand(arg2);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Xor ";
+    getOperands()[0]->print(os);
+    os << " ";
+    getOperands()[1]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "xor " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
+};
 
 // jmp	unconditional jump
 
