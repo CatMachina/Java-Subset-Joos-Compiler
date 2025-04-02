@@ -93,8 +93,8 @@ public:
     }
   }
 
-  std::list<AssemblyInstruction> getInstructions() {
-    std::list<AssemblyInstruction> returnList;
+  std::vector<AssemblyInstruction> getInstructions() {
+    std::vector<AssemblyInstruction> returnList;
 
     for (auto instruction : instructions) {
       if (auto assemblyInstruction =

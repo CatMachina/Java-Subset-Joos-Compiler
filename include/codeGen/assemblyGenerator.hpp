@@ -10,9 +10,22 @@ class AssembyGenerator {
   std::shared_ptr<LinkingResolver> linkingResolver;
   std::shared_ptr<tir::CompUnit> root;
 
-  std::vector<std::pair<std::string, std::list<AssemblyInstruction>>>
+  std::vector<std::pair<std::string, std::vector<AssemblyInstruction>>>
       staticFields;
-  std::vector<std::list<AssemblyInstruction>> startInstructions;
+  std::vector<std::vector<AssemblyInstruction>> startInstructions;
+  std::vector<AssemblyInstruction> staticInitializers;
+
+  std::string entryMethod; // TODO!
+
+  // Callee save
+  std::string emitFunctionPrologue(size_t stackSize) {
+    std::string prologue;
+    prologue += "push " + assembly::R32_EBP + "\n";
+    prologue += "mov " + assembly::R32_EBP + ", " + assembly::R32_ESP + "\n";
+    prologue += "sub " + assembly::R32_ESP + ", " +
+                std::to_string(4 * stackSize) + "\n";
+    return prologue;
+  }
 
 public:
   AssembyGenerator(std::shared_ptr<CodeGenLabels> codeGenLabels) {
@@ -47,7 +60,45 @@ public:
       startInstructions.push_back(instructions);
     }
 
-    // TODO: continue
+    // start output to file
+
+    std::ofstream outputFile{"output/file_" + std::to_string(fileId) + ".s"};
+    outputFile << "section .text\n\n";
+
+    // global function
+    for (auto &function : irTree->getFunctionList()) {
+      outputFile << "global " << function->getName() << "\n";
+    }
+    outputFile << "\n";
+
+    // import method & static fields (extern)
+    auto dependencyResolver = std::make_shared<LinkingResolver>(irTree);
+    for (auto &method : dependencyResolver->getRequiredMethods()) {
+      outputFile << "extern " << method << "\n";
+    }
+    for (auto &staticField : dependencyResolver->getRequiredStaticFields()) {
+      outputFile << "extern " << staticField << "\n";
+    }
+    outputFile << "\n";
+
+    // Tiling for each method of the program
+    for (auto &function : irTree->getFunctionList()) {
+      StatementTile bodyTile =
+          instructionSelector->selectTile(function->getBody());
+      auto bodyInstructions = bodyTile->getInstructions();
+
+      // label
+      outputFile << function->getName() << ":\n";
+      // prologue
+      // TODO: allocate / on stack
+      size_t stackSize = 0;
+      outputFile << emitFunctionPrologue(stackSize) << "\n";
+      // method body
+      for (auto &instruction : bodyInstructions) {
+        outputFile << instruction->toString() << "\n";
+      }
+      outputFile << "\n";
+    }
   }
 
   void generateAssembly(std::vector<std::shared_ptr<tir::CompUnit>> irTrees) {
@@ -57,11 +108,46 @@ public:
 
     int fileId = 0;
     for (auto irTree : irTrees) {
-      staticFields.clear();
-      startInstructions.clear();
       root = irTree;
       generateIRTree(root, fileId++);
     }
+
+    for (auto &[name, initializers] : staticFields) {
+      staticInitializers.insert(staticInitializers.end(), initializers.begin(),
+                                initializers.end());
+    }
+    // DV initializer
+    for (auto &startInstruction : startInstructions) {
+      staticInitializers.insert(staticInitializers.end(),
+                                startInstruction.begin(),
+                                startInstruction.end());
+    }
+
+    // entrypoint main file
+    std::ofstream outputFile{"output/main.s"};
+
+    // static (global) variables
+    outputFile << "section .data\n\n";
+    for (auto &[name, initializers] : staticFields) {
+      outputFile << name << ": dd 0\n";
+    }
+    outputFile << "\n";
+
+    // instructions sections tart
+    outputFile << "section .text\n\n";
+    for (auto &[name, initializers] : staticFields) {
+      outputFile << "global " << name << "\n";
+    }
+    outputFile << "global __start\n";
+    outputFile << "extern " << entryMethod << "\n";
+
+    // method dependencies
+    for (auto &method : linkingResolver->getRequiredMethods()) {
+      outputFile << "extern " << method << "\n";
+    }
+    outputFile << "\n";
+
+    // TODO: continue
   }
 };
 

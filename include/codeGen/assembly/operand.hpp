@@ -21,6 +21,7 @@ protected:
 
 public:
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
+  virtual std::string toString() const = 0;
 };
 
 // x86 memory operands
@@ -49,6 +50,29 @@ public:
 
   std::string getIndex() const { return index; }
   void setIndex(std::string index) { this->index = index; }
+
+  std::string toString() const override {
+    if (scale != 1 || scale != 2 || scale != 4 || scale != 8) {
+      throw std::runtime_error("scale must be 1, 2, 4, 8, but got " +
+                               std::to_string(scale));
+    }
+
+    std::string output = base;
+    if (base != "") {
+      output += " + ";
+      if (index != 1) {
+        result += "(" + index + " * " + std::to_string(scale) + ")";
+      } else {
+        output += index;
+      }
+    }
+
+    if (disp != 0) {
+      output += (disp > 0) ? " + " : " - ";
+      output += std::to_string(std::abs(disp));
+    }
+    return "[" + output + "]";
+  }
 };
 
 // labels used in places like jumps or data references
@@ -62,6 +86,8 @@ public:
     printIndent(os, indent);
     return os << "(LabelOp " << label << ")\n";
   }
+
+  std::string toString() const override { return label; }
 };
 
 // register operand like "eax"
@@ -78,6 +104,8 @@ public:
 
   std::string getReg() const { return reg; }
   void setReg(std::string reg) { this->reg = reg; }
+
+  std::string toString() const override { return reg; }
 };
 
 // immediate constant
@@ -91,6 +119,8 @@ public:
     printIndent(os, indent);
     return os << "(ImmediateOp " << std::to_string(value) << ")\n";
   }
+
+  std::string toString() const override { return std::to_string(value); }
 };
 
 } // namespace codegen::assembly

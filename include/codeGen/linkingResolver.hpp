@@ -52,6 +52,13 @@ public:
     requiredMethods.insert("__MALLOC__");
     requiredMethods.insert("__EXECPTION__");
   }
+
+  std::unordered_set<std::string> getRequiredStaticFields() {
+    return requiredStaticFields;
+  }
+  std::unordered_set<std::string> getRequiredMethods() {
+    return requiredMethods;
+  }
 };
 
 } // namespace codegen

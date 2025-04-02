@@ -36,6 +36,7 @@ protected:
 
 public:
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
+  virtual std::string toString() const = 0;
 
   void replaceRegister(std::string oldReg, std::string newReg) {
     for (auto &operand : operands) {
@@ -75,6 +76,11 @@ public:
     os << ")\n";
     return os;
   }
+
+  std::string toString() const override {
+    return "mov " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
 };
 
 // add, sub, imul, idiv	arithmetic operations
@@ -97,6 +103,11 @@ public:
     os << ")\n";
     return os;
   }
+
+  std::string toString() const override {
+    return "add " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
 };
 
 class Sub : public Instruction {
@@ -117,6 +128,11 @@ public:
     getOperands()[1]->print(os);
     os << ")\n";
     return os;
+  }
+
+  std::string toString() const override {
+    return "sub " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
   }
 };
 
@@ -140,6 +156,10 @@ public:
     os << ")\n";
     return os;
   }
+
+  std::string toString() const override {
+    return "imul " + getOperands()[0]->toString();
+  }
 };
 
 class IDiv : public Instruction {
@@ -161,6 +181,10 @@ public:
     getOperands()[0]->print(os);
     os << ")\n";
     return os;
+  }
+
+  std::string toString() const override {
+    return "idiv " + getOperands()[0]->toString();
   }
 };
 
