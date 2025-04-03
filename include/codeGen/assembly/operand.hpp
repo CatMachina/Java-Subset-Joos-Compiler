@@ -19,6 +19,9 @@ protected:
   void setRead() { isRead = true; }
   void setWrite() { isWrite = true; }
 
+  bool isRead() const { return isRead; }
+  bool isWrite() const { return isWrite; }
+
 public:
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
   virtual std::string toString() const = 0;
@@ -34,9 +37,15 @@ class MemAddrOp : public Operand {
   int disp;
 
 public:
-  EffectiveAddress(std::string base, std::string index = "", int scale = 1,
-                   int displacement = 0)
+  MemAddrOp(std::string base, std::string index = "", int scale = 1,
+            int displacement = 0)
       : Operand{}, base{base}, index{index}, scale{scale}, disp{displacement} {}
+
+  MemAddrOp(std::string base, int displacement)
+      : Operand{}, base{base}, disp{displacement} {
+    index = "";
+    scale = 1;
+  }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

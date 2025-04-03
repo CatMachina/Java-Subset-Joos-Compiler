@@ -34,6 +34,32 @@ protected:
     return operands;
   }
 
+private:
+  // Expand register set with overlaps and remove non-registers (e.g., global
+  // data)
+  void sanitizeRegisterSet(std::unordered_set<std::string> &regs) {
+    std::unordered_set<std::string> originalRegs = regs;
+
+    // Add overlapping registers
+    for (const auto &reg : originalRegs) {
+      auto it = assembly::REG_TO_ALIAS_GROUP.find(reg);
+      if (it != assembly::REG_TO_ALIAS_GROUP.end()) {
+        for (const auto &overlapReg : *it->second) {
+          regs.insert(overlapReg);
+        }
+      }
+    }
+
+    // Remove non-register entries (like global data)
+    std::unordered_set<std::string> sanitizedRegs = regs;
+    for (const auto &reg : sanitizedRegs) {
+      CodeGenLabels dummy;
+      if (reg.rfind(dummy.kGlobalPrefix, 0) == 0) {
+        regs.erase(reg);
+      }
+    }
+  }
+
 public:
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
   virtual std::string toString() const = 0;
@@ -54,6 +80,107 @@ public:
         }
       }
     }
+  }
+
+  std::unordered_set<std::string> getReadRegisters() {
+    std::unordered_set<std::string> result;
+
+    for (auto &operand : operands) {
+      if (auto &memAddrOp = std::dynamic_pointer_cast<MemAddrOp>(operand)) {
+        // always read, even if the operand itself isn't
+        if (memAddrOp->getBase() != "") {
+          result.insert(memAddrOp->getBase());
+        }
+        if (memAddrOp->getIndex() != "") {
+          result.insert(memAddrOp->getIndex());
+        }
+
+      } else if (auto &registerOp =
+                     std::dynamic_pointer_cast<RegisterOp>(operand)) {
+        if (registerOp->isRead()) {
+          result.insert(registerOp->getReg());
+        }
+      }
+    }
+
+    for (auto &reg : readGPRs) {
+      result.insert(reg);
+    }
+    sanitizedRegs(result);
+
+    return std::move(result);
+  }
+
+  std::unordered_set<std::string> getWriteRegisters() {
+    std::unordered_set<std::string> result;
+    for (auto &operand : operands) {
+      if (auto &registerOp = std::dynamic_pointer_cast<RegisterOp>(operand)) {
+        if (registerOp->isWrite()) {
+          result.insert(registerOp->getReg());
+        }
+      }
+    }
+    for (auto &reg : writeGPRs) {
+      result.insert(reg);
+    }
+    sanitizedRegs(result);
+    return std::move(result);
+  }
+
+  std::unordered_set<std::string> getAllUsedRegisters() {
+    std::unordered_set<std::string> result;
+
+    for (auto &operand : operands) {
+      if (auto &registerOp = std::dynamic_pointer_cast<RegisterOp>(operand)) {
+        result.insert(registerOp->getReg());
+      } else if (auto &memAddrOp =
+                     std::dynamic_pointer_cast<MemAddrOp>(operand)) {
+        if (memAddrOp->getBase() != "") {
+          result.insert(memAddrOp->getBase());
+        }
+        if (memAddrOp->getIndex() != "") {
+          result.insert(memAddrOp->getIndex());
+        }
+      }
+    }
+    for (auto &reg : readGPRs) {
+      result.insert(reg);
+    }
+    for (auto &reg : writeGPRs) {
+      result.insert(reg);
+    }
+    sanitizedRegs(result);
+    return std::move(result);
+  }
+
+  std::unordered_set<std::string> getReadVirtualRegisters() {
+    std::unordered_set<std::string> result;
+    for (auto &reg : getReadRegisters()) {
+      if (!assembly::isGPR(reg)) {
+        result.insert(reg);
+      }
+    }
+    return std::move(result);
+  }
+
+  std::unordered_set<std::string> getWriteVirtualRegisters() {
+    std::unordered_set<std::string> result;
+    for (auto &reg : getWriteRegisters()) {
+      if (!assembly::isGPR(reg)) {
+        result.insert(reg);
+      }
+    }
+    return std::move(result);
+  }
+
+  std::unordered_set<std::string> getAllUsedVirtualRegisters() {
+    std::unordered_set<std::string> result;
+    for (auto &reg : getAllUsedRegisters()) {
+      if (!assembly::isGPR(reg)) {
+        result.insert(reg);
+      }
+    }
+    return std::move(result);
   }
 };
 
