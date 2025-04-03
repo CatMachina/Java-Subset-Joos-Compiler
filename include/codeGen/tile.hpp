@@ -1,6 +1,6 @@
 #pragma once
 
-#include "codeGen/assembly.hpp"
+#include "codeGen/assembly/assembly.hpp"
 
 #include <climits>
 #include <list>
@@ -11,7 +11,7 @@ class Tile;
 
 using StmtTile = std::shared_ptr<Tile>;
 using ExprTile = std::pair<std::shared_ptr<Tile>, std::string>;
-using AssemblyInstruction = std::shared_ptr<assembly::instruction>;
+using AssemblyInstruction = std::shared_ptr<assembly::Instruction>;
 using TileInstruction = std::variant<AssemblyInstruction, StmtTile, ExprTile>;
 
 // view each assembly instruction as a tile that covers some part of the IR

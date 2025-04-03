@@ -2,6 +2,7 @@
 
 #include "ast/ast.hpp"
 #include "ast/astManager.hpp"
+#include "codeGen/exprIRConverter.hpp"
 #include "tir/TIR.hpp"
 #include <memory>
 
@@ -9,8 +10,9 @@ namespace tir {
 
 class TIRBuilder {
 public:
-  TIRBuilder(std::shared_ptr<parsetree::ast::ASTManager> astManager)
-      : astManager{astManager} {}
+  TIRBuilder(std::shared_ptr<parsetree::ast::ASTManager> astManager,
+             std::shared_ptr<codegen::ExprIRConverter> exprConverter)
+      : astManager{astManager}, exprConverter{exprConverter} {}
 
   void run();
 
@@ -19,6 +21,7 @@ public:
 private:
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::vector<std::shared_ptr<CompUnit>> compUnits;
+  std::shared_ptr<codegen::ExprIRConverter> exprConverter;
 
   int labelCounter = 0;
 
@@ -69,6 +72,10 @@ private:
 
   std::vector<std::shared_ptr<Node>>
   buildClassDecl(std::shared_ptr<parsetree::ast::ClassDecl> node);
+
+public:
+  // Mutable
+  std::vector<std::shared_ptr<CompUnit>> &getCompUnits() { return compUnits; }
 };
 
 } // namespace tir

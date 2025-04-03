@@ -31,12 +31,6 @@ public:
 
   std::vector<std::shared_ptr<tir::Stmt>> getStatements() { return statements; }
   std::shared_ptr<tir::Expr> getExpression() { return expression; }
-
-  // template <typename... StatementIRs>
-  // LoweredExpression(tir::Expr expression, StatementIRs &&...args) {
-  //   this->expression = std::make_shared<tir::Expr>(expression);
-  //   (statements.emplace_back(args), ...);
-  // }
 };
 
 class TIRCanonicalizer {
@@ -55,7 +49,7 @@ public:
     this->codeGenLabels = codeGenLabels;
   }
 
-  void canonicalizeCompUnit(std::shared_ptr<tir::CompUnit> root);
+  void canonicalizeCompUnit(std::shared_ptr<tir::CompUnit> &root);
 
   // Statement Canonicalizers
   std::vector<std::shared_ptr<tir::Stmt>>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "codeGen/assembly.hpp"
+#include "codeGen/assembly/assembly.hpp"
 #include "codeGen/codeGenLabels.hpp"
 #include "codeGen/tile.hpp"
 #include "tir/TIR.hpp"

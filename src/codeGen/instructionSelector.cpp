@@ -14,17 +14,20 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
   std::shared_ptr<Tile> tile = std::make_shared<Tile>();
 
   if (auto binOp = std::dynamic_pointer_cast<tir::BinOp>(expr)) {
-    auto leftReg = newVirtualRegister();
-    auto rightReg = newVirtualRegister();
-    tile = std::make_shared<Tile>(std::vector<TileInstruction>{
-        selectTile(binOp->left, leftReg), selectTile(binOp->right, rightReg)})
+    const std::string &leftRegString = newVirtualRegister();
+    const std::string &rightRegString = newVirtualRegister();
+    auto leftReg = std::make_shared<assembly::RegisterOp>(leftRegString);
+    auto rightReg = std::make_shared<assembly::RegisterOp>(rightRegString);
 
-        switch (binOp->op) {
+    tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+        selectTile(binOp->left, leftReg), selectTile(binOp->right, rightReg)});
+
+    switch (binOp->op) {
     case tir::BinOp::OpType::ADD:
       tile->addInstructions(std::vector<TileInstruction>{
-          std::make_shared<assembly::Lea>(
-              Tile::VIRTUAL_REG,
-              std::make_shared<assembly::MemAddrOp>(leftReg, rightReg)),
+          std::make_shared<assembly::Lea>(Tile::VIRTUAL_REG,
+                                          std::make_shared<assembly::MemAddrOp>(
+                                              leftRegString, rightRegString)),
       });
       break;
 
@@ -53,7 +56,8 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
       quotient is in eax
       */
       tile->addInstructions(std::vector<TileInstruction>{
-          std::make_shared<assembly::Cmp>(rightReg, 0),
+          std::make_shared<assembly::Cmp>(
+              rightReg, std::make_shared<assembly::ImmediateOp>(0)),
           std::make_shared<assembly::Je>(
               std::make_shared<assembly::LabelOp>("__EXEPTION__")),
           std::make_shared<assembly::Mov>(assembly::R32_EAX, leftReg),
@@ -66,7 +70,8 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
     case tir::BinOp::OpType::MOD:
       // same as divison, but remainder is in edx
       tile->addInstructions(std::vector<TileInstruction>{
-          std::make_shared<assembly::Cmp>(rightReg, 0),
+          std::make_shared<assembly::Cmp>(
+              rightReg, std::make_shared<assembly::ImmediateOp>(0)),
           std::make_shared<assembly::Je>(
               std::make_shared<assembly::LabelOp>("__EXEPTION__")),
           std::make_shared<assembly::Mov>(assembly::R32_EAX, leftReg),
@@ -200,9 +205,10 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
               std::make_shared<assembly::MemAddrOp>(temp->getName()))});
     } else {
       tile = std::make_shared<Tile>(std::vector<TileInstruction>{
-          std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG,
-                                          "%" + "temp" + "%" +
-                                              std::to_string(temp->getName())),
+          std::make_shared<assembly::Mov>(
+              Tile::VIRTUAL_REG, std::to_string("%") + std::to_string("temp") +
+                                     std::to_string("%") +
+                                     std::to_string(temp->getName())),
       });
     }
 

@@ -84,6 +84,7 @@ add_library(CompilerLib
     "src/tir/TIR.cpp"
     "src/codeGen/exprIRConverter.cpp"
     "src/codeGen/canonicalizer.cpp"
+    # "src/codeGen/instructionSelector.cpp"
 )
 target_include_directories(
     CompilerLib

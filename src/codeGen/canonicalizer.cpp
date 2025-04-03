@@ -3,7 +3,7 @@
 namespace codegen {
 
 void TIRCanonicalizer::canonicalizeCompUnit(
-    std::shared_ptr<tir::CompUnit> root) {
+    std::shared_ptr<tir::CompUnit> &root) {
 
   // start statements
   for (auto &stmt : root->getStartStmts()) {

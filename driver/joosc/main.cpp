@@ -25,7 +25,10 @@
 #include "staticCheck/typeResolver.hpp"
 
 #include "codeGen/astVisitor.hpp"
-#include "codeGen/codeGenLabels.hpp"
+#include "codeGen/canonicalizer.hpp"
+#include "codeGen/exprIRConverter.hpp"
+// #include "codeGen/assemblyGenerator.hpp"
+// #include "codeGen/registerAllocator/basicAllocator.hpp"
 #include "tir/TIRBuilder.hpp"
 
 #include <memory>
@@ -274,13 +277,31 @@ int main(int argc, char **argv) {
     std::cout << "Done building CFGs....\n";
 
     // code gen
-    auto tirBuilder = std::make_shared<tir::TIRBuilder>(astManager);
+    auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
+    auto exprConverter =
+        std::make_shared<codegen::ExprIRConverter>(astManager, codeGenLabels);
+
+    // IR building
+    auto tirBuilder =
+        std::make_shared<tir::TIRBuilder>(astManager, exprConverter);
     tirBuilder->run();
     tirBuilder->print(std::cout);
-    // auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
-    // auto astVisitor =
-    //     std::make_shared<codegen::ASTVisitor>(astManager, codeGenLabels);
-    // astVisitor->visit();
+
+    // canonicalize IR
+    auto tirCanonicalizer =
+        std::make_shared<codegen::TIRCanonicalizer>(codeGenLabels);
+    for (auto &compUnit : tirBuilder->getCompUnits()) {
+      tirCanonicalizer->canonicalizeCompUnit(compUnit);
+    }
+
+    // TODO: we should know the entry point method!
+
+    // TODO: add flag for different register allocators
+    // std::shared_ptr<codegen::RegisterAllocator> registerAllocator = nullptr;
+    // registerAllocator = std::make_shared<codegen::BasicAllocator>();
+
+    // // code gen
+    // auto assemblyGenerator = std::make_shared<codegen::AssembyGenerator>();
 
     return retCode;
   } catch (const std::runtime_error &err) {

@@ -5,8 +5,8 @@ namespace codegen::assembly {
 // operand of assembly instruction can be:
 // memory address, label use, register (real or abstract) or immediate
 class Operand {
-  bool isRead = false;
-  bool isWrite = false;
+  bool isRead_ = false;
+  bool isWrite_ = false;
 
 protected:
   std::ostream &printIndent(std::ostream &os, int indent = 0) const {
@@ -16,15 +16,16 @@ protected:
     return os;
   }
 
-  void setRead() { isRead = true; }
-  void setWrite() { isWrite = true; }
-
-  bool isRead() const { return isRead; }
-  bool isWrite() const { return isWrite; }
-
 public:
+  void setRead() { isRead_ = true; }
+  void setWrite() { isWrite_ = true; }
+
+  bool isRead() const { return isRead_; }
+  bool isWrite() const { return isWrite_; }
+
   virtual std::ostream &print(std::ostream &os, int indent = 0) const = 0;
   virtual std::string toString() const = 0;
+  virtual ~Operand() {}
 };
 
 // x86 memory operands
@@ -39,10 +40,10 @@ class MemAddrOp : public Operand {
 public:
   MemAddrOp(std::string base, std::string index = "", int scale = 1,
             int displacement = 0)
-      : Operand{}, base{base}, index{index}, scale{scale}, disp{displacement} {}
+      : base{base}, index{index}, scale{scale}, disp{displacement} {}
 
   MemAddrOp(std::string base, int displacement)
-      : Operand{}, base{base}, disp{displacement} {
+      : base{base}, disp{displacement} {
     index = "";
     scale = 1;
   }
@@ -89,7 +90,7 @@ class LabelOp : public Operand {
   std::string label;
 
 public:
-  LabelOp(std::string label) : Operand{}, label{label} {}
+  LabelOp(std::string label) : label{label} {}
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
@@ -104,7 +105,8 @@ class RegisterOp : public Operand {
   std::string reg;
 
 public:
-  RegisterOp(std::string reg) : Operand{}, reg{reg} {}
+  // RegisterOp(std::string reg) : reg{reg} {}
+  RegisterOp(const std::string &reg) : reg{reg} {}
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
@@ -122,7 +124,7 @@ class ImmediateOp : public Operand {
   int value;
 
 public:
-  ImmediateOp(int value) : Operand{}, value{value} {}
+  ImmediateOp(int value) : value{value} {}
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

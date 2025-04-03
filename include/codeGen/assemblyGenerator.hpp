@@ -1,6 +1,7 @@
 #pragma once
 
 #include "codeGen/linkingResolver.hpp"
+#include "codeGen/registerAllocator/registerAllocator.hpp"
 
 namespace codegen {
 
@@ -15,8 +16,8 @@ class AssembyGenerator {
   std::vector<std::vector<AssemblyInstruction>> startInstructions;
   std::vector<AssemblyInstruction> staticInitializers;
 
-  std::string entryMethod;                              // TODO!
-  std::shared_ptr<RegisterAllocator> registerAllocator; // TODO!
+  std::string entryMethod; // TODO!
+  std::shared_ptr<RegisterAllocator> registerAllocator;
 
   // Callee save
   std::string emitFunctionPrologue(size_t stackSize) {
@@ -26,11 +27,6 @@ class AssembyGenerator {
     prologue += "sub " + assembly::R32_ESP + ", " +
                 std::to_string(4 * stackSize) + "\n";
     return prologue;
-  }
-
-public:
-  AssembyGenerator(std::shared_ptr<CodeGenLabels> codeGenLabels) {
-    instructionSelector = std::make_shared<InstructionSelector>(codeGenLabels);
   }
 
   void generateIRTree(std::shared_ptr<tir::CompUnit> irTree, int fileId) {
@@ -99,6 +95,13 @@ public:
       }
       outputFile << "\n";
     }
+  }
+
+public:
+  AssembyGenerator(std::shared_ptr<CodeGenLabels> codeGenLabels,
+                   std::shared_ptr<RegisterAllocator> registerAllocator) {
+    this->registerAllocator = registerAllocator;
+    instructionSelector = std::make_shared<InstructionSelector>(codeGenLabels);
   }
 
   void generateAssembly(std::vector<std::shared_ptr<tir::CompUnit>> irTrees) {
