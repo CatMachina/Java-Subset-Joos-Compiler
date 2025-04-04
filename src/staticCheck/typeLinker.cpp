@@ -366,11 +366,6 @@ void TypeLinker::populateJavaLang() {
   if (!langPackage) {
     throw std::runtime_error("Could not resolve lang package");
   }
-  auto ioPackage =
-      std::get<std::shared_ptr<Package>>(javaPackage->children["io"]);
-  if (!ioPackage) {
-    throw std::runtime_error("Could not resolve io package");
-  }
 
   auto getClassDecl =
       [](const auto &package,
@@ -388,64 +383,68 @@ void TypeLinker::populateJavaLang() {
   };
 
   astManager->java_lang.Boolean = getClassDecl(langPackage, "Boolean");
-  if (!astManager->java_lang.Boolean) {
-    throw std::runtime_error("Could not resolve java.lang.Boolean");
-  }
+  // if (!astManager->java_lang.Boolean) {
+  //   throw std::runtime_error("Could not resolve java.lang.Boolean");
+  // }
 
   astManager->java_lang.Byte = getClassDecl(langPackage, "Byte");
-  if (!astManager->java_lang.Byte) {
-    throw std::runtime_error("Could not resolve java.lang.Byte");
-  }
+  // if (!astManager->java_lang.Byte) {
+  //   throw std::runtime_error("Could not resolve java.lang.Byte");
+  // }
 
   astManager->java_lang.Character = getClassDecl(langPackage, "Character");
-  if (!astManager->java_lang.Character) {
-    throw std::runtime_error("Could not resolve java.lang.Character");
-  }
+  // if (!astManager->java_lang.Character) {
+  //   throw std::runtime_error("Could not resolve java.lang.Character");
+  // }
 
   astManager->java_lang.Class = getClassDecl(langPackage, "Class");
-  if (!astManager->java_lang.Class) {
-    throw std::runtime_error("Could not resolve java.lang.Class");
-  }
+  // if (!astManager->java_lang.Class) {
+  //   throw std::runtime_error("Could not resolve java.lang.Class");
+  // }
 
   astManager->java_lang.Cloneable = getInterfaceDecl(langPackage, "Cloneable");
-  if (!astManager->java_lang.Cloneable) {
-    throw std::runtime_error("Could not resolve java.lang.Cloneable");
-  }
+  // if (!astManager->java_lang.Cloneable) {
+  //   throw std::runtime_error("Could not resolve java.lang.Cloneable");
+  // }
 
   astManager->java_lang.Integer = getClassDecl(langPackage, "Integer");
-  if (!astManager->java_lang.Integer) {
-    throw std::runtime_error("Could not resolve java.lang.Integer");
-  }
+  // if (!astManager->java_lang.Integer) {
+  //   throw std::runtime_error("Could not resolve java.lang.Integer");
+  // }
 
   astManager->java_lang.Number = getClassDecl(langPackage, "Number");
-  if (!astManager->java_lang.Number) {
-    throw std::runtime_error("Could not resolve java.lang.Number");
-  }
+  // if (!astManager->java_lang.Number) {
+  //   throw std::runtime_error("Could not resolve java.lang.Number");
+  // }
 
   astManager->java_lang.Object = getClassDecl(langPackage, "Object");
-  if (!astManager->java_lang.Object) {
-    throw std::runtime_error("Could not resolve java.lang.Object");
-  }
+  // if (!astManager->java_lang.Object) {
+  //   throw std::runtime_error("Could not resolve java.lang.Object");
+  // }
 
   astManager->java_lang.Short = getClassDecl(langPackage, "Short");
-  if (!astManager->java_lang.Short) {
-    throw std::runtime_error("Could not resolve java.lang.Short");
-  }
+  // if (!astManager->java_lang.Short) {
+  //   throw std::runtime_error("Could not resolve java.lang.Short");
+  // }
 
   astManager->java_lang.String = getClassDecl(langPackage, "String");
-  if (!astManager->java_lang.String) {
-    throw std::runtime_error("Could not resolve java.lang.String");
-  }
+  // if (!astManager->java_lang.String) {
+  //   throw std::runtime_error("Could not resolve java.lang.String");
+  // }
 
   astManager->java_lang.System = getClassDecl(langPackage, "System");
-  if (!astManager->java_lang.System) {
-    throw std::runtime_error("Could not resolve java.lang.System");
-  }
+  // if (!astManager->java_lang.System) {
+  //   throw std::runtime_error("Could not resolve java.lang.System");
+  // }
 
-  astManager->java_lang.Serializable =
-      getInterfaceDecl(ioPackage, "Serializable");
-  if (!astManager->java_lang.Serializable) {
-    throw std::runtime_error("Could not resolve java.io.Serializable");
+  auto ioPackage =
+      std::get<std::shared_ptr<Package>>(javaPackage->children["io"]);
+  if (ioPackage) {
+    astManager->java_lang.Serializable =
+        getInterfaceDecl(ioPackage, "Serializable");
+    // if (!astManager->java_lang.Serializable) {
+    //   throw std::runtime_error("Could not resolve java.io.Serializable");
+    // }
   }
 
   // Add Hardcoded array
