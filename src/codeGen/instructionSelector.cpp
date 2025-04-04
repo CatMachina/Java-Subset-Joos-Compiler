@@ -14,35 +14,45 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
   std::shared_ptr<Tile> tile = std::make_shared<Tile>();
 
   if (auto binOp = std::dynamic_pointer_cast<tir::BinOp>(expr)) {
-    const std::string &leftRegString = newVirtualRegister();
-    const std::string &rightRegString = newVirtualRegister();
-    auto leftReg = std::make_shared<assembly::RegisterOp>(leftRegString);
-    auto rightReg = std::make_shared<assembly::RegisterOp>(rightRegString);
+    auto leftRegString = newVirtualRegister();
+    auto rightRegString = newVirtualRegister();
+    auto leftReg =
+        std::make_shared<codegen::assembly::RegisterOp>(leftRegString);
+    auto rightReg =
+        std::make_shared<codegen::assembly::RegisterOp>(rightRegString);
 
     tile = std::make_shared<Tile>(std::vector<TileInstruction>{
-        selectTile(binOp->left, leftReg), selectTile(binOp->right, rightReg)});
+        selectTile(binOp->getLeft(), leftRegString),
+        selectTile(binOp->getRight(), rightRegString)});
 
     switch (binOp->op) {
     case tir::BinOp::OpType::ADD:
       tile->addInstructions(std::vector<TileInstruction>{
-          std::make_shared<assembly::Lea>(Tile::VIRTUAL_REG,
-                                          std::make_shared<assembly::MemAddrOp>(
-                                              leftRegString, rightRegString)),
+          std::make_shared<assembly::Lea>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::MemAddrOp>(leftRegString,
+                                                    rightRegString)),
       });
       break;
 
     case tir::BinOp::OpType::SUB:
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::Sub>(leftReg, rightReg),
-          std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG, leftReg),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              leftReg),
       });
       break;
 
     case tir::BinOp::OpType::MUL:
       tile->addInstructions(std::vector<TileInstruction>{
-          std::make_shared<assembly::Mov>(assembly::R32_EAX, leftReg),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(assembly::R32_EAX),
+              leftReg),
           std::make_shared<assembly::IMul>(rightReg),
-          std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG, assembly::R32_EAX),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R32_EAX)),
       });
       break;
 
@@ -60,10 +70,14 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
               rightReg, std::make_shared<assembly::ImmediateOp>(0)),
           std::make_shared<assembly::Je>(
               std::make_shared<assembly::LabelOp>("__EXEPTION__")),
-          std::make_shared<assembly::Mov>(assembly::R32_EAX, leftReg),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(assembly::R32_EAX),
+              leftReg),
           std::make_shared<assembly::Cdq>(),
           std::make_shared<assembly::IDiv>(rightReg),
-          std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG, assembly::R32_EAX),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R32_EAX)),
       });
       break;
 
@@ -74,24 +88,32 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
               rightReg, std::make_shared<assembly::ImmediateOp>(0)),
           std::make_shared<assembly::Je>(
               std::make_shared<assembly::LabelOp>("__EXEPTION__")),
-          std::make_shared<assembly::Mov>(assembly::R32_EAX, leftReg),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(assembly::R32_EAX),
+              leftReg),
           std::make_shared<assembly::Cdq>(),
           std::make_shared<assembly::IDiv>(rightReg),
-          std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG, assembly::R32_EDX),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R32_EDX)),
       });
       break;
 
     case tir::BinOp::OpType::AND:
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::And>(leftReg, rightReg),
-          std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG, leftReg),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              leftReg),
       });
       break;
 
     case tir::BinOp::OpType::OR:
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::Or>(leftReg, rightReg),
-          std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG, leftReg),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              leftReg),
       });
       break;
 
@@ -101,48 +123,66 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
       */
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::Cmp>(leftReg, rightReg),
-          std::make_shared<assembly::SetZ>(assembly::R8_AL),
-          std::make_shared<assembly::MovZX>(Tile::VIRTUAL_REG, assembly::R8_AL),
+          std::make_shared<assembly::SetZ>(
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
+          std::make_shared<assembly::MovZX>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
       });
       break;
 
     case tir::BinOp::OpType::NEQ:
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::Cmp>(leftReg, rightReg),
-          std::make_shared<assembly::SetNZ>(assembly::R8_AL),
-          std::make_shared<assembly::MovZX>(Tile::VIRTUAL_REG, assembly::R8_AL),
+          std::make_shared<assembly::SetNZ>(
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
+          std::make_shared<assembly::MovZX>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
       });
       break;
 
     case tir::BinOp::OpType::LT:
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::Cmp>(leftReg, rightReg),
-          std::make_shared<assembly::SetL>(assembly::R8_AL),
-          std::make_shared<assembly::MovZX>(Tile::VIRTUAL_REG, assembly::R8_AL),
+          std::make_shared<assembly::SetL>(
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
+          std::make_shared<assembly::MovZX>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
       });
       break;
 
     case tir::BinOp::OpType::GT:
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::Cmp>(leftReg, rightReg),
-          std::make_shared<assembly::SetG>(assembly::R8_AL),
-          std::make_shared<assembly::MovZX>(Tile::VIRTUAL_REG, assembly::R8_AL),
+          std::make_shared<assembly::SetG>(
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
+          std::make_shared<assembly::MovZX>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
       });
       break;
 
     case tir::BinOp::OpType::LEQ:
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::Cmp>(leftReg, rightReg),
-          std::make_shared<assembly::SetLE>(assembly::R8_AL),
-          std::make_shared<assembly::MovZX>(Tile::VIRTUAL_REG, assembly::R8_AL),
+          std::make_shared<assembly::SetLE>(
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
+          std::make_shared<assembly::MovZX>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
       });
       break;
 
     case tir::BinOp::OpType::GEQ:
       tile->addInstructions(std::vector<TileInstruction>{
           std::make_shared<assembly::Cmp>(leftReg, rightReg),
-          std::make_shared<assembly::SetGE>(assembly::R8_AL),
-          std::make_shared<assembly::MovZX>(Tile::VIRTUAL_REG, assembly::R8_AL),
+          std::make_shared<assembly::SetGE>(
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
+          std::make_shared<assembly::MovZX>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R8_AL)),
       });
       break;
 
@@ -156,7 +196,9 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
   } else if (auto constIR = std::dynamic_pointer_cast<tir::Const>(expr)) {
     // 32 bit
     tile = std::make_shared<Tile>(std::vector<TileInstruction>{
-        std::make_shared<assembly::Mov>(Tile::VIRTUAL_REG, constIR->getValue()),
+        std::make_shared<assembly::Mov>(
+            std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+            std::make_shared<assembly::ImmediateOp>(constIR->getValue())),
     });
 
   } else if (auto eseq = std::dynamic_pointer_cast<tir::ESeq>(expr)) {
@@ -167,14 +209,14 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
     tile = std::make_shared<Tile>(std::vector<TileInstruction>{
         selectTile(mem->getAddress(), addressReg),
         std::make_shared<assembly::Mov>(
-            Tile::VIRTUAL_REG,
+            std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
             std::make_shared<assembly::MemAddrOp>(addressReg)),
     });
 
   } else if (auto name = std::dynamic_pointer_cast<tir::Name>(expr)) {
     tile = std::make_shared<Tile>(std::vector<TileInstruction>{
         std::make_shared<assembly::Mov>(
-            Tile::VIRTUAL_REG,
+            std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
             std::make_shared<assembly::LabelOp>(name->getName())),
     });
 
@@ -184,32 +226,33 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
     if (temp->getName() == codeGenLabels->kAbstractReturn) {
       tile = std::make_shared<Tile>(
           std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
-              Tile::VIRTUAL_REG, assembly::R32_EAX)});
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(assembly::R32_EAX))});
     }
     // special case: kAbstractArgPrefixa a is stack offset from caller
     else if (temp->getName().rfind(codeGenLabels->kAbstractArgPrefix, 0) == 0) {
       std::string suffix =
-          temp->getName().substr(strlen(codeGenLabels->kAbstractArgPrefix));
+          temp->getName().substr(codeGenLabels->kAbstractArgPrefix.length());
       int argNum = std::stoi(suffix);
 
       tile = std::make_shared<Tile>(
           std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
-              Tile::VIRTUAL_REG, std::make_shared<assembly::MemAddrOp>(
-                                     assembly::R32_ESP, (argNum + 2) * 4))});
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::MemAddrOp>(assembly::R32_ESP,
+                                                    (argNum + 2) * 4))});
     }
     // special case: static variable is in data segment
     else if (temp->isGlobal) {
       tile = std::make_shared<Tile>(
           std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
-              Tile::VIRTUAL_REG,
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
               std::make_shared<assembly::MemAddrOp>(temp->getName()))});
     } else {
-      tile = std::make_shared<Tile>(std::vector<TileInstruction>{
-          std::make_shared<assembly::Mov>(
-              Tile::VIRTUAL_REG, std::to_string("%") + std::to_string("temp") +
-                                     std::to_string("%") +
-                                     std::to_string(temp->getName())),
-      });
+      tile = std::make_shared<Tile>(
+          std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
+              std::make_shared<assembly::RegisterOp>(std::string("%") + "temp" +
+                                                     "%" + temp->getName()))});
     }
 
   } else {

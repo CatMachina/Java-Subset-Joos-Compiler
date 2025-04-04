@@ -1,8 +1,12 @@
 #pragma once
 
 #include "codeGen/assembly/operand.hpp"
+#include "codeGen/assembly/registers.hpp"
+#include "codeGen/codeGenLabels.hpp"
+
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace codegen::assembly {
@@ -86,7 +90,7 @@ public:
     std::unordered_set<std::string> result;
 
     for (auto &operand : operands) {
-      if (auto &memAddrOp = std::dynamic_pointer_cast<MemAddrOp>(operand)) {
+      if (auto memAddrOp = std::dynamic_pointer_cast<MemAddrOp>(operand)) {
         // always read, even if the operand itself isn't
         if (memAddrOp->getBase() != "") {
           result.insert(memAddrOp->getBase());
@@ -95,7 +99,7 @@ public:
           result.insert(memAddrOp->getIndex());
         }
 
-      } else if (auto &registerOp =
+      } else if (auto registerOp =
                      std::dynamic_pointer_cast<RegisterOp>(operand)) {
         if (registerOp->isRead()) {
           result.insert(registerOp->getReg());
@@ -106,7 +110,7 @@ public:
     for (auto &reg : readGPRs) {
       result.insert(reg);
     }
-    sanitizedRegs(result);
+    sanitizeRegisterSet(result);
 
     return std::move(result);
   }
@@ -114,7 +118,7 @@ public:
   std::unordered_set<std::string> getWriteRegisters() {
     std::unordered_set<std::string> result;
     for (auto &operand : operands) {
-      if (auto &registerOp = std::dynamic_pointer_cast<RegisterOp>(operand)) {
+      if (auto registerOp = std::dynamic_pointer_cast<RegisterOp>(operand)) {
         if (registerOp->isWrite()) {
           result.insert(registerOp->getReg());
         }
@@ -123,7 +127,7 @@ public:
     for (auto &reg : writeGPRs) {
       result.insert(reg);
     }
-    sanitizedRegs(result);
+    sanitizeRegisterSet(result);
     return std::move(result);
   }
 
@@ -131,9 +135,9 @@ public:
     std::unordered_set<std::string> result;
 
     for (auto &operand : operands) {
-      if (auto &registerOp = std::dynamic_pointer_cast<RegisterOp>(operand)) {
+      if (auto registerOp = std::dynamic_pointer_cast<RegisterOp>(operand)) {
         result.insert(registerOp->getReg());
-      } else if (auto &memAddrOp =
+      } else if (auto memAddrOp =
                      std::dynamic_pointer_cast<MemAddrOp>(operand)) {
         if (memAddrOp->getBase() != "") {
           result.insert(memAddrOp->getBase());
@@ -149,7 +153,7 @@ public:
     for (auto &reg : writeGPRs) {
       result.insert(reg);
     }
-    sanitizedRegs(result);
+    sanitizeRegisterSet(result);
     return std::move(result);
   }
 
@@ -592,28 +596,164 @@ public:
 
 // setz, setnz, setl setg, setle, setge
 // set destination to 1 or 0 based on flags from Cmp
-class Setcc : public Instruction {
+class SetZ : public Instruction {
 public:
-  Setcc(std::string condition, std::shared_ptr<Operand> dest)
-      : cond{condition} {
+  SetZ(std::shared_ptr<Operand> dest) {
     dest->setWrite();
     addOperand(dest);
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    os << "(Set" << condition << " ";
+    os << "(SetZ ";
     getOperands()[0]->print(os);
     os << ")\n";
     return os;
   }
 
   std::string toString() const override {
-    return "set" + condition + " " + getOperands()[0]->toString();
+    return "setz " + getOperands()[0]->toString();
+  }
+};
+
+class SetNZ : public Instruction {
+public:
+  SetNZ(std::shared_ptr<Operand> dest) {
+    dest->setWrite();
+    addOperand(dest);
   }
 
-private:
-  std::string condition;
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(SetNZ ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "setnz " + getOperands()[0]->toString();
+  }
+};
+
+class SetL : public Instruction {
+public:
+  SetL(std::shared_ptr<Operand> dest) {
+    dest->setWrite();
+    addOperand(dest);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(SetL ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "setl " + getOperands()[0]->toString();
+  }
+};
+
+class SetG : public Instruction {
+public:
+  SetG(std::shared_ptr<Operand> dest) {
+    dest->setWrite();
+    addOperand(dest);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(SetG ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "setg " + getOperands()[0]->toString();
+  }
+};
+
+class SetLE : public Instruction {
+public:
+  SetLE(std::shared_ptr<Operand> dest) {
+    dest->setWrite();
+    addOperand(dest);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(SetLE ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "setle " + getOperands()[0]->toString();
+  }
+};
+
+class SetGE : public Instruction {
+public:
+  SetGE(std::shared_ptr<Operand> dest) {
+    dest->setWrite();
+    addOperand(dest);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(SetGE ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "setge " + getOperands()[0]->toString();
+  }
+};
+
+// Others
+
+class Cdq : public Instruction {
+public:
+  Cdq() = default;
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Cdq)\n";
+    return os;
+  }
+
+  std::string toString() const override { return "cdq"; }
+};
+
+class MovZX : public Instruction {
+public:
+  MovZX(std::shared_ptr<Operand> dest, std::shared_ptr<Operand> src) {
+    dest->setWrite();
+    src->setRead();
+    addOperand(dest);
+    addOperand(src);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(MovZX ";
+    getOperands()[0]->print(os);
+    os << ", ";
+    getOperands()[1]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "movzx " + getOperands()[0]->toString() + ", " +
+           getOperands()[1]->toString();
+  }
 };
 
 } // namespace codegen::assembly

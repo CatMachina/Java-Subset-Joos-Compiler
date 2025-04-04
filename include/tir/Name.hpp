@@ -22,9 +22,9 @@ public:
     return std::make_shared<Name>(name, isGlobal);
   }
 
-  static std::shared_ptr<Expr> makeMalloc() { return makeExpr("__MALLOC__"); }
+  static std::shared_ptr<Expr> makeMalloc() { return makeExpr("__malloc"); }
   static std::shared_ptr<Expr> makeException() {
-    return makeExpr("__EXEPTION__");
+    return makeExpr("__exception");
   }
 
   void visitChildren(InsnMapsBuilder &v) override { v.visit(nullptr); }

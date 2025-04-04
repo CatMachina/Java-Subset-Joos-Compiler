@@ -1,5 +1,8 @@
 #pragma once
 
+#include <ostream>
+#include <string>
+
 namespace codegen::assembly {
 
 // operand of assembly instruction can be:
@@ -70,8 +73,8 @@ public:
     std::string output = base;
     if (base != "") {
       output += " + ";
-      if (index != 1) {
-        result += "(" + index + " * " + std::to_string(scale) + ")";
+      if (index != "") {
+        output += "(" + index + " * " + std::to_string(scale) + ")";
       } else {
         output += index;
       }
@@ -105,8 +108,7 @@ class RegisterOp : public Operand {
   std::string reg;
 
 public:
-  // RegisterOp(std::string reg) : reg{reg} {}
-  RegisterOp(const std::string &reg) : reg{reg} {}
+  RegisterOp(std::string reg) : reg{reg} {}
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);

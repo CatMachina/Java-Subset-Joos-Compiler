@@ -80,8 +80,7 @@ class AssembyGenerator {
 
     // Tiling for each method of the program
     for (auto &function : irTree->getFunctionList()) {
-      StatementTile bodyTile =
-          instructionSelector->selectTile(function->getBody());
+      StmtTile bodyTile = instructionSelector->selectTile(function->getBody());
       auto bodyInstructions = bodyTile->getInstructions();
 
       // label

@@ -49,8 +49,8 @@ public:
 
   LinkingResolver(std::shared_ptr<tir::CompUnit> root) : root(root) {
     visitNode(root);
-    requiredMethods.insert("__MALLOC__");
-    requiredMethods.insert("__EXECPTION__");
+    requiredMethods.insert("__malloc");
+    requiredMethods.insert("__exception");
   }
 
   std::unordered_set<std::string> getRequiredStaticFields() {

@@ -24,11 +24,11 @@
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
 
+#include "codeGen/assemblyGenerator.hpp"
 #include "codeGen/astVisitor.hpp"
 #include "codeGen/canonicalizer.hpp"
 #include "codeGen/exprIRConverter.hpp"
-// #include "codeGen/assemblyGenerator.hpp"
-// #include "codeGen/registerAllocator/basicAllocator.hpp"
+#include "codeGen/registerAllocator/basicAllocator.hpp"
 #include "tir/TIRBuilder.hpp"
 
 #include <memory>
@@ -297,10 +297,10 @@ int main(int argc, char **argv) {
     // TODO: we should know the entry point method!
 
     // TODO: add flag for different register allocators
-    // std::shared_ptr<codegen::RegisterAllocator> registerAllocator = nullptr;
-    // registerAllocator = std::make_shared<codegen::BasicAllocator>();
+    std::shared_ptr<codegen::RegisterAllocator> registerAllocator = nullptr;
+    registerAllocator = std::make_shared<codegen::BasicAllocator>();
 
-    // // code gen
+    // code gen
     // auto assemblyGenerator = std::make_shared<codegen::AssembyGenerator>();
 
     return retCode;

@@ -33,9 +33,9 @@ class Tile {
               std::get_if<AssemblyInstruction>(&instruction)) {
         cost += 1;
       } else if (auto stmtTile = std::get_if<StmtTile>(&instruction)) {
-        cost += stmtTile->getCost();
+        cost += (*stmtTile)->getCost();
       } else if (auto exprTile = std::get_if<ExprTile>(&instruction)) {
-        cost += exprTile->first->getCost();
+        cost += (*exprTile).first->getCost();
       }
     }
   }
@@ -80,15 +80,16 @@ public:
     for (auto &instruction : instructions) {
       if (auto assemblyInstruction =
               std::get_if<AssemblyInstruction>(&instruction)) {
-        assemblyInstruction->replaceRegister(Tile::VIRTUAL_REG, reg);
+        (*assemblyInstruction)->replaceRegister(Tile::VIRTUAL_REG, reg);
       } else if (auto stmtTile = std::get_if<StmtTile>(&instruction)) {
-      } else if (auto exprTile = std::get_if<ExprTile>(&instruction)) {
+      } else if (auto exprTilePtr = std::get_if<ExprTile>(&instruction)) {
+        auto exprTile = *exprTilePtr;
         if (exprTile.second == reg) {
           exprTile.first->assignVirtual(exprTile.second);
         }
       } else {
         throw std::runtime_error(
-            "Instruction is not an AssemblyInstruction, StmtTile, or ExprTile")
+            "Instruction is not an AssemblyInstruction, StmtTile, or ExprTile");
       }
     }
   }
@@ -99,19 +100,20 @@ public:
     for (auto instruction : instructions) {
       if (auto assemblyInstruction =
               std::get_if<AssemblyInstruction>(&instruction)) {
-        returnList.push_back(assemblyInstruction);
+        returnList.push_back(*assemblyInstruction);
       } else if (auto stmtTile = std::get_if<StmtTile>(&instruction)) {
-        for (auto stmtInstruction : stmtTile->getInstructions()) {
+        for (auto stmtInstruction : (*stmtTile)->getInstructions()) {
           returnList.push_back(stmtInstruction);
         }
-      } else if (auto exprTile = std::get_if<ExprTile>(&instruction)) {
+      } else if (auto exprTilePtr = std::get_if<ExprTile>(&instruction)) {
+        auto exprTile = *exprTilePtr;
         exprTile.first->assignVirtual(exprTile.second);
         for (auto exprInstruction : exprTile.first->getInstructions()) {
           returnList.push_back(exprInstruction);
         }
       } else {
         throw std::runtime_error(
-            "Instruction is not an AssemblyInstruction, StmtTile, or ExprTile")
+            "Instruction is not an AssemblyInstruction, StmtTile, or ExprTile");
       }
     }
   }
