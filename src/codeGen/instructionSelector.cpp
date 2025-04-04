@@ -279,7 +279,20 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
   std::shared_ptr<Tile> tile = std::make_shared<Tile>();
 
   if (auto cjump = std::dynamic_pointer_cast<tir::CJump>(stmt)) {
-    // TODO
+    auto binOp = std::dynamic_pointer_cast<tir::BinOp>(cjump->getCondition());
+    ExprTile exprTile = selectTile(binOp, Tile::VIRTUAL_REG);
+    auto je = std::make_shared<assembly::Je>(
+        std::make_shared<assembly::RegisterOp>(exprTile.second));
+    tile = std::make_shared<Tile>(
+        std::vector<TileInstruction>({exprTile.first, je}));
+  } else if (auto jump = std::dynamic_pointer_cast<tir::Jump>(stmt)) {
+    std::shared_ptr<tir::Expr> name =
+        std::dynamic_pointer_cast<tir::Name>(jump->getName());
+    ExprTile exprTile = selectTile(name, Tile::VIRTUAL_REG);
+    auto jmp = std::make_shared<assembly::Jmp>(
+        std::make_shared<assembly::RegisterOp>(exprTile.second));
+    tile = std::make_shared<Tile>(
+        std::vector<TileInstruction>({exprTile.first, jmp}));
   }
   // TODO
 

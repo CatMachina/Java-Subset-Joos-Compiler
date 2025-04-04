@@ -131,6 +131,7 @@ TIRBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> node) {
   auto cJump = std::make_shared<CJump>(condition, ltName, lfName);
   auto name = std::make_shared<Name>(lh->getName());
   auto jump = std::make_shared<Jump>(name);
+
   std::vector<std::shared_ptr<Stmt>> stmts = {init, lh,     cJump, lt,
                                               body, update, jump,  lf};
   return std::make_shared<Seq>(stmts);
