@@ -269,7 +269,7 @@ TIRBuilder::buildClassDecl(std::shared_ptr<parsetree::ast::ClassDecl> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildClassDecl: node is null");
   }
-
+  exprConverter->setCurrentClass(node);
   std::vector<std::shared_ptr<Node>> results;
   for (const auto &decl : node->getClassMembers()) {
     results.push_back(buildDecl(decl));
