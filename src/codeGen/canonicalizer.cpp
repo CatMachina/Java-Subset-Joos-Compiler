@@ -53,8 +53,10 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Expr> expression) {
 
     statements.push_back(std::make_shared<tir::Move>(
         std::make_shared<tir::Temp>(tempName), loweredLeft->getExpression()));
-    statements.insert(statements.end(), loweredRight->getStatements().begin(),
-                      loweredRight->getStatements().end());
+
+    auto loweredRightStmts = loweredRight->getStatements();
+    statements.insert(statements.end(), loweredRightStmts.begin(),
+                      loweredRightStmts.end());
 
     return std::make_shared<LoweredExpression>(statements, newExpression);
 
@@ -69,8 +71,9 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Expr> expression) {
       tempArgs.push_back(tempArg);
 
       auto loweredArg = canonicalize(arg);
-      statements.insert(statements.end(), loweredArg->getStatements().begin(),
-                        loweredArg->getStatements().end());
+      auto loweredArgStmts = loweredArg->getStatements();
+      statements.insert(statements.end(), loweredArgStmts.begin(),
+                        loweredArgStmts.end());
       statements.push_back(
           std::make_shared<tir::Move>(tempArg, loweredArg->getExpression()));
     }
@@ -82,9 +85,9 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Expr> expression) {
     } else {
       // target is other expression
       auto loweredTarget = canonicalize(call->getTarget());
-      statements.insert(statements.end(),
-                        loweredTarget->getStatements().begin(),
-                        loweredTarget->getStatements().end());
+      auto loweredTargetStmts = loweredTarget->getStatements();
+      statements.insert(statements.end(), loweredTargetStmts.begin(),
+                        loweredTargetStmts.end());
       statements.push_back(
           std::make_shared<tir::CallStmt>(std::make_shared<tir::Call>(
               loweredTarget->getExpression(), tempArgs)));
@@ -105,9 +108,9 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Expr> expression) {
     auto loweredExpr = canonicalize(eseq->getExpr());
     auto loweredStmts = canonicalize(eseq->getStmt());
 
-    loweredStmts.insert(loweredStmts.end(),
-                        loweredExpr->getStatements().begin(),
-                        loweredExpr->getStatements().end());
+    auto loweredExprStmts = loweredExpr->getStatements();
+    loweredStmts.insert(loweredStmts.end(), loweredExprStmts.begin(),
+                        loweredExprStmts.end());
     return std::make_shared<LoweredExpression>(loweredStmts,
                                                loweredExpr->getExpression());
 
@@ -238,17 +241,18 @@ TIRCanonicalizer::canonicalizeMove(std::shared_ptr<tir::Move> move) {
   std::shared_ptr<LoweredExpression> loweredAddr =
       canonicalize(memTarget->getAddress());
   // s1'; MOVE(TEMP(t), e1')
-  loweredStmts.insert(loweredStmts.end(), loweredAddr->getStatements().begin(),
-                      loweredAddr->getStatements().end());
+  auto lowerAddrStmts = loweredAddr->getStatements();
+  loweredStmts.insert(loweredStmts.end(), lowerAddrStmts.begin(),
+                      lowerAddrStmts.end());
   std::string tempName = tir::Temp::generateName("move_target");
   auto temp = std::make_shared<tir::Temp>(tempName);
   auto newMove1 =
       std::make_shared<tir::Move>(temp, loweredAddr->getExpression());
   loweredStmts.push_back(newMove1);
   // s2'; MOVE(MEM(TEMP(t)), e2')
-  loweredStmts.insert(loweredStmts.end(),
-                      loweredSource->getStatements().begin(),
-                      loweredSource->getStatements().end());
+  auto loweredSourceStmts = loweredSource->getStatements();
+  loweredStmts.insert(loweredStmts.end(), loweredSourceStmts.begin(),
+                      loweredSourceStmts.end());
   auto newMove2 = std::make_shared<tir::Move>(std::make_shared<tir::Mem>(temp),
                                               loweredSource->getExpression());
   loweredStmts.push_back(newMove2);

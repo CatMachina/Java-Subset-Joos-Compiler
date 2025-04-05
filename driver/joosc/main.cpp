@@ -32,34 +32,13 @@
 #include "codeGen/registerAllocator/basicAllocator.hpp"
 #include "tir/TIRBuilder.hpp"
 
+#include <filesystem>
 #include <memory>
 
 #define EXIT_ERROR 42
 #define EXIT_WARNING 43
 
-// void checkLinked(std::shared_ptr<parsetree::ast::AstNode> node) {
-//   if (!node)
-//     throw std::runtime_error("Node is null when resolving AST");
-
-//   for (auto child : node->getChildren()) {
-//     if (!child)
-//       continue;
-
-//     // Case: Type
-//     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
-//       if (!(type->isResolved())) {
-//         type->print(std::cout);
-//         std::cout << " not resolved" << std::endl;
-//         // throw std::runtime_error(" Type still not resolved after
-//         typeLinking");
-//       }
-//     }
-//     // Case: regular code
-//     else {
-//       checkLinked(child);
-//     }
-//   }
-// }
+namespace fs = std::filesystem;
 
 // hack
 bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
@@ -299,6 +278,7 @@ int main(int argc, char **argv) {
     for (auto &compUnit : tirBuilder->getCompUnits()) {
       tirCanonicalizer->canonicalizeCompUnit(compUnit);
     }
+    std::cout << "Done canonicalizing IR\n";
 
     // Get entrypoint method as a string
     std::string entry_class;
@@ -319,6 +299,7 @@ int main(int argc, char **argv) {
     }
 
     std::string entry_method = entry_class + ".test";
+    std::cout << "Entry method: " << entry_method << std::endl;
 
     // Add flag for different register allocators (types: basic (default) and
     // linear (unimplemented))
@@ -345,7 +326,22 @@ int main(int argc, char **argv) {
     }
 
     // code gen
-    // auto assemblyGenerator = std::make_shared<codegen::AssembyGenerator>();
+    fs::path outputDir = "output";
+
+    if (!fs::exists(outputDir)) {
+      // Directory does not exist, create it
+      fs::create_directory(outputDir);
+      std::cout << "Created directory: " << outputDir << std::endl;
+    } else {
+      // Directory exists, remove all contents
+      for (const auto &entry : fs::directory_iterator(outputDir)) {
+        fs::remove_all(entry);
+      }
+      std::cout << "Cleared contents of directory: " << outputDir << std::endl;
+    }
+    auto assemblyGenerator = std::make_shared<codegen::AssembyGenerator>(
+        codeGenLabels, registerAllocator, entry_method);
+    assemblyGenerator->generateAssembly(tirBuilder->getCompUnits());
 
     return retCode;
   } catch (const std::runtime_error &err) {

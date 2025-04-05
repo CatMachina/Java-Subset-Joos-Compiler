@@ -116,6 +116,8 @@ public:
             "Instruction is not an AssemblyInstruction, StmtTile, or ExprTile");
       }
     }
+
+    return returnList;
   }
 };
 

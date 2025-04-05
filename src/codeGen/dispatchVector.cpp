@@ -19,8 +19,8 @@ DispatchVector::DispatchVector(
     }
   }
 
-  fieldVector.insert(fieldVector.end(), classDecl->getFields().begin(),
-                     classDecl->getFields().end());
+  auto classFields = classDecl->getFields();
+  fieldVector.insert(fieldVector.end(), classFields.begin(), classFields.end());
 
   int maxColour = 0;
   for (auto &method : classDecl->getMethods()) {
@@ -36,6 +36,8 @@ DispatchVector::DispatchVector(
     int colour = DispatchVectorBuilder::getAssignment(method);
     methodVector[colour] = method;
   }
+
+  className = classDecl->getName();
 }
 
 void DispatchVectorBuilder::addMethodsToGraph(

@@ -174,7 +174,6 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
 
       // get chars field
       std::shared_ptr<parsetree::ast::FieldDecl> charsField = nullptr;
-      int charsFieldIndex = stringDV->getFieldOffset(charsField);
       for (auto &field : stringClass->getFields()) {
         if (field->getName() == "chars") {
           charsField = field;
@@ -185,6 +184,7 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       if (charsField == nullptr) {
         throw std::runtime_error("Chars field not found in String class");
       }
+      int charsFieldIndex = stringDV->getFieldOffset(charsField);
 
       // create chars ref
       std::string charsRefName = tir::Temp::generateName("chars_ref");

@@ -16,7 +16,7 @@ class AssembyGenerator {
   std::vector<std::vector<AssemblyInstruction>> startInstructions;
   std::vector<AssemblyInstruction> staticInitializers;
 
-  std::string entryMethod; // TODO!
+  std::string entryMethod;
   std::shared_ptr<RegisterAllocator> registerAllocator;
 
   // Callee save
@@ -98,7 +98,9 @@ class AssembyGenerator {
 
 public:
   AssembyGenerator(std::shared_ptr<CodeGenLabels> codeGenLabels,
-                   std::shared_ptr<RegisterAllocator> registerAllocator) {
+                   std::shared_ptr<RegisterAllocator> registerAllocator,
+                   std::string entryMethod) {
+    this->entryMethod = entryMethod;
     this->registerAllocator = registerAllocator;
     instructionSelector = std::make_shared<InstructionSelector>(codeGenLabels);
   }

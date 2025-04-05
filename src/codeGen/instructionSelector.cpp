@@ -264,7 +264,7 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
   }
 
   auto currentOptimalTile = exprTileCache[expr];
-  if (tile->getCost() < currentOptimalTile->getCost()) {
+  if (!currentOptimalTile || tile->getCost() < currentOptimalTile->getCost()) {
     exprTileCache[expr] = tile;
   }
 
@@ -304,8 +304,9 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
               std::make_shared<assembly::RegisterOp>(targetReg))});
     }
 
-  } else if (auto call = std::dynamic_pointer_cast<tir::Call>(stmt)) {
+  } else if (auto callstmt = std::dynamic_pointer_cast<tir::CallStmt>(stmt)) {
     std::string functionName = "";
+    auto call = callstmt->getCall();
     if (auto name = std::dynamic_pointer_cast<tir::Name>(call->getTarget())) {
       functionName = name->getName();
     }
@@ -418,6 +419,8 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
     }
 
   } else {
+    std::cout << "Invalid statement:" << std::endl;
+    stmt->print(std::cout);
     throw std::runtime_error("Invalid statement");
   }
 
@@ -426,7 +429,7 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
   }
 
   auto currentOptimalTile = stmtTileCache[stmt];
-  if (tile->getCost() < currentOptimalTile->getCost()) {
+  if (!currentOptimalTile || tile->getCost() < currentOptimalTile->getCost()) {
     stmtTileCache[stmt] = tile;
   }
 

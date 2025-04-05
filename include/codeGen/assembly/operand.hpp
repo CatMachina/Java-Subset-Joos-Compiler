@@ -65,7 +65,7 @@ public:
   void setIndex(std::string index) { this->index = index; }
 
   std::string toString() const override {
-    if (scale != 1 || scale != 2 || scale != 4 || scale != 8) {
+    if (scale != 1 && scale != 2 && scale != 4 && scale != 8) {
       throw std::runtime_error("scale must be 1, 2, 4, 8, but got " +
                                std::to_string(scale));
     }

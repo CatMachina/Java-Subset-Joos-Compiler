@@ -8,13 +8,15 @@ class DispatchVector {
 public:
   std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> methodVector;
   std::vector<std::shared_ptr<parsetree::ast::FieldDecl>> fieldVector;
+  std::string className;
 
   DispatchVector(std::shared_ptr<parsetree::ast::ClassDecl> classDecl);
 
   int getFieldOffset(std::shared_ptr<parsetree::ast::FieldDecl> field) const {
     auto it = std::find(fieldVector.begin(), fieldVector.end(), field);
     if (it == fieldVector.end()) {
-      throw std::runtime_error("Field not found in dispatch vector");
+      throw std::runtime_error("Field " + field->getName() +
+                               " not found in dispatch vector of " + className);
     }
     return std::distance(fieldVector.begin(), it);
   }
