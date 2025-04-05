@@ -350,7 +350,7 @@ TIRBuilder::buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node) {
                    : exprConverter->codeGenLabels->getMethodLabel(node);
   std::shared_ptr<FuncDecl> funcIR = std::make_shared<FuncDecl>(
       node->getName(), bodySeq, node->getParams().size());
-  currentProgram->appendFunc(label, funcIR);
+  // currentProgram->appendFunc(label, funcIR);
 
   return funcIR;
 }
