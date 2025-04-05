@@ -29,8 +29,8 @@
 #include "codeGen/canonicalizer.hpp"
 #include "codeGen/exprIRConverter.hpp"
 #include "codeGen/registerAllocator/basicAllocator.hpp"
-#include "tir/TIRBuilder.hpp"
 #include "tir/Simulator.hpp"
+#include "tir/TIRBuilder.hpp"
 
 #include <memory>
 
@@ -238,7 +238,8 @@ int main(int argc, char **argv) {
     // for (auto ast : astManager->getASTs()) {
     //   for (auto decl : ast->getBody()->getDecls()) {
     //     if (auto method =
-    //             std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl)) {
+    //             std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl))
+    //             {
     //       // std::cout << "=== Start building CFG for method " <<
     //       // method->getName()
     //       //           << " ===" << std::endl;
@@ -248,7 +249,8 @@ int main(int argc, char **argv) {
     //       //           << " ===" << std::endl;
     //       if (cfg) {
     //         // cfg->print(std::cout);
-    //         if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
+    //         if
+    //         (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
     //                 cfg)) {
     //           std::cerr << "Method " << method->getName()
     //                     << " has unreachable statements" << std::endl;
@@ -258,7 +260,8 @@ int main(int argc, char **argv) {
     //                 cfg, method)) {
     //           std::cerr
     //               << "Method " << method->getName()
-    //               << " finite-length execution paths do not all end in return"
+    //               << " finite-length execution paths do not all end in
+    //               return"
     //               << std::endl;
     //           return EXIT_ERROR;
     //         }
@@ -289,19 +292,15 @@ int main(int argc, char **argv) {
     tirBuilder->run();
     tirBuilder->print(std::cout);
 
-    for (auto compUnit : tirBuilder->getCompUnits())
-    {
+    for (auto compUnit : tirBuilder->getCompUnits()) {
       // compUnit->print(std::cout);
       tir::Simulator sim = tir::Simulator(compUnit, 2048);
       long result = sim.call("test", {});
       // All test cases evaluate to 123
-      if (result != 123)
-      {
+      if (result != 123) {
         std::cerr << "ERROR returned " << result << std::endl;
         return result;
-      }
-      else
-      {
+      } else {
         std::cerr << "SUCCESS" << std::endl;
         return 123;
       }
