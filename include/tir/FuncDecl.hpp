@@ -41,6 +41,8 @@ public:
     return shared_from_this();
   }
 
+  std::vector<std::shared_ptr<Temp>> getParams() { return params; }
+
   void visitChildren(InsnMapsBuilder &v) override { v.visit(body); }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {

@@ -6,13 +6,15 @@ namespace tir {
 int Simulator::debugLevel = 0;
 
 void Simulator::leave(std::shared_ptr<ExecutionFrame> frame) {
-  std::cout << "leave: ";
-  std::cout << frame->getCurrentInsn()->label() << "\n";
+  // std::cout << "leave: ";
+  // std::cout << frame->getCurrentInsn()->label() << "\n";
   std::shared_ptr<Node> insn = frame->getCurrentInsn();
   if (auto constNode = std::dynamic_pointer_cast<Const>(insn))
     exprStack->pushValue(constNode->getValue());
   else if (auto tempNode = std::dynamic_pointer_cast<Temp>(insn)) {
     std::string tempName = tempNode->getName();
+    if (debugLevel > 0)
+      std::cout << tempName << "=" << frame->get(tempName) << "\n";
     exprStack->pushTemp(frame->get(tempName), tempName);
   } else if (auto binOpNode = std::dynamic_pointer_cast<BinOp>(insn)) {
     int r = exprStack->popValue();
@@ -84,6 +86,7 @@ void Simulator::leave(std::shared_ptr<ExecutionFrame> frame) {
     exprStack->pushAddr(read(addr), addr);
   } else if (auto callNode = std::dynamic_pointer_cast<Call>(insn)) {
     int argsCount = callNode->getNumArgs();
+    std::cout << "argsCounts: " << argsCount << "\n";
     std::vector<int> args(argsCount, 0);
     for (int i = argsCount - 1; i >= 0; --i)
       args[i] = exprStack->popValue();
@@ -109,23 +112,18 @@ void Simulator::leave(std::shared_ptr<ExecutionFrame> frame) {
     exprStack->pushName(libraryFunctions.contains(name) ? -1 : findLabel(name),
                         name);
   } else if (auto moveNode = std::dynamic_pointer_cast<Move>(insn)) {
-    std::cout << "move begin\n";
     int r = exprStack->popValue();
-    std::cout << "popped value\n";
     std::shared_ptr<StackItem> stackItem = exprStack->pop();
-    std::cout << "popped item\n";
     switch (stackItem->type) {
     case StackItem::MEM:
       if (debugLevel > 0)
         std::cout << "mem[" << stackItem->addr << "]=" << r << std::endl;
       store(stackItem->addr, r);
-      std::cout << "stored stack Item\n";
       break;
     case StackItem::TEMP:
       if (debugLevel > 0)
         std::cout << "temp[" << stackItem->temp << "]=" << r << std::endl;
       frame->put(stackItem->temp, r);
-      std::cout << "frame put stack Item\n";
       break;
     default:
       throw std::runtime_error("Invalid MOVE!");

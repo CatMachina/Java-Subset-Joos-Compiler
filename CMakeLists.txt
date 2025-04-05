@@ -130,3 +130,8 @@ add_tool(
     simulator
     "driver/simulator/main.cpp"
 )
+
+add_tool(
+    test_tir
+    "driver/test_tir/main.cpp"
+)
