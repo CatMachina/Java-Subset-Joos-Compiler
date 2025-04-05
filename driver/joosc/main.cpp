@@ -300,11 +300,49 @@ int main(int argc, char **argv) {
       tirCanonicalizer->canonicalizeCompUnit(compUnit);
     }
 
-    // TODO: we should know the entry point method!
+    // Get entrypoint method as a string
+    std::string entry_class;
+    for (int i = 1; i < argc; ++i) {
+      std::string arg = argv[i];
+      if (!arg.starts_with("--")) {
+        size_t slash = arg.find_last_of("/\\");
+        size_t dot = arg.find_last_of('.');
+        std::string filename = arg.substr(slash + 1, dot - slash - 1);
+        entry_class = filename;
+        break;
+      }
+    }
 
-    // TODO: add flag for different register allocators
+    if (entry_class.empty()) {
+      std::cerr << "Error: No input class found to determine entry point.\n";
+      return EXIT_ERROR;
+    }
+
+    std::string entry_method = entry_class + ".test";
+
+    // Add flag for different register allocators (types: basic (default) and
+    // linear (unimplemented))
+    std::string allocator_type = "basic";
+    for (int i = 1; i < argc; ++i) {
+      std::string arg(argv[i]);
+      if (arg.rfind("--allocator=", 0) == 0) {
+        allocator_type = arg.substr(12);
+        if (allocator_type != "basic" && allocator_type != "linear") {
+          std::cerr << "Unknown allocator type: " << allocator_type
+                    << std::endl;
+          return EXIT_ERROR;
+        }
+      }
+    }
+
     std::shared_ptr<codegen::RegisterAllocator> registerAllocator = nullptr;
-    registerAllocator = std::make_shared<codegen::BasicAllocator>();
+
+    if (allocator_type == "basic") {
+      registerAllocator = std::make_shared<codegen::BasicAllocator>();
+    } else if (allocator_type == "linear") {
+      std::cerr << "Linear scan allocator not implemented yet." << std::endl;
+      return EXIT_ERROR;
+    }
 
     // code gen
     // auto assemblyGenerator = std::make_shared<codegen::AssembyGenerator>();
