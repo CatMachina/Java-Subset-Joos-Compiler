@@ -12,6 +12,7 @@ void TIRCanonicalizer::canonicalizeCompUnit(
 
   // functions
   for (auto &func : root->getFunctionList()) {
+    // func->print(std::cout);
     func->getBody() = std::make_shared<tir::Seq>(canonicalize(func->getBody()));
   }
 
@@ -152,6 +153,8 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Stmt> stmt) {
   } else if (auto ret = std::dynamic_pointer_cast<tir::Return>(stmt)) {
     return canonicalizeReturn(ret);
   } else {
+    std::cout << "not a valid stmt" << std::endl;
+    stmt->print(std::cout);
     throw std::runtime_error(
         "TIRCanonicalizer::canonicalize: Not a valid stmt");
   }
@@ -265,6 +268,14 @@ TIRCanonicalizer::canonicalizeReturn(std::shared_ptr<tir::Return> ret) {
     throw std::runtime_error(
         "TIRCanonicalizer::canonicalizeReturn: ret is null");
   }
+
+  if (!(ret->getRet())) {
+    std::vector<std::shared_ptr<tir::Stmt>> loweredStmts;
+    auto newReturn = std::make_shared<tir::Return>(nullptr);
+    loweredStmts.push_back(newReturn);
+    return loweredStmts;
+  }
+
   auto loweredRet = canonicalize(ret->getRet());
   std::vector<std::shared_ptr<tir::Stmt>> loweredStmts =
       loweredRet->getStatements();

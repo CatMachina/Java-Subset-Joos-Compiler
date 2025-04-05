@@ -22,6 +22,7 @@ private:
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::vector<std::shared_ptr<CompUnit>> compUnits;
   std::shared_ptr<codegen::ExprIRConverter> exprConverter;
+  std::shared_ptr<CompUnit> currentProgram;
 
   int labelCounter = 0;
 

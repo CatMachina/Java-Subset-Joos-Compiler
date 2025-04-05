@@ -37,6 +37,10 @@ public:
   CompUnit(std::string name, std::vector<std::shared_ptr<Node>> nodes)
       : name(name), nodes(nodes) {}
 
+  void insertNodes(std::vector<std::shared_ptr<Node>> nodes) {
+    this->nodes.insert(this->nodes.end(), nodes.begin(), nodes.end());
+  }
+
   // Getters
   std::shared_ptr<FuncDecl> getFunction(std::string name) {
     if (functions.find(name) == functions.end()) {
@@ -90,7 +94,7 @@ public:
 
   void appendFunc(std::string name, std::shared_ptr<FuncDecl> func) {
     child_functions.push_back(func);
-    functions[name] = child_functions.back();
+    functions[name] = func;
   }
 
   void appendField(std::string name, std::shared_ptr<Expr> value) {

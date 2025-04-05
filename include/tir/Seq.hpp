@@ -12,6 +12,7 @@ private:
   bool replaceParent;
 
 public:
+  Seq() : replaceParent(false) {}
   Seq(std::vector<std::shared_ptr<Stmt>> stmts, bool replaceParent = false)
       : stmts(filterNulls(stmts)), replaceParent(replaceParent) {}
 

@@ -256,6 +256,8 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
     }
 
   } else {
+    std::cout << "invalid expr type?" << std::endl;
+    expr->print(std::cout);
     throw std::runtime_error("Invalid expression type, should not happen!");
   }
 
@@ -279,9 +281,9 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
   std::shared_ptr<Tile> tile = std::make_shared<Tile>();
 
   if (auto cjump = std::dynamic_pointer_cast<tir::CJump>(stmt)) {
-    auto binOp = std::dynamic_pointer_cast<tir::BinOp>(cjump->getCondition());
     auto conditionReg = newVirtualRegister();
-    ExprTile exprTile = selectTile(binOp, conditionReg);
+
+    ExprTile exprTile = selectTile(cjump->getCondition(), conditionReg);
     auto test = std::make_shared<assembly::Test>(
         std::make_shared<assembly::RegisterOp>(conditionReg),
         std::make_shared<assembly::RegisterOp>(conditionReg));

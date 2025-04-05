@@ -63,7 +63,7 @@ std::shared_ptr<Stmt>
 TIRBuilder::buildBlock(std::shared_ptr<parsetree::ast::Block> node) {
   if (!node) {
     std::cout << "TIRBuilder::buildBlock: node is null" << std::endl;
-    return nullptr;
+    return std::make_shared<Seq>();
   }
   std::vector<std::shared_ptr<Stmt>> irStmts;
   for (auto astStmt : node->getStatements()) {
@@ -78,16 +78,44 @@ TIRBuilder::buildIfStmt(std::shared_ptr<parsetree::ast::IfStmt> node) {
     std::cout << "TIRBuilder::buildIfStmt: node is null" << std::endl;
     return nullptr;
   }
-  auto ltName = getNextLabelName();
-  auto lfName = getNextLabelName();
-  auto lt = std::make_shared<Label>(ltName);
-  auto lf = std::make_shared<Label>(lfName);
+
+  std::vector<std::shared_ptr<Stmt>> stmts;
+
+  auto lt = Label::generateName("if_true");
+  auto lf = Label::generateName("if_false");
+  auto le = Label::generateName("if_end");
 
   auto condition = buildExpr(node->getCondition());
-  auto stmt = buildStmt(node->getIfBody());
-  auto cJump = std::make_shared<CJump>(condition, ltName, lfName);
+  auto body = buildStmt(node->getIfBody());
 
-  std::vector<std::shared_ptr<Stmt>> stmts = {cJump, lt, stmt, lf};
+  if (node->getElseBody() == nullptr) {
+    // CJump(expr == 0, exit, true)
+    stmts.push_back(
+        std::make_shared<CJump>(BinOp::makeNegate(condition), le, lt));
+
+    stmts.push_back(std::make_shared<Label>(lt));
+    stmts.push_back(body);
+    stmts.push_back(std::make_shared<Label>(le));
+
+  } else {
+    // CJump(expr == 0, false, true)
+    stmts.push_back(
+        std::make_shared<CJump>(BinOp::makeNegate(condition), lf, lt));
+
+    // true
+    stmts.push_back(std::make_shared<Label>(lt));
+    stmts.push_back(body);
+    // jump to end
+    stmts.push_back(std::make_shared<Jump>(std::make_shared<Name>(le)));
+
+    // false
+    stmts.push_back(std::make_shared<Label>(lf));
+    stmts.push_back(buildStmt(node->getElseBody()));
+
+    // end
+    stmts.push_back(std::make_shared<Label>(le));
+  }
+
   return std::make_shared<Seq>(stmts);
 }
 
@@ -97,19 +125,30 @@ TIRBuilder::buildWhileStmt(std::shared_ptr<parsetree::ast::WhileStmt> node) {
     std::cout << "TIRBuilder::buildWhileStmt: node is null" << std::endl;
     return nullptr;
   }
-  auto lh = getNewLabel();
-  auto ltName = getNextLabelName();
-  auto lfName = getNextLabelName();
-  auto lt = std::make_shared<Label>(ltName);
-  auto lf = std::make_shared<Label>(lfName);
 
+  auto ls = Label::generateName("while_init");
+  auto lt = Label::generateName("while_true");
+  auto le = Label::generateName("while_end");
+  std::vector<std::shared_ptr<Stmt>> stmts;
+
+  // start
+  stmts.push_back(std::make_shared<Label>(ls));
+
+  // CJump(expr == 0, end, true)
   auto condition = buildExpr(node->getCondition());
-  auto stmt = buildStmt(node->getWhileBody());
-  auto cJump = std::make_shared<CJump>(condition, ltName, lfName);
-  auto name = std::make_shared<Name>(lh->getName());
-  auto jump = std::make_shared<Jump>(name);
+  stmts.push_back(
+      std::make_shared<CJump>(BinOp::makeNegate(condition), le, lt));
 
-  std::vector<std::shared_ptr<Stmt>> stmts = {lh, cJump, lt, stmt, jump, lf};
+  // true
+  stmts.push_back(std::make_shared<Label>(lt));
+  auto stmt = buildStmt(node->getWhileBody());
+  stmts.push_back(stmt);
+  // jump to start
+  stmts.push_back(std::make_shared<Jump>(std::make_shared<Name>(ls)));
+
+  // end
+  stmts.push_back(std::make_shared<Label>(le));
+
   return std::make_shared<Seq>(stmts);
 }
 
@@ -119,22 +158,37 @@ TIRBuilder::buildForStmt(std::shared_ptr<parsetree::ast::ForStmt> node) {
     std::cout << "TIRBuilder::buildForStmt: node is null" << std::endl;
     return nullptr;
   }
-  auto lh = getNewLabel();
-  auto ltName = getNextLabelName();
-  auto lfName = getNextLabelName();
-  auto lt = std::make_shared<Label>(ltName);
-  auto lf = std::make_shared<Label>(lfName);
-  auto init = buildStmt(node->getForInit());
 
+  auto ls = Label::generateName("for_init");
+  auto lt = Label::generateName("for_true");
+  auto le = Label::generateName("for_end");
+  std::vector<std::shared_ptr<Stmt>> stmts;
+
+  if (node->getForInit() != nullptr) {
+    stmts.push_back(buildStmt(node->getForInit()));
+  }
+
+  // start
+  stmts.push_back(std::make_shared<Label>(ls));
+
+  // CJump(cond == 0, end, true)
   auto condition = buildExpr(node->getCondition());
-  auto update = buildStmt(node->getForUpdate());
-  auto body = buildStmt(node->getForBody());
-  auto cJump = std::make_shared<CJump>(condition, ltName, lfName);
-  auto name = std::make_shared<Name>(lh->getName());
-  auto jump = std::make_shared<Jump>(name);
+  stmts.push_back(
+      std::make_shared<CJump>(BinOp::makeNegate(condition), le, lt));
 
-  std::vector<std::shared_ptr<Stmt>> stmts = {init, lh,     cJump, lt,
-                                              body, update, jump,  lf};
+  // true
+  stmts.push_back(std::make_shared<Label>(lt));
+  auto body = buildStmt(node->getForBody());
+  stmts.push_back(body);
+  if (node->getForUpdate() != nullptr) {
+    stmts.push_back(buildStmt(node->getForUpdate()));
+  }
+  // jump to start
+  stmts.push_back(std::make_shared<Jump>(std::make_shared<Name>(ls)));
+
+  // end
+  stmts.push_back(std::make_shared<Label>(le));
+
   return std::make_shared<Seq>(stmts);
 }
 
@@ -175,7 +229,12 @@ TIRBuilder::buildDecl(std::shared_ptr<parsetree::ast::Decl> node) {
 
   if (auto methodDecl =
           std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(node)) {
-    return buildMethodDecl(methodDecl);
+    // native function handled by runtime.s
+    if (!(methodDecl->getModifiers()->isNative())) {
+      return buildMethodDecl(methodDecl);
+    }
+    return nullptr;
+
   } else if (auto fieldDecl =
                  std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(node)) {
     return buildFieldDecl(fieldDecl);
@@ -206,11 +265,14 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
   std::string unitName = decl->getName();
   std::vector<std::shared_ptr<tir::Node>> nodes;
 
+  auto compUnit = std::make_shared<tir::CompUnit>(unitName, nodes);
+  currentProgram = compUnit;
+
   if (auto classDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl)) {
     auto classNodes = buildClassDecl(classDecl);
-    nodes.insert(nodes.end(), classNodes.begin(), classNodes.end());
-    auto compUnit = std::make_shared<tir::CompUnit>(unitName, nodes);
+    // nodes.insert(nodes.end(), classNodes.begin(), classNodes.end());
+    compUnit->insertNodes(classNodes);
 
     auto classDV = codegen::DispatchVectorBuilder::getDV(classDecl);
 
@@ -254,15 +316,43 @@ TIRBuilder::buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node) {
     throw std::runtime_error("TIRBuilder::buildMethodDecl: node is null");
   }
 
-  std::vector<std::shared_ptr<Temp>> params;
+  std::vector<std::shared_ptr<Stmt>> params;
+  int argCount = 0;
+
+  // this arg
+  auto argName = exprConverter->codeGenLabels->kAbstractArgPrefix +
+                 std::to_string(argCount++);
+  params.push_back(std::make_shared<Move>(std::make_shared<Temp>("this"),
+                                          std::make_shared<Name>(argName)));
+
+  // move each value in virtual argument register from caller into parameter
+  // temp
   for (const auto &param : node->getParams()) {
-    auto name = param->getName();
-    params.push_back(std::make_shared<Temp>(name));
+    auto paramName = exprConverter->codeGenLabels->getParameterLabel(param);
+    auto regName = exprConverter->codeGenLabels->kAbstractArgPrefix +
+                   std::to_string(argCount++);
+    params.push_back(std::make_shared<Move>(std::make_shared<Temp>(paramName),
+                                            std::make_shared<Name>(regName)));
   }
 
   auto body = buildBlock(node->getMethodBody());
+  auto bodySeq = std::dynamic_pointer_cast<Seq>(body);
+  if (!bodySeq) {
+    throw std::runtime_error("TIRBuilder::buildMethodDecl: body is not a Seq");
+  }
+  for (auto &bodyStmt : bodySeq->getStmts()) {
+    params.push_back(bodyStmt);
+  }
+  bodySeq = std::make_shared<Seq>(params);
 
-  return std::make_shared<FuncDecl>(node->getName(), params, body);
+  auto label = node->isStatic()
+                   ? exprConverter->codeGenLabels->getStaticMethodLabel(node)
+                   : exprConverter->codeGenLabels->getMethodLabel(node);
+  std::shared_ptr<FuncDecl> funcIR = std::make_shared<FuncDecl>(
+      node->getName(), bodySeq, node->getParams().size());
+  currentProgram->appendFunc(label, funcIR);
+
+  return funcIR;
 }
 
 std::shared_ptr<Stmt>
@@ -300,7 +390,10 @@ TIRBuilder::buildClassDecl(std::shared_ptr<parsetree::ast::ClassDecl> node) {
   exprConverter->setCurrentClass(node);
   std::vector<std::shared_ptr<Node>> results;
   for (const auto &decl : node->getClassMembers()) {
-    results.push_back(buildDecl(decl));
+    auto result = buildDecl(decl);
+    if (result) {
+      results.push_back(result);
+    }
   }
 
   return results;
