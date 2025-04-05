@@ -280,21 +280,146 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
 
   if (auto cjump = std::dynamic_pointer_cast<tir::CJump>(stmt)) {
     auto binOp = std::dynamic_pointer_cast<tir::BinOp>(cjump->getCondition());
-    ExprTile exprTile = selectTile(binOp, Tile::VIRTUAL_REG);
-    auto je = std::make_shared<assembly::Je>(
-        std::make_shared<assembly::RegisterOp>(exprTile.second));
+    auto conditionReg = newVirtualRegister();
+    ExprTile exprTile = selectTile(binOp, conditionReg);
+    auto test = std::make_shared<assembly::Test>(
+        std::make_shared<assembly::RegisterOp>(conditionReg),
+        std::make_shared<assembly::RegisterOp>(conditionReg));
+    auto jnz = std::make_shared<assembly::JNZ>(
+        std::make_shared<assembly::LabelOp>(cjump->getTrueLabel()));
+
     tile = std::make_shared<Tile>(
-        std::vector<TileInstruction>({exprTile.first, je}));
+        std::vector<TileInstruction>({exprTile, test, jnz}));
+
   } else if (auto jump = std::dynamic_pointer_cast<tir::Jump>(stmt)) {
-    std::shared_ptr<tir::Expr> name =
-        std::dynamic_pointer_cast<tir::Name>(jump->getName());
-    ExprTile exprTile = selectTile(name, Tile::VIRTUAL_REG);
-    auto jmp = std::make_shared<assembly::Jmp>(
-        std::make_shared<assembly::RegisterOp>(exprTile.second));
-    tile = std::make_shared<Tile>(
-        std::vector<TileInstruction>({exprTile.first, jmp}));
+    if (auto name = std::dynamic_pointer_cast<tir::Name>(jump->getTarget())) {
+      tile = std::make_shared<Tile>(
+          std::vector<TileInstruction>{std::make_shared<assembly::Jmp>(
+              std::make_shared<assembly::LabelOp>(name->getName()))});
+    } else {
+      auto targetReg = newVirtualRegister();
+      tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+          selectTile(jump->getTarget(), targetReg),
+          std::make_shared<assembly::Jmp>(
+              std::make_shared<assembly::RegisterOp>(targetReg))});
+    }
+
+  } else if (auto call = std::dynamic_pointer_cast<tir::Call>(stmt)) {
+    std::string functionName = "";
+    if (auto name = std::dynamic_pointer_cast<tir::Name>(call->getTarget())) {
+      functionName = name->getName();
+    }
+
+    // special case: malloc
+    if (functionName == "__malloc") {
+      if (call->getNumArgs() != 1) {
+        throw std::runtime_error(
+            "Invalid number of arguments for malloc, got " +
+            std::to_string(call->getNumArgs()));
+      }
+      tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+          selectTile(call->getArgs()[0], assembly::R32_EAX),
+          std::make_shared<assembly::Call>(
+              std::make_shared<assembly::LabelOp>(functionName))});
+
+    }
+
+    // regular case
+    else {
+      // push args to stack reverse order (C decl)
+      for (auto &arg : call->getArgs()) {
+        std::string argReg = newVirtualRegister();
+        tile->addInstructions(
+            std::vector<TileInstruction>{
+                selectTile(arg, argReg),
+                std::make_shared<assembly::Push>(
+                    std::make_shared<assembly::RegisterOp>(argReg))},
+            true);
+      }
+
+      // perform call
+      if (functionName != "") {
+        tile->addInstructions(
+            std::vector<TileInstruction>{std::make_shared<assembly::Call>(
+                std::make_shared<assembly::LabelOp>(functionName))});
+      } else {
+        auto targetReg = newVirtualRegister();
+        tile->addInstructions(std::vector<TileInstruction>{
+            selectTile(call->getTarget(), targetReg),
+            std::make_shared<assembly::Call>(
+                std::make_shared<assembly::RegisterOp>(targetReg))});
+      }
+
+      // stack pointer update
+      tile->addInstructions(
+          std::vector<TileInstruction>{std::make_shared<assembly::Add>(
+              std::make_shared<assembly::RegisterOp>(assembly::R32_ESP),
+              std::make_shared<assembly::ImmediateOp>(call->getNumArgs() *
+                                                      4))});
+    }
+
   }
-  // TODO
+
+  else if (auto exp = std::dynamic_pointer_cast<tir::Exp>(stmt)) {
+    throw std::runtime_error(
+        "Exp should not exist in canonicalized statements");
+
+  } else if (auto label = std::dynamic_pointer_cast<tir::Label>(stmt)) {
+    tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+        std::make_shared<assembly::Label>(label->getName())});
+
+  } else if (auto move = std::dynamic_pointer_cast<tir::Move>(stmt)) {
+    auto target = move->getTarget();
+
+    if (auto temp = std::dynamic_pointer_cast<tir::Temp>(target)) {
+      if (temp->isGlobal) {
+        auto tempReg = newVirtualRegister();
+        tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+            selectTile(move->getSource(), tempReg),
+            std::make_shared<assembly::Mov>(
+                std::make_shared<assembly::MemAddrOp>(temp->getName()),
+                std::make_shared<assembly::RegisterOp>(tempReg))});
+      } else {
+        tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+            selectTile(move->getSource(), temp->getName() + "_%")});
+      }
+
+    } else if (auto mem = std::dynamic_pointer_cast<tir::Mem>(target)) {
+      auto targetReg = newVirtualRegister();
+      auto sourceReg = newVirtualRegister();
+      tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+          selectTile(move->getSource(), sourceReg),
+          selectTile(mem->getAddress(), targetReg),
+          std::make_shared<assembly::Mov>(
+              std::make_shared<assembly::MemAddrOp>(targetReg),
+              std::make_shared<assembly::RegisterOp>(sourceReg))});
+
+    } else {
+      throw std::runtime_error("Invalid move target");
+    }
+
+  } else if (auto returnIR = std::dynamic_pointer_cast<tir::Return>(stmt)) {
+    if (auto ret = returnIR->getRet()) {
+      tile->addInstructions(std::vector<TileInstruction>{
+          selectTile(ret, assembly::R32_EAX),
+      });
+    }
+    tile->addInstructions(std::vector<TileInstruction>{
+        std::make_shared<assembly::Mov>(
+            std::make_shared<assembly::RegisterOp>(assembly::R32_ESP),
+            std::make_shared<assembly::RegisterOp>(assembly::R32_EBP)),
+        std::make_shared<assembly::Pop>(
+            std::make_shared<assembly::RegisterOp>(assembly::R32_EBP)),
+        std::make_shared<assembly::Ret>()});
+
+  } else if (auto seq = std::dynamic_pointer_cast<tir::Seq>(stmt)) {
+    for (auto &stmt : seq->getStmts()) {
+      tile->addInstructions(std::vector<TileInstruction>{selectTile(stmt)});
+    }
+
+  } else {
+    throw std::runtime_error("Invalid statement");
+  }
 
   if (tile->getCost() == INT_MAX) {
     throw std::runtime_error("No tile for statement!");

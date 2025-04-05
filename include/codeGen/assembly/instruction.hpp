@@ -440,6 +440,26 @@ public:
   }
 };
 
+class JNZ : public Instruction {
+public:
+  JNZ(std::shared_ptr<Operand> target) {
+    target->setRead();
+    addOperand(target);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(JNZ ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return "jnz " + getOperands()[0]->toString();
+  }
+};
+
 // push, pop	stack operations (single operand)
 class Push : public Instruction {
 public:
@@ -753,6 +773,23 @@ public:
   std::string toString() const override {
     return "movzx " + getOperands()[0]->toString() + ", " +
            getOperands()[1]->toString();
+  }
+};
+
+class Label : public Instruction {
+public:
+  Label(std::string label) { addOperand(std::make_shared<LabelOp>(label)); }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Label ";
+    getOperands()[0]->print(os);
+    os << ")\n";
+    return os;
+  }
+
+  std::string toString() const override {
+    return getOperands()[0]->toString() + ":";
   }
 };
 
