@@ -27,6 +27,7 @@
 #include "codeGen/assemblyGenerator.hpp"
 #include "codeGen/astVisitor.hpp"
 #include "codeGen/canonicalizer.hpp"
+#include "codeGen/dispatchVector.hpp"
 #include "codeGen/exprIRConverter.hpp"
 #include "codeGen/registerAllocator/basicAllocator.hpp"
 #include "tir/Simulator.hpp"
@@ -284,6 +285,11 @@ int main(int argc, char **argv) {
     auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
     auto exprConverter =
         std::make_shared<codegen::ExprIRConverter>(astManager, codeGenLabels);
+
+    // for object oriented
+    codegen::DispatchVectorBuilder().visit(astManager);
+    codegen::DispatchVectorBuilder::assignColours();
+    codegen::DispatchVectorBuilder::verifyColoured();
 
     std::cout << "Done code gen...\n";
     // IR building
