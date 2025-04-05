@@ -43,6 +43,8 @@ class ExprIRConverter final
     : public static_check::Evaluator<std::shared_ptr<tir::Expr>> {
 
 public:
+  std::shared_ptr<CodeGenLabels> codeGenLabels;
+
   ExprIRConverter(std::shared_ptr<parsetree::ast::ASTManager> astManager,
                   std::shared_ptr<CodeGenLabels> codeGenLabels) {
     this->astManager = astManager;
@@ -103,7 +105,6 @@ private:
   mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) override;
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
-  std::shared_ptr<CodeGenLabels> codeGenLabels;
   std::shared_ptr<parsetree::ast::ClassDecl> currentClass = nullptr;
 };
 

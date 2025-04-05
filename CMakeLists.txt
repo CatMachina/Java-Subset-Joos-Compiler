@@ -85,6 +85,7 @@ add_library(CompilerLib
     "src/codeGen/exprIRConverter.cpp"
     "src/codeGen/canonicalizer.cpp"
     "src/codeGen/instructionSelector.cpp"
+    "src/codeGen/dispatchVector.cpp"
 )
 target_include_directories(
     CompilerLib

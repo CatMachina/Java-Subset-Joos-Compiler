@@ -1,4 +1,5 @@
 #include "tir/TIRBuilder.hpp"
+#include "codeGen/dispatchVector.hpp"
 
 namespace tir {
 
@@ -209,6 +210,33 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(decl)) {
     auto classNodes = buildClassDecl(classDecl);
     nodes.insert(nodes.end(), classNodes.begin(), classNodes.end());
+    auto compUnit = std::make_shared<tir::CompUnit>(unitName, nodes);
+
+    auto classDV = codegen::DispatchVectorBuilder::getDV(classDecl);
+
+    // allocate memory for dv
+    compUnit->appendField(
+        exprConverter->codeGenLabels->getClassLabel(classDecl),
+        tir::Call::makeMalloc(std::make_shared<tir::Const>(
+            4 * (classDV->methodVector.size() + 1))));
+
+    // put function labels in dv at correct offsets
+    for (auto &method : classDV->methodVector) {
+      if (!method)
+        continue;
+      auto methodLabel = exprConverter->codeGenLabels->getMethodLabel(method);
+      compUnit->appendStartStmt(std::make_shared<tir::Move>(
+          std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+              tir::BinOp::ADD,
+              std::make_shared<tir::Temp>(
+                  exprConverter->codeGenLabels->getClassLabel(classDecl)),
+              std::make_shared<tir::Const>(
+                  4 * codegen::DispatchVectorBuilder::getAssignment(method)))),
+          std::make_shared<tir::Name>(methodLabel, true)));
+    }
+
+    return compUnit;
+
   } else if (auto interfaceDecl =
                  std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                      decl)) {

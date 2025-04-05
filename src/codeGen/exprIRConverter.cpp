@@ -1,4 +1,5 @@
 #include "codeGen/exprIRConverter.hpp"
+#include "codeGen/dispatchVector.hpp"
 
 namespace codegen {
 
@@ -117,7 +118,8 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       std::vector<std::shared_ptr<tir::Stmt>> seqVec;
 
       auto stringClass = astManager->java_lang.String;
-      int numFields = stringClass->getFields().size();
+      auto stringDV = codegen::DispatchVectorBuilder::getDV(stringClass);
+      int numFields = stringDV->fieldVector.size();
 
       // create string reference
       std::string stringRefName = tir::Temp::generateName("string_ref");
@@ -139,7 +141,7 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       // initialize all fields
       // TODO: should we actually initialize them or placeholder 0 is fine
       int count = 0;
-      for (auto &field : stringClass->getFields()) {
+      for (auto &field : stringDV->fieldVector) {
         seqVec.push_back(std::make_shared<tir::Move>(
             std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
                 tir::BinOp::OpType::ADD,
@@ -172,13 +174,13 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
 
       // get chars field
       std::shared_ptr<parsetree::ast::FieldDecl> charsField = nullptr;
-      int charsFieldIndex = 0;
+      int charsFieldIndex = stringDV->getFieldOffset(charsField);
       for (auto &field : stringClass->getFields()) {
         if (field->getName() == "chars") {
           charsField = field;
           break;
         }
-        charsFieldIndex++;
+        // charsFieldIndex++;
       }
       if (charsField == nullptr) {
         throw std::runtime_error("Chars field not found in String class");
@@ -271,7 +273,8 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
             memberName->getResolvedDecl())) {
       // local (accessed by this or by itself)
       if (memberName->isAccessedByThis() || !(memberName->isNotAsBase())) {
-        int offset = currentClass->getFieldOffset(fieldDecl);
+        auto dv = codegen::DispatchVectorBuilder::getDV(currentClass);
+        int offset = dv->getFieldOffset(fieldDecl);
         if (offset == -1)
           throw std::runtime_error("cannot find field " + fieldDecl->getName() +
                                    " in current class");
@@ -563,10 +566,12 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
         fieldDecl->getParent());
 
     if (classDecl) {
+      int fieldOffset =
+          codegen::DispatchVectorBuilder::getDV(classDecl)->getFieldOffset(
+              castedFieldDecl);
       return std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
           tir::BinOp::OpType::ADD, lhs,
-          std::make_shared<tir::Const>(
-              4 * (classDecl->getFieldOffset(castedFieldDecl) + 1))));
+          std::make_shared<tir::Const>(4 * (fieldOffset + 1))));
     }
   }
 
@@ -623,10 +628,11 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
       // gets method NameIR
       std::make_shared<tir::Mem>(
           // *this + 4*offset
-          // TODO: how to get offset?
           std::make_shared<tir::BinOp>(
               tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>("this"),
-              std::make_shared<tir::Const>(4 * /* placeholder */ 0))),
+              std::make_shared<tir::Const>(
+                  4 *
+                  codegen::DispatchVectorBuilder::getAssignment(methodDecl)))),
       (methodDecl->getModifiers()->isNative())
           ? nullptr
           : std::make_shared<tir::Temp>("this", nullptr),
@@ -682,7 +688,8 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
   auto typeClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
       typeRefType->getResolvedDecl()->getAstNode());
 
-  int num_fields = typeClass->getFields().size();
+  auto classDV = codegen::DispatchVectorBuilder::getDV(typeClass);
+  int num_fields = classDV->fieldVector.size();
   std::string obj_ref = tir::Temp::generateName("obj_ref");
 
   // allocate space for class
@@ -701,8 +708,9 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
   std::vector<std::shared_ptr<tir::Stmt>> seq_vec = {move1, move2};
 
   // initialize all fields
+  // TODO: we need to initialize all fields!
   int count = 0;
-  for (auto &field : typeClass->getFields()) {
+  for (auto &field : classDV->fieldVector) {
     seq_vec.push_back(std::make_shared<tir::Move>(
         std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
             tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(obj_ref),
