@@ -22,6 +22,7 @@ public:
 
   std::string
   getStaticMethodLabel(std::shared_ptr<parsetree::ast::MethodDecl> method) {
+    // return method->getName();
     if (method->getModifiers()->isNative()) {
       return "NATIVE" + method->getFullName();
     }

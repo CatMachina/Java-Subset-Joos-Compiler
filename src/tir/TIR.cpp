@@ -17,7 +17,7 @@ std::shared_ptr<Expr> Call::makeException() {
 
 std::shared_ptr<Expr> BinOp::makeNegate(std::shared_ptr<Expr> negated) {
   // return makeExpr(BinOp::OpType::SUB, Const::makeExpr(0), negated);
-  return std::make_shared<BinOp>(BinOp::OpType::SUB, Const::makeExpr(0),
+  return std::make_shared<BinOp>(BinOp::OpType::SUB, Const::makeExpr(1),
                                  negated);
 }
 

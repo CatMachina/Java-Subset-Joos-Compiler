@@ -35,7 +35,13 @@ public:
       : name(name), nodes(std::vector<std::shared_ptr<Node>>()) {}
 
   CompUnit(std::string name, std::vector<std::shared_ptr<Node>> nodes)
-      : name(name), nodes(nodes) {}
+      : name(name), nodes(nodes) {
+    for (auto node : nodes) {
+      if (auto funcDeclNode = std::dynamic_pointer_cast<FuncDecl>(node)) {
+        appendFunc(funcDeclNode->getName(), funcDeclNode);
+      }
+    }
+  }
 
   void insertNodes(std::vector<std::shared_ptr<Node>> nodes) {
     this->nodes.insert(this->nodes.end(), nodes.begin(), nodes.end());
@@ -43,7 +49,7 @@ public:
 
   // Getters
   std::shared_ptr<FuncDecl> getFunction(std::string name) {
-    if (functions.find(name) == functions.end()) {
+    if (!functions.count(name)) {
       throw std::runtime_error("Could not find function with name " + name +
                                " in the IR.");
     }

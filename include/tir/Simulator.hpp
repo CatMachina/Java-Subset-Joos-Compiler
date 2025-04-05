@@ -273,10 +273,15 @@ public:
       std::shared_ptr<ExecutionFrame> frame =
           std::make_shared<ExecutionFrame>(this, ip);
 
+      std::vector<std::string> argNames;
+      argNames.push_back("this");
+      for (auto temp : fDecl->getParams()) {
+        argNames.push_back(temp->getName());
+      }
+
       // Pass the remaining arguments into registers.
       for (int i = 0; i < args.size(); ++i)
-        frame->put(Configuration::ABSTRACT_ARG_PREFIX() + std::to_string(i),
-                   args[i]);
+        frame->put(argNames[i], args[i]);
 
       // Simulate!
       while (frame->advance())
