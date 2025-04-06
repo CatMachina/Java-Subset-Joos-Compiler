@@ -541,9 +541,9 @@ additive_expr:
 // Multiplicative
 multiplicative_expr:
     unary_expr_negative
-    | multiplicative_expr STAR unary_expr { $$ = lexer.make_node(@$, NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
-    | multiplicative_expr SLASH unary_expr { $$ = lexer.make_node(@$, NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
-    | multiplicative_expr PCT unary_expr { $$ = lexer.make_node(@$, NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | multiplicative_expr STAR unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | multiplicative_expr SLASH unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
+    | multiplicative_expr PCT unary_expr_negative { $$ = lexer.make_node(@$, NodeType::Expression, std::move($1), std::move($2), std::move($3)); }
 ;
 
 // Unary operators
