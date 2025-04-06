@@ -20,6 +20,7 @@ protected:
     auto readRegisters = instruction->getReadVirtualRegisters();
     auto writeRegisters = instruction->getWriteVirtualRegisters();
     auto usedRegisters = instruction->getAllUsedVirtualRegisters();
+    auto originalInstructionString = instruction->toString();
 
     if (usedRegisters.size() > 3) {
       throw std::runtime_error(
@@ -35,6 +36,8 @@ protected:
 
     // load from each read
     for (const auto &reg : readRegisters) {
+      newInstructions.push_back(
+          std::make_unique<assembly::Comment>("Load from " + reg));
       newInstructions.push_back(std::make_unique<assembly::Mov>(
           std::make_shared<assembly::RegisterOp>(virtualToGPR[reg]),
           std::make_unique<assembly::MemAddrOp>(assembly::R32_EBP,
@@ -42,10 +45,16 @@ protected:
     }
 
     // add back the original instruction
+    if (nextGPR > 0) {
+      newInstructions.push_back(
+          std::make_unique<assembly::Comment>(originalInstructionString));
+    }
     newInstructions.push_back(instruction);
 
     // store for each write
     for (const auto &reg : writeRegisters) {
+      newInstructions.push_back(
+          std::make_unique<assembly::Comment>("Store to " + reg));
       newInstructions.push_back(std::make_unique<assembly::Mov>(
           std::make_unique<assembly::MemAddrOp>(assembly::R32_EBP,
                                                 -1 * registerOffsets[reg]),

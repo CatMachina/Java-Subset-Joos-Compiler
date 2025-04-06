@@ -793,4 +793,19 @@ public:
   }
 };
 
+class Comment : public Instruction {
+  std::string text;
+
+public:
+  Comment(std::string text) : text{text} {}
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent);
+    os << "(Comment " << text << ")\n";
+    return os;
+  }
+
+  std::string toString() const override { return "\n; " + text; }
+};
+
 } // namespace codegen::assembly

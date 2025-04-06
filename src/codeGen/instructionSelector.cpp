@@ -1,5 +1,7 @@
 #include "codeGen/instructionSelector.hpp"
 
+#include <regex>
+
 namespace codegen {
 
 size_t InstructionSelector::virtualRegCounter = 0;
@@ -231,14 +233,16 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
     }
     // special case: kAbstractArgPrefixa a is stack offset from caller
     else if (temp->getName().rfind(codeGenLabels->kAbstractArgPrefix, 0) == 0) {
-      std::string suffix =
-          temp->getName().substr(codeGenLabels->kAbstractArgPrefix.length());
-      int argNum = std::stoi(suffix);
+      // std::string suffix =
+      //     temp->getName().substr(codeGenLabels->kAbstractArgPrefix.length());
+      // int argNum = std::stoi(suffix);
+      int argNum = std::stoi(std::regex_replace(
+          temp->getName(), std::regex(codeGenLabels->kAbstractArgPrefix), ""));
 
       tile = std::make_shared<Tile>(
           std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
               std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
-              std::make_shared<assembly::MemAddrOp>(assembly::R32_ESP,
+              std::make_shared<assembly::MemAddrOp>(assembly::R32_EBP,
                                                     (argNum + 2) * 4))});
     }
     // special case: static variable is in data segment
@@ -408,6 +412,7 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
       });
     }
     tile->addInstructions(std::vector<TileInstruction>{
+        std::make_shared<assembly::Comment>("function epilogue"),
         std::make_shared<assembly::Mov>(
             std::make_shared<assembly::RegisterOp>(assembly::R32_ESP),
             std::make_shared<assembly::RegisterOp>(assembly::R32_EBP)),
@@ -419,6 +424,10 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
     for (auto &stmt : seq->getStmts()) {
       tile->addInstructions(std::vector<TileInstruction>{selectTile(stmt)});
     }
+
+  } else if (auto comment = std::dynamic_pointer_cast<tir::Comment>(stmt)) {
+    tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+        std::make_shared<assembly::Comment>(comment->getComment())});
 
   } else {
     std::cout << "Invalid statement:" << std::endl;

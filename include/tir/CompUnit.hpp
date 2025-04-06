@@ -36,11 +36,11 @@ public:
 
   CompUnit(std::string name, std::vector<std::shared_ptr<Node>> nodes)
       : name(name), nodes(nodes) {
-    for (auto node : nodes) {
-      if (auto funcDeclNode = std::dynamic_pointer_cast<FuncDecl>(node)) {
-        appendFunc(funcDeclNode->getName(), funcDeclNode);
-      }
-    }
+    // for (auto node : nodes) {
+    //   if (auto funcDeclNode = std::dynamic_pointer_cast<FuncDecl>(node)) {
+    //     appendFunc(funcDeclNode->getName(), funcDeclNode);
+    //   }
+    // }
   }
 
   void insertNodes(std::vector<std::shared_ptr<Node>> nodes) {

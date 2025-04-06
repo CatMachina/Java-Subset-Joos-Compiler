@@ -152,6 +152,8 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Stmt> stmt) {
     return canonicalizeMove(move);
   } else if (auto ret = std::dynamic_pointer_cast<tir::Return>(stmt)) {
     return canonicalizeReturn(ret);
+  } else if (auto comment = std::dynamic_pointer_cast<tir::Comment>(stmt)) {
+    return {comment};
   } else {
     std::cout << "not a valid stmt" << std::endl;
     stmt->print(std::cout);

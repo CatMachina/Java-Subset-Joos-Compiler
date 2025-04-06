@@ -20,5 +20,6 @@
 #include "tir/Seq.hpp"
 
 // Others
+#include "tir/Comment.hpp"
 #include "tir/CompUnit.hpp"
 #include "tir/FuncDecl.hpp"

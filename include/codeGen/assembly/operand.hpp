@@ -71,9 +71,9 @@ public:
     }
 
     std::string output = base;
-    if (base != "") {
+    if (index != "") {
       output += " + ";
-      if (index != "") {
+      if (scale != 1) {
         output += "(" + index + " * " + std::to_string(scale) + ")";
       } else {
         output += index;
