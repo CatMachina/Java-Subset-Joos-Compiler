@@ -109,8 +109,14 @@ void Simulator::leave(std::shared_ptr<ExecutionFrame> frame) {
     exprStack->pushValue(retVal);
   } else if (auto nameNode = std::dynamic_pointer_cast<Name>(insn)) {
     std::string name = nameNode->getName();
-    exprStack->pushName(libraryFunctions.contains(name) ? -1 : findLabel(name),
-                        name);
+    if (libraryFunctions.contains(name))
+      exprStack->pushName(-1, name);
+    else if (nameToIndex.count(name))
+      exprStack->pushName(findLabel(name), name);
+    else {
+      std::cout << "Should be Abstract Register name: " << name << "\n";
+      exprStack->pushValue(frame->get(name));
+    }
   } else if (auto moveNode = std::dynamic_pointer_cast<Move>(insn)) {
     int r = exprStack->popValue();
     std::shared_ptr<StackItem> stackItem = exprStack->pop();
