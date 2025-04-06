@@ -397,12 +397,12 @@ void TypeLinker::populateJavaLang() {
   //   throw std::runtime_error("Could not resolve java.lang.Character");
   // }
 
-  astManager->java_lang.Class = getClassDecl(langPackage, "Class");
+  // astManager->java_lang.Class = getClassDecl(langPackage, "Class");
   // if (!astManager->java_lang.Class) {
   //   throw std::runtime_error("Could not resolve java.lang.Class");
   // }
 
-  astManager->java_lang.Cloneable = getInterfaceDecl(langPackage, "Cloneable");
+  // astManager->java_lang.Cloneable = getInterfaceDecl(langPackage, "Cloneable");
   // if (!astManager->java_lang.Cloneable) {
   //   throw std::runtime_error("Could not resolve java.lang.Cloneable");
   // }
@@ -432,7 +432,7 @@ void TypeLinker::populateJavaLang() {
   //   throw std::runtime_error("Could not resolve java.lang.String");
   // }
 
-  astManager->java_lang.System = getClassDecl(langPackage, "System");
+  // astManager->java_lang.System = getClassDecl(langPackage, "System");
   // if (!astManager->java_lang.System) {
   //   throw std::runtime_error("Could not resolve java.lang.System");
   // }
