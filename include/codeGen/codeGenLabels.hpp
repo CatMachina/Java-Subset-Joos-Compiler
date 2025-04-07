@@ -22,7 +22,7 @@ public:
 
   std::string
   getStaticMethodLabel(std::shared_ptr<parsetree::ast::MethodDecl> method) {
-    return method->getName();
+    // return method->getName();
     if (method->getModifiers()->isNative()) {
       return "NATIVE" + method->getFullName();
     }
@@ -43,6 +43,7 @@ public:
 
   std::string
   getLocalVariableLabel(std::shared_ptr<parsetree::ast::VarDecl> variable) {
+    // return variable->getName();
     return getUniqueLabel(variable, variable->getFullName(), "_LOCAL_VARIABLE",
                           local_var_id_counter_, local_var_labels_);
   }
