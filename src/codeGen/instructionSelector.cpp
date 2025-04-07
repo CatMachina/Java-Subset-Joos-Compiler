@@ -71,7 +71,7 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
           std::make_shared<assembly::Cmp>(
               rightReg, std::make_shared<assembly::ImmediateOp>(0)),
           std::make_shared<assembly::Je>(
-              std::make_shared<assembly::LabelOp>("__EXEPTION__")),
+              std::make_shared<assembly::LabelOp>("__exception")),
           std::make_shared<assembly::Mov>(
               std::make_shared<assembly::RegisterOp>(assembly::R32_EAX),
               leftReg),
@@ -89,7 +89,7 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
           std::make_shared<assembly::Cmp>(
               rightReg, std::make_shared<assembly::ImmediateOp>(0)),
           std::make_shared<assembly::Je>(
-              std::make_shared<assembly::LabelOp>("__EXEPTION__")),
+              std::make_shared<assembly::LabelOp>("__exception")),
           std::make_shared<assembly::Mov>(
               std::make_shared<assembly::RegisterOp>(assembly::R32_EAX),
               leftReg),
@@ -388,7 +388,7 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
                 std::make_shared<assembly::RegisterOp>(tempReg))});
       } else {
         tile = std::make_shared<Tile>(std::vector<TileInstruction>{
-            selectTile(move->getSource(), temp->getName() + "_%")});
+            selectTile(move->getSource(), "%_" + temp->getName())});
       }
 
     } else if (auto mem = std::dynamic_pointer_cast<tir::Mem>(target)) {

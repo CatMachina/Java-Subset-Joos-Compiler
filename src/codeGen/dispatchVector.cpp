@@ -4,6 +4,7 @@ namespace codegen {
 
 DispatchVector::DispatchVector(
     std::shared_ptr<parsetree::ast::ClassDecl> classDecl) {
+  bool foundObject = false;
   for (auto &superClass : classDecl->getSuperClasses()) {
     if (!superClass || !superClass->getResolvedDecl() ||
         !superClass->getResolvedDecl())
@@ -12,7 +13,11 @@ DispatchVector::DispatchVector(
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
         superClass->getResolvedDecl()->getAstNode());
 
-    if (superClassDecl->getFullName() != "java.lang.Object") {
+    std::cout << "for class " << classDecl->getFullName() << " found "
+              << superClassDecl->getFullName() << std::endl;
+
+    if (superClassDecl->getFullName() != "java.lang.Object" || !foundObject) {
+      foundObject = true;
       auto parentDV = DispatchVectorBuilder::getDV(superClassDecl);
       fieldVector.insert(fieldVector.end(), parentDV->fieldVector.begin(),
                          parentDV->fieldVector.end());

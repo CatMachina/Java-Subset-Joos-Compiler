@@ -270,7 +270,7 @@ int main(int argc, char **argv) {
     auto tirBuilder =
         std::make_shared<tir::TIRBuilder>(astManager, exprConverter);
     tirBuilder->run();
-    tirBuilder->print(std::cout);
+    // tirBuilder->print(std::cout);
 
     // canonicalize IR
     auto tirCanonicalizer =
@@ -279,6 +279,7 @@ int main(int argc, char **argv) {
       tirCanonicalizer->canonicalizeCompUnit(compUnit);
     }
     std::cout << "Done canonicalizing IR\n";
+    tirBuilder->print(std::cout);
 
     // Get entrypoint method as a string
     std::string entry_class;

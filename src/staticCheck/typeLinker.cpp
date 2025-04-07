@@ -402,8 +402,8 @@ void TypeLinker::populateJavaLang() {
   //   throw std::runtime_error("Could not resolve java.lang.Class");
   // }
 
-  // astManager->java_lang.Cloneable = getInterfaceDecl(langPackage, "Cloneable");
-  // if (!astManager->java_lang.Cloneable) {
+  // astManager->java_lang.Cloneable = getInterfaceDecl(langPackage,
+  // "Cloneable"); if (!astManager->java_lang.Cloneable) {
   //   throw std::runtime_error("Could not resolve java.lang.Cloneable");
   // }
 

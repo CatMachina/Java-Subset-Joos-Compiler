@@ -203,18 +203,13 @@ TIRCanonicalizer::canonicalizeCJump(std::shared_ptr<tir::CJump> cjump) {
       canonicalize(cjump->getCondition());
   std::vector<std::shared_ptr<tir::Stmt>> loweredStmts =
       loweredCondition->getStatements();
-  std::string newLabelName = cjump->getFalseLabel() + "_cpy";
-  // CJUMP(e, l1, l2')
+
+  // CJUMP(e, l1, l2)
   auto newCJump = std::make_shared<tir::CJump>(
-      loweredCondition->getExpression(), cjump->getTrueLabel(), newLabelName);
+      loweredCondition->getExpression(), cjump->getTrueLabel(),
+      cjump->getFalseLabel());
   loweredStmts.push_back(newCJump);
-  // LABEL(l2')
-  auto label = std::make_shared<tir::Label>(newLabelName);
-  loweredStmts.push_back(label);
-  // JUMP(NAME(l2))
-  auto jump = std::make_shared<tir::Jump>(
-      std::make_shared<tir::Name>(cjump->getFalseLabel()));
-  loweredStmts.push_back(jump);
+
   return loweredStmts;
 }
 
@@ -250,16 +245,16 @@ TIRCanonicalizer::canonicalizeMove(std::shared_ptr<tir::Move> move) {
   loweredStmts.insert(loweredStmts.end(), lowerAddrStmts.begin(),
                       lowerAddrStmts.end());
   std::string tempName = tir::Temp::generateName("move_target");
-  auto temp = std::make_shared<tir::Temp>(tempName);
-  auto newMove1 =
-      std::make_shared<tir::Move>(temp, loweredAddr->getExpression());
+  auto newMove1 = std::make_shared<tir::Move>(
+      std::make_shared<tir::Temp>(tempName), loweredAddr->getExpression());
   loweredStmts.push_back(newMove1);
   // s2'; MOVE(MEM(TEMP(t)), e2')
   auto loweredSourceStmts = loweredSource->getStatements();
   loweredStmts.insert(loweredStmts.end(), loweredSourceStmts.begin(),
                       loweredSourceStmts.end());
-  auto newMove2 = std::make_shared<tir::Move>(std::make_shared<tir::Mem>(temp),
-                                              loweredSource->getExpression());
+  auto newMove2 = std::make_shared<tir::Move>(
+      std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(tempName)),
+      loweredSource->getExpression());
   loweredStmts.push_back(newMove2);
   return loweredStmts;
 }

@@ -259,13 +259,15 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
     if (auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(
             memberName->getResolvedDecl())) {
       if (fieldDecl->isStatic()) {
-        return std::make_shared<tir::Temp>(fieldDecl->getName(), fieldDecl);
+        return std::make_shared<tir::Temp>(
+            codeGenLabels->getStaticFieldLabel(fieldDecl), fieldDecl);
       }
     } else if (auto varDecl =
                    std::dynamic_pointer_cast<parsetree::ast::VarDecl>(
                        memberName->getResolvedDecl())) {
       // parameter and local variable
-      return std::make_shared<tir::Temp>(varDecl->getName(), varDecl);
+      return std::make_shared<tir::Temp>(
+          codeGenLabels->getLocalVariableLabel(varDecl), varDecl);
     }
 
     // instance field
@@ -892,7 +894,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalArrayAccess(
       std::make_shared<tir::Temp>(array_name), array);
 
   // check not null
-  std::string error_name = tir::Temp::generateName("error");
+  std::string error_name = tir::Label::generateName("error");
   std::string not_null_name = tir::Label::generateName("not_null");
   auto check_not_null = std::make_shared<tir::CJump>(
       // NEQ(array, 0)

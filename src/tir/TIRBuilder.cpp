@@ -370,9 +370,9 @@ TIRBuilder::buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node) {
     throw std::runtime_error("TIRBuilder::buildVarDecl: node is null");
   }
 
-  auto temp = std::make_shared<Temp>(node->getFullName());
+  auto temp = std::make_shared<Temp>(
+      exprConverter->codeGenLabels->getLocalVariableLabel(node));
   if (node->hasInit()) {
-
     auto expr = buildExpr(node->getInitializer());
 
     return std::make_shared<Move>(temp, expr);
@@ -388,7 +388,14 @@ TIRBuilder::buildFieldDecl(std::shared_ptr<parsetree::ast::FieldDecl> node) {
     throw std::runtime_error("TIRBuilder::buildFieldDecl: node is null");
   }
 
-  return buildVarDecl(node);
+  auto result = buildVarDecl(node);
+  if (auto resultMove = std::dynamic_pointer_cast<Move>(result)) {
+    if (auto temp = std::dynamic_pointer_cast<Temp>(resultMove->getTarget())) {
+      currentProgram->appendField(temp->getName(), resultMove->getSource());
+    }
+  }
+
+  return result;
 }
 
 std::vector<std::shared_ptr<Node>>

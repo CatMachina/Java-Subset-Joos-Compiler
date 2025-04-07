@@ -21,7 +21,9 @@ public:
   }
 
   std::vector<std::shared_ptr<Node>> getChildren() const override {
-    return call->getChildren();
+    std::vector<std::shared_ptr<Node>> children;
+    children.push_back(call);
+    return children;
   }
 
   void visitChildren(InsnMapsBuilder &v) override { call->visitChildren(v); }
