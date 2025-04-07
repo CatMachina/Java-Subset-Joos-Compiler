@@ -447,6 +447,12 @@ void TypeLinker::populateJavaLang() {
     // }
   }
 
+  auto utilPackage =
+      std::get<std::shared_ptr<Package>>(javaPackage->children["util"]);
+  if (utilPackage) {
+    astManager->java_lang.Arrays = getClassDecl(utilPackage, "Arrays");
+  }
+
   // Add Hardcoded array
   std::vector<std::shared_ptr<parsetree::ast::ReferenceType>> interfaces{};
   std::vector<std::shared_ptr<parsetree::ast::Decl>> body{};

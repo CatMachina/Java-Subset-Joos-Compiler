@@ -208,7 +208,10 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
           std::make_shared<tir::Const>(val.size())));
 
       // attach array DV
-      auto arrayClass = astManager->java_lang.Array;
+      auto arrayClass = astManager->java_lang.Arrays;
+      if (arrayClass == nullptr) {
+        throw std::runtime_error("java.util.Arrays class not found");
+      }
       seqVec.push_back(std::make_shared<tir::Move>(
           // MEM(arr + 4) = DV for arrays
           std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
@@ -739,7 +742,10 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewArray(
 
   // std::cout << "evalNewArray: " << std::endl;
   // op->print(std::cout);
-  auto array_obj = astManager->java_lang.Array;
+  auto array_obj = astManager->java_lang.Arrays;
+  if (array_obj == nullptr) {
+    throw std::runtime_error("java.lang.Array is not resolved");
+  }
 
   // get inner expression
   std::string size_name = tir::Temp::generateName("size");
@@ -1111,6 +1117,8 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
 
     throw std::runtime_error("Invalid cast");
   }
+
+  // TODO: only handled casting from basic type
 
   return value;
 }

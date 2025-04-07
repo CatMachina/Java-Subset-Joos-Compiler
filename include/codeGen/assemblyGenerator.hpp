@@ -142,7 +142,7 @@ public:
     for (auto &[name, initializers] : staticFields) {
       outputFile << "global " << name << "\n";
     }
-    outputFile << "global __start\n";
+    outputFile << "global _start\n";
     outputFile << "extern " << entryMethod << "\n";
 
     // method dependencies
@@ -151,7 +151,7 @@ public:
     }
     outputFile << "\n";
 
-    outputFile << "__start:\n";
+    outputFile << "_start:\n";
 
     // initialize all the static fields of all the compilation units in order
     int stackSize = registerAllocator->allocateFor(staticInitializers);

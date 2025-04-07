@@ -56,8 +56,13 @@ public:
 
   std::string
   getClassLabel(std::shared_ptr<parsetree::ast::ClassDecl> class_obj) {
-    return getUniqueLabel(class_obj, class_obj->getFullName(), "_CLASS",
-                          class_id_counter_, class_labels_);
+    std::string className = class_obj->getFullName();
+    // special case
+    if (className == "_hardcoded_array") {
+      className = "java.util.Arrays";
+    }
+    return getUniqueLabel(class_obj, className, "_CLASS", class_id_counter_,
+                          class_labels_);
   }
 
 private:

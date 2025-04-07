@@ -299,7 +299,38 @@ int main(int argc, char **argv) {
       return EXIT_ERROR;
     }
 
-    std::string entry_method = entry_class + ".test";
+    std::shared_ptr<parsetree::ast::ClassDecl> entryClassDecl = nullptr;
+    for (auto &program : astManager->getASTs()) {
+      auto body = program->getBody();
+      if (auto classDecl =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(body)) {
+        if (classDecl->getName() == entry_class) {
+          entryClassDecl = classDecl;
+          break;
+        }
+      }
+    }
+
+    if (!entryClassDecl) {
+      std::cerr << "Error: No entry class found.\n";
+      return EXIT_ERROR;
+    }
+
+    std::shared_ptr<parsetree::ast::MethodDecl> entryMethodDecl = nullptr;
+    for (auto &method : entryClassDecl->getMethods()) {
+      if (method->getName() == "test") {
+        entryMethodDecl = method;
+        break;
+      }
+    }
+
+    if (!entryMethodDecl) {
+      std::cerr << "Error: No entry method found.\n";
+      return EXIT_ERROR;
+    }
+
+    std::string entry_method =
+        codeGenLabels->getStaticMethodLabel(entryMethodDecl);
     std::cout << "Entry method: " << entry_method << std::endl;
 
     // Add flag for different register allocators (types: basic (default) and
