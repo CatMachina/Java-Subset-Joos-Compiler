@@ -49,10 +49,10 @@ public:
     }
 
     std::vector<std::shared_ptr<Expr>> passed_args;
-    passed_args.push_back(_this);
     for (auto &arg : args) {
       passed_args.push_back(arg);
     }
+    passed_args.push_back(_this);
 
     return std::make_shared<Call>(target, passed_args);
   }
