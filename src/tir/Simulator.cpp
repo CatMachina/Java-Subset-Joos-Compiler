@@ -6,9 +6,11 @@ namespace tir {
 int Simulator::debugLevel = 0;
 
 void Simulator::leave(std::shared_ptr<ExecutionFrame> frame) {
-  // std::cout << "leave: ";
-  // std::cout << frame->getCurrentInsn()->label() << "\n";
   std::shared_ptr<Node> insn = frame->getCurrentInsn();
+  if (auto callStmtNode = std::dynamic_pointer_cast<CallStmt>(insn)) {
+    insn = callStmtNode->getCall();
+  }
+
   if (auto constNode = std::dynamic_pointer_cast<Const>(insn))
     exprStack->pushValue(constNode->getValue());
   else if (auto tempNode = std::dynamic_pointer_cast<Temp>(insn)) {
@@ -86,9 +88,10 @@ void Simulator::leave(std::shared_ptr<ExecutionFrame> frame) {
     exprStack->pushAddr(read(addr), addr);
   } else if (auto callNode = std::dynamic_pointer_cast<Call>(insn)) {
     int argsCount = callNode->getNumArgs();
-    std::cout << "argsCounts: " << argsCount << "\n";
+    if (debugLevel > 1)
+      std::cout << "argsCount: " << argsCount << "\n";
     std::vector<int> args(argsCount, 0);
-    for (int i = argsCount - 1; i >= 0; --i)
+    for (int i = 0; i < argsCount; ++i)
       args[i] = exprStack->popValue();
     std::shared_ptr<StackItem> target = exprStack->pop();
     std::string targetName;
@@ -154,6 +157,11 @@ void Simulator::leave(std::shared_ptr<ExecutionFrame> frame) {
   } else if (auto returnNode = std::dynamic_pointer_cast<Return>(insn)) {
     frame->ret = exprStack->popValue();
     frame->setIP(-1);
+  } else if (debugLevel > 1)
+    std::cout << insn->label() << " didn't match anything???\n";
+    // std::cout << std::dynamic_pointer_cast<Call>(frame->getCurrentInsn()) << " pointer\n";
+    std::cout << typeid(*insn).name() << "\n";
+    frame->getCurrentInsn()->print(std::cout, 1);
   }
 }
 
