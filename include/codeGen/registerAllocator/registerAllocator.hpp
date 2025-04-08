@@ -17,10 +17,10 @@ protected:
   void replaceVirtualRegisters(
       std::shared_ptr<assembly::Instruction> &instruction,
       std::vector<std::shared_ptr<assembly::Instruction>> &newInstructions) {
+    auto originalInstructionString = instruction->toString();
     auto readRegisters = instruction->getReadVirtualRegisters();
     auto writeRegisters = instruction->getWriteVirtualRegisters();
     auto usedRegisters = instruction->getAllUsedVirtualRegisters();
-    auto originalInstructionString = instruction->toString();
 
     if (usedRegisters.size() > 3) {
       throw std::runtime_error(

@@ -10,7 +10,7 @@ class BasicAllocator : public RegisterAllocator {
   int offset = 4;
 
   void populateOffsets(
-      std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
+      const std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
     for (auto &instruction : instructions) {
       for (auto &reg : instruction->getAllUsedRegisters()) {
         // assign offset to all virtual registers not assigned yet
@@ -26,6 +26,10 @@ class BasicAllocator : public RegisterAllocator {
 public:
   int allocateFor(std::vector<std::shared_ptr<assembly::Instruction>>
                       &instructions) override {
+    // needed!
+    registerOffsets.clear();
+    offset = 4;
+
     populateOffsets(instructions);
 
     std::vector<std::shared_ptr<assembly::Instruction>> newInstructions;

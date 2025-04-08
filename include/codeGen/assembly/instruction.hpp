@@ -41,7 +41,7 @@ protected:
 private:
   // Expand register set with overlaps and remove non-registers (e.g., global
   // data)
-  void sanitizeRegisterSet(std::unordered_set<std::string> &regs) {
+  void sanitizeRegisterSet(std::unordered_set<std::string> &regs) const {
     std::unordered_set<std::string> originalRegs = regs;
 
     // Add overlapping registers
@@ -86,7 +86,7 @@ public:
     }
   }
 
-  std::unordered_set<std::string> getReadRegisters() {
+  std::unordered_set<std::string> getReadRegisters() const {
     std::unordered_set<std::string> result;
 
     for (auto &operand : operands) {
@@ -115,7 +115,7 @@ public:
     return std::move(result);
   }
 
-  std::unordered_set<std::string> getWriteRegisters() {
+  std::unordered_set<std::string> getWriteRegisters() const {
     std::unordered_set<std::string> result;
     for (auto &operand : operands) {
       if (auto registerOp = std::dynamic_pointer_cast<RegisterOp>(operand)) {
@@ -131,7 +131,7 @@ public:
     return std::move(result);
   }
 
-  std::unordered_set<std::string> getAllUsedRegisters() {
+  std::unordered_set<std::string> getAllUsedRegisters() const {
     std::unordered_set<std::string> result;
 
     for (auto &operand : operands) {
@@ -157,7 +157,7 @@ public:
     return std::move(result);
   }
 
-  std::unordered_set<std::string> getReadVirtualRegisters() {
+  std::unordered_set<std::string> getReadVirtualRegisters() const {
     std::unordered_set<std::string> result;
     for (auto &reg : getReadRegisters()) {
       if (!assembly::isGPR(reg)) {
@@ -167,7 +167,7 @@ public:
     return std::move(result);
   }
 
-  std::unordered_set<std::string> getWriteVirtualRegisters() {
+  std::unordered_set<std::string> getWriteVirtualRegisters() const {
     std::unordered_set<std::string> result;
     for (auto &reg : getWriteRegisters()) {
       if (!assembly::isGPR(reg)) {
@@ -177,7 +177,7 @@ public:
     return std::move(result);
   }
 
-  std::unordered_set<std::string> getAllUsedVirtualRegisters() {
+  std::unordered_set<std::string> getAllUsedVirtualRegisters() const {
     std::unordered_set<std::string> result;
     for (auto &reg : getAllUsedRegisters()) {
       if (!assembly::isGPR(reg)) {
