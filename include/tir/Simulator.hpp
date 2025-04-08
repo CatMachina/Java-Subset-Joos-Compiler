@@ -267,7 +267,9 @@ public:
       if (fDecl == nullptr)
         throw std::runtime_error("Tried to call an unknown function: '" + name +
                                  "'");
-
+      if (debugLevel > 1) {
+        std::cout << "Calling function " << fDecl->getName() << "\n";
+      }
       // Create a new stack frame.
       int ip = findLabel(name);
       std::shared_ptr<ExecutionFrame> frame =

@@ -351,6 +351,7 @@ TIRBuilder::buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node) {
     params.push_back(bodyStmt);
   }
   // implicit return
+  // TODO: There are duplicate returns in the TIR due to this
   params.push_back(std::make_shared<Return>(std::make_shared<Const>(0)));
   bodySeq = std::make_shared<Seq>(params);
 
