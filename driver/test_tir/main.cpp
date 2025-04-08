@@ -296,11 +296,22 @@ int main(int argc, char **argv) {
     auto tirBuilder =
         std::make_shared<tir::TIRBuilder>(astManager, exprConverter);
     tirBuilder->run();
-    tirBuilder->print(std::cout);
+    // tirBuilder->print(std::cout);
+
+    // canonicalize IR
+    auto tirCanonicalizer =
+        std::make_shared<codegen::TIRCanonicalizer>(codeGenLabels);
+    for (auto &compUnit : tirBuilder->getCompUnits()) {
+      tirCanonicalizer->canonicalizeCompUnit(compUnit);
+    }
 
     for (auto compUnit : tirBuilder->getCompUnits()) {
-      // compUnit->print(std::cout);
+      compUnit->print(std::cout);
       tir::Simulator sim = tir::Simulator(compUnit, 2048);
+      // for (auto ast : astManager->getASTs()) {
+      //   // ast->print(std::cout);
+      //   break;
+      // }
       long result = sim.call("test", {});
       // All test cases evaluate to 123
       if (result != 123) {
