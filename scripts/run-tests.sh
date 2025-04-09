@@ -27,7 +27,7 @@ pushd $BUILD_DIR
 popd
 
 # This script builds joosc in $BUILD_DIR, not $ROOT_DIR
-DRIVER="$BUILD_DIR/$DRIVER_NAME"
+DRIVER="$ROOT_DIR/$DRIVER_NAME"
 # DRIVER="$ROOT_DIR/$DRIVER_NAME"
 echo "TEST_DIR: $TEST_DIR"
 
@@ -84,7 +84,7 @@ for testcase in "$TEST_DIR"/*; do
         LAST_CMD=""
 
         for asm_file in "$OUTPUT_DIR"/*.s; do
-            cmd="$NASM -O1 -f elf -g -F dwarf \"$asm_file\" -o \"${asm_file%.s}.o\""
+            cmd="$NASM -O1 -f elf -g -F dwarf \"$asm_file\" -o \"${asm_file%.s}.o\" 2>/dev/null"
             eval $cmd || { error=true; LAST_CMD=$cmd; break; }
         done
 
@@ -102,8 +102,22 @@ for testcase in "$TEST_DIR"/*; do
 
         # Run the program
         if ! $error; then
-            cmd="\"$OUTPUT_DIR/main\" > /dev/null 2>&1"
-            eval $cmd || { error=true; LAST_CMD=$cmd; }
+            # cmd="\"$OUTPUT_DIR/main\" > /dev/null 2>&1"
+            # eval $cmd || { error=true; LAST_CMD=$cmd; }
+            "$OUTPUT_DIR/main" > /dev/null 2>&1
+            exit_code=$?
+            
+            prefix=${testcase_name:0:3}
+            if [ "$prefix" == "J1e" ]; then
+                expected_exit=13
+            else
+                expected_exit=123
+            fi
+
+            if [ $exit_code -ne $expected_exit ]; then
+                error=true
+                LAST_CMD="$OUTPUT_DIR/main (exit code was $exit_code, expected 123)"
+            fi
         fi
 
         if $error; then
