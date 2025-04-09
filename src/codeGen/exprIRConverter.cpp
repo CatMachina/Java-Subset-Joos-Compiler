@@ -262,7 +262,7 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
             memberName->getResolvedDecl())) {
       if (fieldDecl->isStatic()) {
         return std::make_shared<tir::Temp>(
-            codeGenLabels->getStaticFieldLabel(fieldDecl), fieldDecl);
+            codeGenLabels->getStaticFieldLabel(fieldDecl), fieldDecl, true);
       }
     } else if (auto varDecl =
                    std::dynamic_pointer_cast<parsetree::ast::VarDecl>(

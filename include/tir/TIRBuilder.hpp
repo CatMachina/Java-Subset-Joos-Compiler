@@ -66,7 +66,8 @@ private:
   buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node);
 
   std::shared_ptr<Stmt>
-  buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node);
+  buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node,
+               std::string labelName = "");
 
   std::shared_ptr<Stmt>
   buildFieldDecl(std::shared_ptr<parsetree::ast::FieldDecl> node);

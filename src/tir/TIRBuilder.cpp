@@ -371,13 +371,19 @@ TIRBuilder::buildMethodDecl(std::shared_ptr<parsetree::ast::MethodDecl> node) {
 }
 
 std::shared_ptr<Stmt>
-TIRBuilder::buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node) {
+TIRBuilder::buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node,
+                         std::string labelName) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildVarDecl: node is null");
   }
 
-  auto temp = std::make_shared<Temp>(
-      exprConverter->codeGenLabels->getLocalVariableLabel(node));
+  std::string name = "";
+  if (labelName != "") {
+    name = labelName;
+  } else {
+    name = exprConverter->codeGenLabels->getLocalVariableLabel(node);
+  }
+  auto temp = std::make_shared<Temp>(name);
   if (node->hasInit()) {
     auto expr = buildExpr(node->getInitializer());
 
@@ -389,18 +395,27 @@ TIRBuilder::buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node) {
 
 // NOTE: Treats field variables like local variables
 // This is wrong! but will it cause issue?
+// yes it cause issue, ideally two seperate functions but i will
+// just work upon the current setup
 std::shared_ptr<Stmt>
 TIRBuilder::buildFieldDecl(std::shared_ptr<parsetree::ast::FieldDecl> node) {
   if (!node) {
     throw std::runtime_error("TIRBuilder::buildFieldDecl: node is null");
   }
 
-  auto result = buildVarDecl(node);
+  std::string labelName = "";
+  if (node->isStatic()) {
+    labelName = exprConverter->codeGenLabels->getStaticFieldLabel(node);
+  }
+
+  auto result = buildVarDecl(node, labelName);
   if (auto resultMove = std::dynamic_pointer_cast<Move>(result)) {
     if (auto temp = std::dynamic_pointer_cast<Temp>(resultMove->getTarget())) {
-      std::cout << "buildFieldDecl: " << temp->getName() << std::endl;
-      resultMove->getSource()->print(std::cout);
-      currentProgram->appendField(temp->getName(), resultMove->getSource());
+      // std::cout << "buildFieldDecl: " << temp->getName() << std::endl;
+      // resultMove->getSource()->print(std::cout);
+      if (node->isStatic()) {
+        currentProgram->appendField(temp->getName(), resultMove->getSource());
+      }
     }
   }
 
