@@ -85,6 +85,10 @@ public:
     return start_statements;
   }
 
+  std::vector<std::shared_ptr<Stmt>> &getStartStmtsMutable() {
+    return start_statements;
+  }
+
   bool areStaticFieldsCanonicalized() const {
     return staticFieldsCanonicalized;
   }

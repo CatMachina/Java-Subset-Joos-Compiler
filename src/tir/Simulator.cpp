@@ -157,9 +157,10 @@ void Simulator::leave(std::shared_ptr<ExecutionFrame> frame) {
   } else if (auto returnNode = std::dynamic_pointer_cast<Return>(insn)) {
     frame->ret = exprStack->popValue();
     frame->setIP(-1);
-  } else if (debugLevel > 1)
+  } else if (debugLevel > 1) {
     std::cout << insn->label() << " didn't match anything???\n";
-    // std::cout << std::dynamic_pointer_cast<Call>(frame->getCurrentInsn()) << " pointer\n";
+    // std::cout << std::dynamic_pointer_cast<Call>(frame->getCurrentInsn()) <<
+    // " pointer\n";
     std::cout << typeid(*insn).name() << "\n";
     frame->getCurrentInsn()->print(std::cout, 1);
   }

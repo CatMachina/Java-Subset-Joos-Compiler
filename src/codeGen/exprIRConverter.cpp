@@ -268,6 +268,10 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
                    std::dynamic_pointer_cast<parsetree::ast::VarDecl>(
                        memberName->getResolvedDecl())) {
       // parameter and local variable
+      if (varDecl->isInParam()) {
+        return std::make_shared<tir::Temp>(
+            codeGenLabels->getParameterLabel(varDecl), varDecl);
+      }
       return std::make_shared<tir::Temp>(
           codeGenLabels->getLocalVariableLabel(varDecl), varDecl);
     }
@@ -841,11 +845,16 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewArray(
       std::make_shared<tir::Move>(
           std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
               tir::BinOp::OpType::ADD,
+              // std::make_shared<tir::BinOp>(
+              //     tir::BinOp::OpType::ADD,
+              //     std::make_shared<tir::Temp>(array_name),
+              //     std::make_shared<tir::Temp>(iterator_name)),
+              // std::make_shared<tir::Const>(4)
+              std::make_shared<tir::Temp>(iterator_name),
               std::make_shared<tir::BinOp>(
                   tir::BinOp::OpType::ADD,
                   std::make_shared<tir::Temp>(array_name),
-                  std::make_shared<tir::Temp>(iterator_name)),
-              std::make_shared<tir::Const>(4))),
+                  std::make_shared<tir::Const>(4)))),
           std::make_shared<tir::Const>(0)));
 
   seq_vec.push_back(
@@ -946,9 +955,11 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalArrayAccess(
           std::make_shared<tir::BinOp>(
               tir::BinOp::OpType::ADD, std::make_shared<tir::Const>(4),
               std::make_shared<tir::BinOp>(
-                  tir::BinOp::OpType::MUL,
-                  std::make_shared<tir::Temp>(index_name),
-                  std::make_shared<tir::Const>(4)))));
+                  tir::BinOp::OpType::MUL, std::make_shared<tir::Const>(4),
+                  std::make_shared<tir::Temp>(index_name)
+                  // std::make_shared<tir::Temp>(index_name),
+                  // std::make_shared<tir::Const>(4)
+                  ))));
 
   return std::make_shared<tir::ESeq>(
       std::make_shared<tir::Seq>(std::vector<std::shared_ptr<tir::Stmt>>{
@@ -976,48 +987,116 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
   if (!typeNode) {
     throw std::runtime_error("Invalid cast, type is not a TypeNode");
   }
-  auto resultType = op->getResultType();
-  if (!resultType) {
-    throw std::runtime_error("Invalid cast, result type is not resolved");
-  }
-  auto basicType =
-      std::dynamic_pointer_cast<parsetree::ast::BasicType>(op->getResultType());
-  if (basicType && basicType->isNumeric()) {
-    const int32_t int_cast = 0xFFFFFFFF;
+  // TODO: switch to old version because new version does not work, eg.
+  // Boolean max value becomes BinOp 127 && -1
+
+  // auto resultType = op->getResultType();
+  // if (!resultType) {
+  //   throw std::runtime_error("Invalid cast, result type is not resolved");
+  // }
+  // auto basicType =
+  //     std::dynamic_pointer_cast<parsetree::ast::BasicType>(op->getResultType());
+  // if (basicType && basicType->isNumeric()) {
+  //   const int32_t int_cast = 0xFFFFFFFF;
+  //   const int16_t short_cast = 0xFFFF;
+  //   const uint16_t char_cast = 0xFFFF;
+  //   const int8_t byte_cast = 0xFF;
+  //   switch (basicType->getType()) {
+  //   case parsetree::ast::BasicType::Type::Int:
+  //     return std::make_shared<tir::BinOp>(
+  //         tir::BinOp::AND, value, std::make_shared<tir::Const>(int_cast));
+  //   case parsetree::ast::BasicType::Type::Short:
+  //     return std::make_shared<tir::BinOp>(
+  //         tir::BinOp::AND, value, std::make_shared<tir::Const>(short_cast));
+  //   case parsetree::ast::BasicType::Type::Byte:
+  //     return std::make_shared<tir::Const>(byte_cast & (int8_t)value);
+  //     // return std::make_shared<tir::BinOp>(
+  //     //     tir::BinOp::AND, value,
+  //     std::make_shared<tir::Const>(byte_cast));
+  //   case parsetree::ast::BasicType::Type::Char:
+  //     return std::make_shared<tir::BinOp>(
+  //         tir::BinOp::AND, value, std::make_shared<tir::Const>(char_cast));
+  //   default:
+  //     throw std::runtime_error("Invalid cast from integer to non numeric
+  //     type");
+  //   }
+  // } else if (op->hasRhsLiteral()) {
+  //   // if rhs is literal check promotion or narrowing
+  //   auto literal = op->getRhsLiteral();
+  //   // cast result type is basic type
+  //   if (basicType) {
+  //     switch (literal->getLiteralType()) {
+
+  //       // cast from int to numeric type
+  //     case parsetree::ast::Literal::Type::Integer:
+  //       throw std::runtime_error("Attempted to specifically cast int
+  //       literal.");
+
+  //       // cast from char to numeric type
+  //     case parsetree::ast::Literal::Type::Character:
+  //       throw std::runtime_error(
+  //           "Attempted to specifically cast char literal.");
+  // if rhs is literal check promotion or narrowing
+  if (op->hasRhsLiteral()) {
+    auto literal = op->getRhsLiteral();
+    auto resultType = op->getResultType();
+    if (!resultType) {
+      throw std::runtime_error("Invalid cast, result type is not resolved");
+    }
+
     const int16_t short_cast = 0xFFFF;
     const uint16_t char_cast = 0xFFFF;
     const int8_t byte_cast = 0xFF;
-    switch (basicType->getType()) {
-    case parsetree::ast::BasicType::Type::Int:
-      return std::make_shared<tir::BinOp>(
-          tir::BinOp::AND, value, std::make_shared<tir::Const>(int_cast));
-    case parsetree::ast::BasicType::Type::Short:
-      return std::make_shared<tir::BinOp>(
-          tir::BinOp::AND, value, std::make_shared<tir::Const>(short_cast));
-    case parsetree::ast::BasicType::Type::Byte:
-      return std::make_shared<tir::BinOp>(
-          tir::BinOp::AND, value, std::make_shared<tir::Const>(byte_cast));
-    case parsetree::ast::BasicType::Type::Char:
-      return std::make_shared<tir::BinOp>(
-          tir::BinOp::AND, value, std::make_shared<tir::Const>(char_cast));
-    default:
-      throw std::runtime_error("Invalid cast from integer to non numeric type");
-    }
-  } else if (op->hasRhsLiteral()) {
-    // if rhs is literal check promotion or narrowing
-    auto literal = op->getRhsLiteral();
+
     // cast result type is basic type
-    if (basicType) {
+    if (auto basicType =
+            std::dynamic_pointer_cast<parsetree::ast::BasicType>(resultType)) {
       switch (literal->getLiteralType()) {
 
         // cast from int to numeric type
-      case parsetree::ast::Literal::Type::Integer:
-        throw std::runtime_error("Attempted to specifically cast int literal.");
+      case parsetree::ast::Literal::Type::Integer: {
+        if (!(basicType->isNumeric()))
+          throw std::runtime_error(
+              "Invalid cast from integer to non numeric type");
+        auto literal_val = literal->getAsInt();
+        switch (basicType->getType()) {
+        case parsetree::ast::BasicType::Type::Int:
+          return std::make_shared<tir::Const>(literal_val);
+        case parsetree::ast::BasicType::Type::Short:
+          return std::make_shared<tir::Const>((int16_t)literal_val &
+                                              short_cast);
+        case parsetree::ast::BasicType::Type::Byte:
+          return std::make_shared<tir::Const>((int8_t)literal_val & byte_cast);
+        case parsetree::ast::BasicType::Type::Char:
+          return std::make_shared<tir::Const>((uint16_t)literal_val &
+                                              char_cast);
+        default:
+          throw std::runtime_error(
+              "Invalid cast from integer to non numeric type");
+        }
+      }
 
-        // cast from char to numeric type
-      case parsetree::ast::Literal::Type::Character:
-        throw std::runtime_error(
-            "Attempted to specifically cast char literal.");
+      // cast from char to numeric type
+      case parsetree::ast::Literal::Type::Character: {
+        if (!(basicType->isNumeric()))
+          throw std::runtime_error(
+              "Invalid cast from char to non numeric type");
+        auto literal_val = literal->getAsInt();
+        switch (basicType->getType()) {
+        case parsetree::ast::BasicType::Type::Short:
+          return std::make_shared<tir::Const>((int16_t)literal_val &
+                                              short_cast);
+        case parsetree::ast::BasicType::Type::Byte:
+          return std::make_shared<tir::Const>((int8_t)literal_val & byte_cast);
+
+        case parsetree::ast::BasicType::Type::Int:
+        case parsetree::ast::BasicType::Type::Char:
+          return std::make_shared<tir::Const>(literal_val);
+        default:
+          throw std::runtime_error(
+              "Invalid cast from char to non numeric type");
+        }
+      }
 
       // cast from string to basic type, error!
       case parsetree::ast::Literal::Type::String:

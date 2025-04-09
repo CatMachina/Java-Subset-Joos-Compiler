@@ -35,7 +35,10 @@ public:
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
     printIndent(os, indent);
-    return os << "(Temp " << name << ")\n";
+    os << "(Temp " << name;
+    if (isGlobal)
+      os << " global";
+    return os << ")\n";
   }
 
   std::vector<std::shared_ptr<Node>> getChildren() const override { return {}; }

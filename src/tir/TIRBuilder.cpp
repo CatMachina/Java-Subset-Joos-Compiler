@@ -299,8 +299,13 @@ TIRBuilder::buildProgram(std::shared_ptr<parsetree::ast::ProgramDecl> node) {
               std::make_shared<tir::Temp>(
                   exprConverter->codeGenLabels->getClassLabel(classDecl),
                   nullptr, true),
-              std::make_shared<tir::Const>(
-                  4 * codegen::DispatchVectorBuilder::getAssignment(method)))),
+              // std::make_shared<tir::Const>(
+              //     4 * codegen::DispatchVectorBuilder::getAssignment(method))
+              std::make_shared<tir::BinOp>(
+                  tir::BinOp::MUL,
+                  std::make_shared<tir::Const>(
+                      codegen::DispatchVectorBuilder::getAssignment(method)),
+                  std::make_shared<tir::Const>(4)))),
           std::make_shared<tir::Name>(methodLabel, true)));
     }
 
@@ -383,6 +388,7 @@ TIRBuilder::buildVarDecl(std::shared_ptr<parsetree::ast::VarDecl> node) {
 }
 
 // NOTE: Treats field variables like local variables
+// This is wrong! but will it cause issue?
 std::shared_ptr<Stmt>
 TIRBuilder::buildFieldDecl(std::shared_ptr<parsetree::ast::FieldDecl> node) {
   if (!node) {
@@ -392,6 +398,8 @@ TIRBuilder::buildFieldDecl(std::shared_ptr<parsetree::ast::FieldDecl> node) {
   auto result = buildVarDecl(node);
   if (auto resultMove = std::dynamic_pointer_cast<Move>(result)) {
     if (auto temp = std::dynamic_pointer_cast<Temp>(resultMove->getTarget())) {
+      std::cout << "buildFieldDecl: " << temp->getName() << std::endl;
+      resultMove->getSource()->print(std::cout);
       currentProgram->appendField(temp->getName(), resultMove->getSource());
     }
   }

@@ -34,15 +34,24 @@ class AssembyGenerator {
       throw std::runtime_error("irTree is null when resolving linking");
 
     // get static field stmt to dump in .data section of entrypoint
+    // std::cout << "getCanonFieldList : " << std::endl;
     for (auto &pair : irTree->getCanonFieldList()) {
       auto name = pair.first;
       auto initalizer = pair.second;
       if (!initalizer)
         throw std::runtime_error("Initalizer is null when resolving linking");
 
+      // std::cout << "name: " << name << ", initalizer: " << std::endl;
+      initalizer->print(std::cout);
       linkingResolver->visitNode(initalizer);
       auto tile = instructionSelector->selectTile(initalizer);
       auto instructions = tile->getInstructions();
+      // if (name == "_##_LOCAL_VARIABLE_ID_3_#java.lang.Byte.MAX_VALUE") {
+      //   std::cout << "tiled instructions: " << std::endl;
+      //   for (auto &instruction : instructions) {
+      //     instruction->print(std::cout);
+      //   }
+      // }
       staticFields.push_back(std::make_pair(name, instructions));
     }
 
@@ -51,9 +60,17 @@ class AssembyGenerator {
       if (!startStmt)
         throw std::runtime_error("Start stmt is null when resolving linking");
 
+      // std::cout << "start stmt: " << std::endl;
+      // startStmt->print(std::cout);
+
       linkingResolver->visitNode(startStmt);
       auto tile = instructionSelector->selectTile(startStmt);
       auto instructions = tile->getInstructions();
+      // std::cout << "tiled instructions: " << std::endl;
+      // for (auto &instruction : instructions) {
+      //   instruction->print(std::cout);
+      // }
+      // std::cout << std::endl;
       startInstructions.push_back(instructions);
     }
 
@@ -117,11 +134,17 @@ public:
     }
 
     for (auto &[name, initializers] : staticFields) {
+      staticInitializers.push_back(std::make_shared<assembly::Comment>(
+          "initializing static field " + name));
       staticInitializers.insert(staticInitializers.end(), initializers.begin(),
                                 initializers.end());
     }
+    staticInitializers.push_back(
+        std::make_shared<assembly::Comment>("initializing DVs"));
     // DV initializer
     for (auto &startInstruction : startInstructions) {
+      staticInitializers.push_back(
+          std::make_shared<assembly::Comment>("initializing a DV:"));
       staticInitializers.insert(staticInitializers.end(),
                                 startInstruction.begin(),
                                 startInstruction.end());
@@ -167,7 +190,7 @@ public:
     // call entrypoint method and execute exit() system call with return value
     // in R32_EBP
     outputFile << "call " << entryMethod << "\n";
-    outputFile << "mov " << assembly::R32_EBP << ", " << assembly::R32_EAX
+    outputFile << "mov " << assembly::R32_EBX << ", " << assembly::R32_EAX
                << "\n";
     outputFile << "mov " << assembly::R32_EAX << ", 1\n";
     outputFile << "int 0x80\n";

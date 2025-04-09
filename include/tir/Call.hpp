@@ -2,6 +2,7 @@
 
 #include "tir/Expr.hpp"
 
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
@@ -49,10 +50,17 @@ public:
     }
 
     std::vector<std::shared_ptr<Expr>> passed_args;
+
+    // this should be first
+    passed_args.push_back(_this);
     for (auto &arg : args) {
       passed_args.push_back(arg);
     }
-    passed_args.push_back(_this);
+
+    // std::cout << "created call with args: " << std::endl;
+    // for (auto &arg : passed_args) {
+    //   arg->print(std::cout);
+    // }
 
     return std::make_shared<Call>(target, passed_args);
   }

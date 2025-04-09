@@ -19,6 +19,9 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
     auto leftRegString = newVirtualRegister();
     auto rightRegString = newVirtualRegister();
 
+    // std::cout << "newVirtualRegister for binOp: " << leftRegString
+    //           << ", " << rightRegString << std::endl;
+
     tile = std::make_shared<Tile>(std::vector<TileInstruction>{
         selectTile(binOp->getLeft(), leftRegString),
         selectTile(binOp->getRight(), rightRegString)});
@@ -231,6 +234,7 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
 
   } else if (auto mem = std::dynamic_pointer_cast<tir::Mem>(expr)) {
     auto addressReg = newVirtualRegister();
+    // std::cout << "newVirtualRegister for mem: " << addressReg << std::endl;
     tile = std::make_shared<Tile>(std::vector<TileInstruction>{
         selectTile(mem->getAddress(), addressReg),
         std::make_shared<assembly::Mov>(
@@ -262,6 +266,9 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
       int argNum = std::stoi(std::regex_replace(
           temp->getName(), std::regex(codeGenLabels->kAbstractArgPrefix), ""));
 
+      // std::cout << "for " << temp->getName() << ", argNum: " << argNum <<
+      // std::endl;
+
       tile = std::make_shared<Tile>(
           std::vector<TileInstruction>{std::make_shared<assembly::Mov>(
               std::make_shared<assembly::RegisterOp>(Tile::VIRTUAL_REG),
@@ -283,7 +290,7 @@ ExprTile InstructionSelector::selectTile(std::shared_ptr<tir::Expr> expr,
     }
 
   } else {
-    std::cout << "invalid expr type?" << std::endl;
+    // std::cout << "invalid expr type?" << std::endl;
     expr->print(std::cout);
     throw std::runtime_error("Invalid expression type, should not happen!");
   }
@@ -309,6 +316,8 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
 
   if (auto cjump = std::dynamic_pointer_cast<tir::CJump>(stmt)) {
     auto conditionReg = newVirtualRegister();
+    // std::cout << "newVirtualRegister for cjump: " << conditionReg <<
+    // std::endl;
 
     ExprTile exprTile = selectTile(cjump->getCondition(), conditionReg);
     auto test = std::make_shared<assembly::Test>(
@@ -327,6 +336,7 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
               std::make_shared<assembly::LabelOp>(name->getName()))});
     } else {
       auto targetReg = newVirtualRegister();
+      // std::cout << "newVirtualRegister for jump: " << targetReg << std::endl;
       tile = std::make_shared<Tile>(std::vector<TileInstruction>{
           selectTile(jump->getTarget(), targetReg),
           std::make_shared<assembly::Jmp>(
@@ -359,6 +369,7 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
       // push args to stack reverse order (C decl)
       for (auto &arg : call->getArgs()) {
         std::string argReg = newVirtualRegister();
+        // std::cout << "newVirtualRegister for arg: " << argReg << std::endl;
         tile->addInstructions(
             std::vector<TileInstruction>{
                 selectTile(arg, argReg),
@@ -374,6 +385,8 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
                 std::make_shared<assembly::LabelOp>(functionName))});
       } else {
         auto targetReg = newVirtualRegister();
+        // std::cout << "newVirtualRegister for callstmt: " << targetReg <<
+        // std::endl;
         tile->addInstructions(std::vector<TileInstruction>{
             selectTile(call->getTarget(), targetReg),
             std::make_shared<assembly::Call>(
@@ -404,6 +417,7 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
     if (auto temp = std::dynamic_pointer_cast<tir::Temp>(target)) {
       if (temp->isGlobal) {
         auto tempReg = newVirtualRegister();
+        // std::cout << "newVirtualRegister for move: " << tempReg << std::endl;
         tile = std::make_shared<Tile>(std::vector<TileInstruction>{
             selectTile(move->getSource(), tempReg),
             std::make_shared<assembly::Mov>(
@@ -417,6 +431,11 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
     } else if (auto mem = std::dynamic_pointer_cast<tir::Mem>(target)) {
       auto targetReg = newVirtualRegister();
       auto sourceReg = newVirtualRegister();
+      // std::cout << "newVirtualRegister for move: " << targetReg << ", " <<
+      // sourceReg << std::endl; std::cout << "mem->getAddress(): ";
+      // mem->getAddress()->print(std::cout);
+      // std::cout << "\nmove->getSource(): ";
+      // move->getSource()->print(std::cout);
       tile = std::make_shared<Tile>(std::vector<TileInstruction>{
           selectTile(move->getSource(), sourceReg),
           selectTile(mem->getAddress(), targetReg),
@@ -453,7 +472,7 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
         std::make_shared<assembly::Comment>(comment->getComment())});
 
   } else {
-    std::cout << "Invalid statement:" << std::endl;
+    // std::cout << "Invalid statement:" << std::endl;
     stmt->print(std::cout);
     throw std::runtime_error("Invalid statement");
   }

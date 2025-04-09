@@ -6,7 +6,7 @@ void TIRCanonicalizer::canonicalizeCompUnit(
     std::shared_ptr<tir::CompUnit> &root) {
 
   // start statements
-  for (auto &stmt : root->getStartStmts()) {
+  for (auto &stmt : root->getStartStmtsMutable()) {
     stmt = std::make_shared<tir::Seq>(canonicalize(stmt));
   }
 
@@ -67,16 +67,16 @@ TIRCanonicalizer::canonicalize(std::shared_ptr<tir::Expr> expression) {
     std::vector<std::shared_ptr<tir::Expr>> tempArgs;
 
     for (auto &arg : call->getArgs()) {
-      auto tempArg = std::make_shared<tir::Temp>(
-          tir::Temp::generateName("canon_call_arg"));
-      tempArgs.push_back(tempArg);
+      auto tempArgName = tir::Temp::generateName("canon_call_arg");
+      tempArgs.push_back(std::make_shared<tir::Temp>(tempArgName));
 
       auto loweredArg = canonicalize(arg);
       auto loweredArgStmts = loweredArg->getStatements();
       statements.insert(statements.end(), loweredArgStmts.begin(),
                         loweredArgStmts.end());
       statements.push_back(
-          std::make_shared<tir::Move>(tempArg, loweredArg->getExpression()));
+          std::make_shared<tir::Move>(std::make_shared<tir::Temp>(tempArgName),
+                                      loweredArg->getExpression()));
     }
 
     if (std::dynamic_pointer_cast<tir::Name>(call->getTarget())) {
