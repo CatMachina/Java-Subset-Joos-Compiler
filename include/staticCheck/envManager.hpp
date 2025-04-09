@@ -111,7 +111,7 @@ public:
     if (currentScope_->parent() == nullptr) {
       throw std::runtime_error("Tried to exit root scope");
     }
-    currentScope_->next(currentScope_->parent()->parent());
+    currentScope_ = currentScope_->next(currentScope_->parent()->parent());
   }
 
   std::shared_ptr<parsetree::ast::ScopeID> NextScopeID() {

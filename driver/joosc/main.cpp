@@ -192,8 +192,6 @@ int main(int argc, char **argv) {
     //   checkLinked(ast);
     // }
 
-    // astManager->getASTs()[0]->print(std::cout);
-
     std::cout << "Starting name disambiguation and type checking...\n";
 
     auto typeResolver =
@@ -255,6 +253,8 @@ int main(int argc, char **argv) {
       }
     }
     std::cout << "Done building CFGs....\n";
+
+    // astManager->getASTs()[0]->print(std::cout);
 
     // code gen
     auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();

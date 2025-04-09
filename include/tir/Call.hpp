@@ -53,8 +53,9 @@ public:
 
     // this should be first
     passed_args.push_back(_this);
-    for (auto &arg : args) {
-      passed_args.push_back(arg);
+    // expect arg to be reversed
+    for (auto it = args.rbegin(); it != args.rend(); ++it) {
+      passed_args.push_back(*it);
     }
 
     // std::cout << "created call with args: " << std::endl;

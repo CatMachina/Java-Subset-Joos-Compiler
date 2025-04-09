@@ -548,6 +548,10 @@ std::ostream &VarDecl::print(std::ostream &os, int indent) const {
   printIndent(os, indent + 1);
   os << "ScopeID: " << *scope << "\n";
 
+  // print location
+  printIndent(os, indent + 1);
+  os << "Loc: " << loc << "\n";
+
   // Print Initializer
   if (initializer) {
     printIndent(os, indent + 1);

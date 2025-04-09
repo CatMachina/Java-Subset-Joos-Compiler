@@ -272,6 +272,11 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
         return std::make_shared<tir::Temp>(
             codeGenLabels->getParameterLabel(varDecl), varDecl);
       }
+      std::cout << "memberName: ";
+      memberName->print(std::cout);
+      std::cout << ", varDecl: ";
+      varDecl->print(std::cout);
+      std::cout << "\n";
       return std::make_shared<tir::Temp>(
           codeGenLabels->getLocalVariableLabel(varDecl), varDecl);
     }
