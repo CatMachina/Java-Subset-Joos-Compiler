@@ -14,11 +14,12 @@
 #include "parseTree/sourceNode.hpp"
 #include "parser/myBisonParser.hpp"
 #include "staticCheck/astValidator.hpp"
-#include "staticCheck/cfgBuilder.hpp"
 #include "staticCheck/envManager.hpp"
+#include "staticCheck/hierarchyCheck.hpp"
+// #include "staticCheck/nameDisambiguator.hpp"
+#include "staticCheck/cfgBuilder.hpp"
 #include "staticCheck/exprResolver.hpp"
 #include "staticCheck/forwardChecker.hpp"
-#include "staticCheck/hierarchyCheck.hpp"
 #include "staticCheck/liveVariableAnalysis.hpp"
 #include "staticCheck/reachabilityAnalysis.hpp"
 #include "staticCheck/typeLinker.hpp"
@@ -224,7 +225,7 @@ int main(int argc, char **argv) {
           // method->getName()
           //           << " ===" << std::endl;
           if (cfg) {
-            // cfg->print(std::cout);
+            cfg->print(std::cout);
             if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
                     cfg)) {
               std::cerr << "Method " << method->getName()
