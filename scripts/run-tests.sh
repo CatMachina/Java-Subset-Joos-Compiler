@@ -3,7 +3,7 @@
 ASSIGNMENT_ARG=$1
 ASSIGNMENT=${ASSIGNMENT_ARG:="a6"}
 TEST_DIR="/u/cs444/pub/assignment_testcases/$ASSIGNMENT"
-STDLIB="/u/cs444/pub/stdlib/5.2"
+STDLIB="/u/cs444/pub/stdlib/6.1"
 RUNTIME="$STDLIB/runtime.s"
 NASM="/u/cs444/bin/nasm"
 

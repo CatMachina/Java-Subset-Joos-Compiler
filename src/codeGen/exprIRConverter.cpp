@@ -683,10 +683,18 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
       std::make_shared<tir::Mem>(
           // *this + 4*offset
           std::make_shared<tir::BinOp>(
-              tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(thisName),
-              std::make_shared<tir::Const>(
-                  4 *
-                  codegen::DispatchVectorBuilder::getAssignment(methodDecl)))),
+              tir::BinOp::OpType::ADD,
+              std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(thisName)),
+              // std::make_shared<tir::Const>(
+              std::make_shared<tir::BinOp>(
+                  tir::BinOp::OpType::MUL,
+                  std::make_shared<tir::Const>(
+                      codegen::DispatchVectorBuilder::getAssignment(
+                          methodDecl)),
+                  std::make_shared<tir::Const>(4))
+              // 4 *
+              // codegen::DispatchVectorBuilder::getAssignment(methodDecl))
+              )),
       (methodDecl->getModifiers()->isNative())
           ? nullptr
           : std::make_shared<tir::Temp>(thisName, nullptr),
