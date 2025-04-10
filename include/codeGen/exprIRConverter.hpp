@@ -13,10 +13,22 @@ namespace tir {
 class TempTIR : public Expr {
 
 public:
-  enum class Type { MethodName, TypeNode, FieldAccess };
+  enum class Type { MethodName, TypeNode, FieldAccess, MethodCall };
 
   TempTIR(std::shared_ptr<parsetree::ast::ExprValue> astNode, Type type)
-      : astNode{astNode}, type{type} {}
+      : astNode{astNode}, type{type} {
+    if (type == Type::MethodCall) {
+      throw std::runtime_error("MethodCall should take in a pair of ExprIRs");
+    }
+  }
+
+  TempTIR(std::pair<std::shared_ptr<Expr>, std::shared_ptr<Expr>> methodCall,
+          Type type)
+      : type{type}, methodCall{methodCall} {
+    if (type != Type::MethodCall) {
+      throw std::runtime_error("Only MethodCall can take in a pair of ExprIRs");
+    }
+  }
 
   void visitChildren(InsnMapsBuilder &v) override { v.visit(nullptr); }
 
@@ -25,7 +37,9 @@ public:
     os << "(!!! TempTIR" << std::endl;
     printIndent(os, indent + 1);
     os << magic_enum::enum_name(type) << std::endl;
-    astNode->print(std::cout, indent + 1);
+    if (astNode) {
+      astNode->print(std::cout, indent + 1);
+    }
     printIndent(os, indent);
     os << "!!!)\n";
     return os;
@@ -33,6 +47,7 @@ public:
 
   Type type;
   std::shared_ptr<parsetree::ast::ExprValue> astNode;
+  std::pair<std::shared_ptr<Expr>, std::shared_ptr<Expr>> methodCall;
 };
 
 } // namespace tir

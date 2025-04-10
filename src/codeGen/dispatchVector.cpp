@@ -13,12 +13,16 @@ DispatchVector::DispatchVector(
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
         superClass->getResolvedDecl()->getAstNode());
 
-    std::cout << "for class " << classDecl->getFullName() << " found "
-              << superClassDecl->getFullName() << std::endl;
+    // std::cout << "for class " << classDecl->getFullName() << " found "
+    //           << superClassDecl->getFullName() << std::endl;
 
     if (superClassDecl->getFullName() != "java.lang.Object" || !foundObject) {
       foundObject = true;
       auto parentDV = DispatchVectorBuilder::getDV(superClassDecl);
+      if (!parentDV)
+        throw std::runtime_error("Could not get parent dispatch vector " +
+                                 superClassDecl->getFullName());
+
       fieldVector.insert(fieldVector.end(), parentDV->fieldVector.begin(),
                          parentDV->fieldVector.end());
     }
@@ -27,22 +31,21 @@ DispatchVector::DispatchVector(
   auto classFields = classDecl->getFields();
   fieldVector.insert(fieldVector.end(), classFields.begin(), classFields.end());
 
-  int maxColour = 0;
+  int maxColour = -1;
   for (auto &method : classDecl->getMethods()) {
-    if (method->isConstructor())
+    if (!method || method->isConstructor())
       continue;
     int colour = DispatchVectorBuilder::getAssignment(method);
     maxColour = std::max(colour, maxColour);
   }
   methodVector.resize(maxColour + 1, nullptr);
   for (auto &method : classDecl->getMethods()) {
-    if (method->isConstructor())
+    if (!method || method->isConstructor())
       continue;
     int colour = DispatchVectorBuilder::getAssignment(method);
     methodVector[colour] = method;
   }
-
-  className = classDecl->getName();
+  className = classDecl->getFullName();
 }
 
 void DispatchVectorBuilder::addMethodsToGraph(

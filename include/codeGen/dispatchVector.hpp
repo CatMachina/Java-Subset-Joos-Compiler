@@ -20,6 +20,36 @@ public:
     }
     return std::distance(fieldVector.begin(), it);
   }
+
+  std::ostream &printIndent(std::ostream &os, int indent = 0) const {
+    for (int i = 0; i < indent; ++i) {
+      os << "  ";
+    }
+    return os;
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const {
+    printIndent(os, indent);
+    os << "(DispatchVector: " << className << "\n";
+    printIndent(os, indent + 1);
+    os << "Methods:\n";
+    for (size_t i = 0; i < methodVector.size(); ++i) {
+      auto &method = methodVector[i];
+      if (!method)
+        continue;
+      printIndent(os, indent + 2);
+      os << method->getName() << ", colour: " << i << "\n";
+    }
+    printIndent(os, indent + 1);
+    os << "Fields:\n";
+    for (const auto &field : fieldVector) {
+      printIndent(os, indent + 2);
+      os << field->getName() << "\n";
+    }
+    printIndent(os, indent);
+    os << ")\n";
+    return os;
+  }
 };
 
 class DispatchVectorBuilder {
@@ -124,7 +154,13 @@ public:
   static std::shared_ptr<DispatchVector>
   getDV(std::shared_ptr<parsetree::ast::ClassDecl> classDecl) {
     if (classDVs.find(classDecl) == classDVs.end()) {
-      classDVs.insert({classDecl, std::make_shared<DispatchVector>(classDecl)});
+      auto classDV = std::make_shared<DispatchVector>(classDecl);
+      // std::cout << "created classDV: \n";
+      // classDV->print(std::cout);
+      classDVs.insert({classDecl, classDV});
+    }
+    if (classDVs.find(classDecl) == classDVs.end()) {
+      throw std::runtime_error("Could not create or find classDV");
     }
     return classDVs[classDecl];
   }

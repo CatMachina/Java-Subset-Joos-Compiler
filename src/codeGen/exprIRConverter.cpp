@@ -272,11 +272,6 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
         return std::make_shared<tir::Temp>(
             codeGenLabels->getParameterLabel(varDecl), varDecl);
       }
-      std::cout << "memberName: ";
-      memberName->print(std::cout);
-      std::cout << ", varDecl: ";
-      varDecl->print(std::cout);
-      std::cout << "\n";
       return std::make_shared<tir::Temp>(
           codeGenLabels->getLocalVariableLabel(varDecl), varDecl);
     }
@@ -471,7 +466,10 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     const std::shared_ptr<tir::Expr> lhs,
     const std::shared_ptr<tir::Expr> field) {
 
-  // std::cout << "evalFieldAccess:\n";
+  // std::cout << "evalFieldAccess, lhs: \n";
+  // lhs->print(std::cout);
+  // std::cout << "field: \n";
+  // field->print(std::cout);
   // op->print(std::cout);
   if (!(op->getResultType())) {
     throw std::runtime_error(
@@ -487,7 +485,8 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     auto fieldTIR = std::dynamic_pointer_cast<tir::TempTIR>(field);
     if (fieldTIR->type == tir::TempTIR::Type::MethodName) {
       // special case: field is method, defer
-      return fieldTIR;
+      return std::make_shared<tir::TempTIR>(std::make_pair(lhs, field),
+                                            tir::TempTIR::Type::MethodCall);
     }
     if (fieldTIR->type != tir::TempTIR::Type::FieldAccess) {
       throw std::runtime_error(
@@ -603,24 +602,47 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
         "Invalid method invocation, method is not a TempTIR");
   }
   auto methodTIR = std::dynamic_pointer_cast<tir::TempTIR>(method);
-  if (methodTIR->type != tir::TempTIR::Type::MethodName) {
-    throw std::runtime_error(
-        "Invalid method invocation, method is not a method name");
+  if (methodTIR->type != tir::TempTIR::Type::MethodName &&
+      methodTIR->type != tir::TempTIR::Type::MethodCall) {
+    throw std::runtime_error("Invalid method invocation, method is not a "
+                             "method name or method call");
   }
 
-  auto methodName =
-      std::dynamic_pointer_cast<parsetree::ast::MethodName>(methodTIR->astNode);
-  if (!methodName) {
-    throw std::runtime_error(
-        "Invalid method invocation, method is not a method name");
+  std::shared_ptr<parsetree::ast::MethodDecl> methodDecl = nullptr;
+  if (auto methodName = std::dynamic_pointer_cast<parsetree::ast::MethodName>(
+          methodTIR->astNode)) {
+    methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+        methodName->getResolvedDecl());
+    if (!methodDecl) {
+      throw std::runtime_error(
+          "Invalid method invocation, method is not a method decl");
+    }
+  } else if (methodTIR->type == tir::TempTIR::Type::MethodCall) {
+    if (auto methodTemp = std::dynamic_pointer_cast<tir::TempTIR>(
+            methodTIR->methodCall.second)) {
+      auto methodName = std::dynamic_pointer_cast<parsetree::ast::MethodName>(
+          methodTemp->astNode);
+      if (!methodName) {
+        throw std::runtime_error(
+            "Invalid method invocation, method is not a method name");
+      }
+      methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
+          methodName->getResolvedDecl());
+      if (!methodDecl) {
+        throw std::runtime_error(
+            "Invalid method invocation, method is not a method decl");
+      }
+    }
+  } else {
+    throw std::runtime_error("should not happen");
   }
 
-  auto methodDecl = std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(
-      methodName->getResolvedDecl());
-  if (!methodDecl) {
-    throw std::runtime_error(
-        "Invalid method invocation, method is not a method decl");
-  }
+  // auto methodName =
+  //     std::dynamic_pointer_cast<parsetree::ast::MethodName>(methodTIR->astNode);
+  // if (!methodName) {
+  //   throw std::runtime_error(
+  //       "Invalid method invocation, method is not a method name");
+  // }
 
   // static method
   if (methodDecl->isStatic()) {
@@ -634,22 +656,47 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
   }
 
   // instance method
-  // TODO: If there is a parent expr, define a stmt to move into Temp?
+  std::string thisName = "";
+  std::shared_ptr<tir::Stmt> thisStmt = nullptr;
 
-  // return expr
-  return tir::Call::makeExpr(
+  // If there is a parent expr, define a stmt to move into Temp
+  if (methodTIR->type == tir::TempTIR::Type::MethodCall) {
+    auto parent =
+        std::dynamic_pointer_cast<tir::Expr>(methodTIR->methodCall.first);
+    if (!parent) {
+      throw std::runtime_error("Invalid method invocation, parent not exprIR");
+    }
+    thisName = tir::Temp::generateName("this");
+    thisStmt = std::make_shared<tir::Move>(
+        std::make_shared<tir::Temp>(thisName), parent);
+  } else {
+    thisName = "this";
+  }
+
+  if (thisStmt) {
+    std::cout << "thisStmt not null:" << std::endl;
+    thisStmt->print(std::cout);
+  }
+
+  auto returnExpr = tir::Call::makeExpr(
       // gets method NameIR
       std::make_shared<tir::Mem>(
           // *this + 4*offset
           std::make_shared<tir::BinOp>(
-              tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>("this"),
+              tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(thisName),
               std::make_shared<tir::Const>(
                   4 *
                   codegen::DispatchVectorBuilder::getAssignment(methodDecl)))),
       (methodDecl->getModifiers()->isNative())
           ? nullptr
-          : std::make_shared<tir::Temp>("this", nullptr),
+          : std::make_shared<tir::Temp>(thisName, nullptr),
       args);
+
+  if (thisStmt) {
+    return std::make_shared<tir::ESeq>(thisStmt, returnExpr);
+  } else {
+    return returnExpr;
+  }
 }
 
 std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
@@ -701,7 +748,12 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
   auto typeClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
       typeRefType->getResolvedDecl()->getAstNode());
 
+  std::cout << "Class creation!" << std::endl;
+  std::cout << "Type Class: " << typeClass->getName() << std::endl;
+
   auto classDV = codegen::DispatchVectorBuilder::getDV(typeClass);
+  std::cout << "Class DV: " << std::endl;
+  classDV->print(std::cout);
   int num_fields = classDV->fieldVector.size();
   std::string obj_ref = tir::Temp::generateName("obj_ref");
 
