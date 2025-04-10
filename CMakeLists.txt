@@ -77,6 +77,16 @@ add_library(CompilerLib
     "src/staticCheck/staticResolver.cpp"
     "src/staticCheck/astValidator.cpp"
     "src/staticCheck/liveVariableAnalysis.cpp"
+
+    # code generation
+    "src/tir/InsnMapsBuilder.cpp"
+    "src/tir/Simulator.cpp"
+    "src/tir/TIRBuilder.cpp"
+    "src/tir/TIR.cpp"
+    "src/codeGen/exprIRConverter.cpp"
+    "src/codeGen/canonicalizer.cpp"
+    "src/codeGen/instructionSelector.cpp"
+    "src/codeGen/dispatchVector.cpp"
 )
 target_include_directories(
     CompilerLib
@@ -115,4 +125,14 @@ add_tool(
 add_tool(
     joosc
     "driver/joosc/main.cpp"
+)
+
+add_tool(
+    simulator
+    "driver/simulator/main.cpp"
+)
+
+add_tool(
+    test_tir
+    "driver/test_tir/main.cpp"
 )

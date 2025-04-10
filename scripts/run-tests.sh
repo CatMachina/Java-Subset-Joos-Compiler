@@ -1,15 +1,19 @@
 #!/usr/bin/bash
 
 ASSIGNMENT_ARG=$1
-ASSIGNMENT=${ASSIGNMENT_ARG:="a4"}
+ASSIGNMENT=${ASSIGNMENT_ARG:="a5"}
 TEST_DIR="/u/cs444/pub/assignment_testcases/$ASSIGNMENT"
-STDLIB="/u/cs444/pub/stdlib/4.0"
+STDLIB="/u/cs444/pub/stdlib/5.2"
+RUNTIME="$STDLIB/runtime.s"
+NASM="/u/cs444/bin/nasm"
 
 ROOT_DIR="$HOME/cs444/joosc"
 BUILD_DIR="$ROOT_DIR/build"
 SCRIPT_DIR="$(dirname "$0")"
+OUTPUT_DIR="$ROOT_DIR/output"
 
-mkdir $BUILD_DIR
+mkdir -p "$BUILD_DIR"
+mkdir -p "$OUTPUT_DIR"
 
 # Change this to whatever you want to test
 DRIVER_NAME="joosc"
@@ -22,9 +26,9 @@ pushd $BUILD_DIR
 }
 popd
 
-# # This script builds joosc in $BUILD_DIR, not $ROOT_DIR
-# DRIVER="$BUILD_DIR/$DRIVER_NAME"
+# This script builds joosc in $BUILD_DIR, not $ROOT_DIR
 DRIVER="$ROOT_DIR/$DRIVER_NAME"
+# DRIVER="$ROOT_DIR/$DRIVER_NAME"
 echo "TEST_DIR: $TEST_DIR"
 
 NUM_PASSED=0
@@ -39,10 +43,10 @@ ulimit -c 0
 
 for testcase in "$TEST_DIR"/*; do
     testcase_name=$(basename "$testcase")
-    
+
     # Expand standard library files
     mapfile -t stdlib_files < <(find "$STDLIB" -type f -name "*.java")
-    
+
     if [ -f "$testcase" ]; then
         # Single file test case - include standard library
         files_to_test=("$testcase" "${stdlib_files[@]}")
@@ -53,31 +57,79 @@ for testcase in "$TEST_DIR"/*; do
     else
         continue
     fi
-    
-    if [ -e "${files_to_test[0]}" ]; then  # Ensure array is not empty
-        base_name=$(basename "${files_to_test[0]}")
-        prefix=${testcase_name:0:2}  # Extract prefix from test case name
-        exit_code=$(
-            ( $DRIVER "${files_to_test[@]}" > /dev/null 2>&1 ) 2>/dev/null
-            echo $?
-        )
-        if [[ "$prefix" == "Je" && exit_code -ne 42 ]]; then
-            echo "FAILED command: $DRIVER ${files_to_test[@]}"
-            echo "FAIL - $testcase_name should have failed with exit code 42 but passed/exited with exit code $exit_code."
+
+    # Clean output before each test
+    rm -f "$OUTPUT_DIR"/*
+
+    # Run compiler
+    ( $DRIVER "${files_to_test[@]}" > /dev/null 2>&1 )
+    exit_code=$?
+
+    # Determine expected exit code based on filename prefix
+    prefix=${testcase_name:0:2}
+    expected_code=0
+    [[ "$prefix" == "Je" ]] && expected_code=42
+    [[ "$prefix" == "Jw" ]] && expected_code=43
+
+    if [[ $exit_code -ne $expected_code ]]; then
+        echo "FAIL - $testcase_name exited with $exit_code, expected $expected_code."
+        echo "FAILED command: $DRIVER ${files_to_test[@]}"
+        NUM_FAILED=$((NUM_FAILED+1))
+        continue
+    fi
+
+    # If valid test (expected_code == 0), try assembling and linking
+    if [[ $expected_code -eq 0 ]]; then
+        error=false
+        LAST_CMD=""
+
+        for asm_file in "$OUTPUT_DIR"/*.s; do
+            cmd="$NASM -O1 -f elf -g -F dwarf \"$asm_file\" -o \"${asm_file%.s}.o\" 2>/dev/null"
+            eval $cmd || { error=true; LAST_CMD=$cmd; break; }
+        done
+
+        # Assemble runtime.s if no errors
+        if ! $error && [ -f "$RUNTIME" ]; then
+            cmd="$NASM -O1 -f elf -g -F dwarf \"$RUNTIME\" -o \"$OUTPUT_DIR/runtime.o\""
+            eval $cmd || { error=true; LAST_CMD=$cmd; }
+        fi
+
+        # Link everything
+        if ! $error; then
+            cmd="ld -melf_i386 -o \"$OUTPUT_DIR/main\" \"$OUTPUT_DIR\"/*.o"
+            eval $cmd || { error=true; LAST_CMD=$cmd; }
+        fi
+
+        # Run the program
+        if ! $error; then
+            # cmd="\"$OUTPUT_DIR/main\" > /dev/null 2>&1"
+            # eval $cmd || { error=true; LAST_CMD=$cmd; }
+            "$OUTPUT_DIR/main" > /dev/null 2>&1
+            exit_code=$?
+            
+            prefix=${testcase_name:0:3}
+            if [ "$prefix" == "J1e" ]; then
+                expected_exit=13
+            else
+                expected_exit=123
+            fi
+
+            if [ $exit_code -ne $expected_exit ]; then
+                error=true
+                LAST_CMD="$OUTPUT_DIR/main (exit code was $exit_code, expected 123)"
+            fi
+        fi
+
+        if $error; then
+            echo "FAIL - $testcase_name: build/link/run failed."
+            echo "FAILED command: $LAST_CMD"
             NUM_FAILED=$((NUM_FAILED+1))
-        elif [[ "$prefix" == "Jw" && exit_code -ne 43 ]]; then
-            echo "FAILED command: $DRIVER ${files_to_test[@]}"
-            echo "FAIL - $testcase_name should have passed with exit code 43 but passed/failed with exit code $exit_code."
-            NUM_FAILED=$((NUM_FAILED+1))
-        elif [[ "$prefix" != "Je" && "$prefix" != "Jw" && exit_code -ne 0 ]]; then
-            echo "FAILED command: $DRIVER ${files_to_test[@]}"
-            echo "FAIL - $testcase_name should have passed with exit code 0 but failed with exit code $exit_code."
-            NUM_FAILED=$((NUM_FAILED+1))
-        else
-            echo "PASSED - $testcase_name $exit_code"
-            NUM_PASSED=$((NUM_PASSED+1))
+            continue
         fi
     fi
+
+    echo "PASSED - $testcase_name $exit_code"
+    NUM_PASSED=$((NUM_PASSED+1))
 
 done
 

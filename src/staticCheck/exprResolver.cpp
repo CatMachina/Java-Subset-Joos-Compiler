@@ -101,6 +101,11 @@ void ExprResolver::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     staticState.isStaticContext = method->isStatic();
   }
 
+  // temporary fix for resolving varDecl twice:
+  if (std::dynamic_pointer_cast<parsetree::ast::DeclStmt>(node)) {
+    return;
+  }
+
   // only check Expr
   if (auto expr = std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
     evaluate(expr);
@@ -250,8 +255,15 @@ ExprResolver::lookupNamedDecl(std::shared_ptr<parsetree::ast::CodeBody> ctx,
           (!(std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) &&
            currentScope);
       bool scopeVisible = true;
-      if (sameContext && checkScope)
+      if (sameContext && checkScope) {
         scopeVisible = currentScope->canView(typedDecl->getScope());
+        // std::cout << "checking scope visibility for " << name << ",
+        // currentScope: " << currentScope->toString(); std::cout << ",
+        // typedDecl: " << typedDecl->getName() << " ";
+        // typedDecl->print(std::cout);
+        // std::cout << "has scope " << typedDecl->getScope()->toString();
+        // std::cout << ", scopeVisible: " << scopeVisible << std::endl;
+      }
       bool canAccess = true;
       if (auto fieldDecl =
               std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(decl)) {

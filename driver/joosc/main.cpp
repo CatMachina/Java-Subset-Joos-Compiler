@@ -25,34 +25,21 @@
 #include "staticCheck/typeLinker.hpp"
 #include "staticCheck/typeResolver.hpp"
 
+#include "codeGen/assemblyGenerator.hpp"
+#include "codeGen/astVisitor.hpp"
+#include "codeGen/canonicalizer.hpp"
+#include "codeGen/dispatchVector.hpp"
+#include "codeGen/exprIRConverter.hpp"
+#include "codeGen/registerAllocator/basicAllocator.hpp"
+#include "tir/TIRBuilder.hpp"
+
+#include <filesystem>
 #include <memory>
 
 #define EXIT_ERROR 42
 #define EXIT_WARNING 43
 
-// void checkLinked(std::shared_ptr<parsetree::ast::AstNode> node) {
-//   if (!node)
-//     throw std::runtime_error("Node is null when resolving AST");
-
-//   for (auto child : node->getChildren()) {
-//     if (!child)
-//       continue;
-
-//     // Case: Type
-//     if (auto type = std::dynamic_pointer_cast<parsetree::ast::Type>(child)) {
-//       if (!(type->isResolved())) {
-//         type->print(std::cout);
-//         std::cout << " not resolved" << std::endl;
-//         // throw std::runtime_error(" Type still not resolved after
-//         typeLinking");
-//       }
-//     }
-//     // Case: regular code
-//     else {
-//       checkLinked(child);
-//     }
-//   }
-// }
+namespace fs = std::filesystem;
 
 // hack
 bool isLiteralTypeValid(const std::shared_ptr<parsetree::Node> &node) {
@@ -206,8 +193,6 @@ int main(int argc, char **argv) {
     //   checkLinked(ast);
     // }
 
-    // astManager->getASTs()[0]->print(std::cout);
-
     std::cout << "Starting name disambiguation and type checking...\n";
 
     auto typeResolver =
@@ -232,11 +217,13 @@ int main(int argc, char **argv) {
       for (auto decl : ast->getBody()->getDecls()) {
         if (auto method =
                 std::dynamic_pointer_cast<parsetree::ast::MethodDecl>(decl)) {
-          std::cout << "=== Start building CFG for method " << method->getName()
-                    << " ===" << std::endl;
+          // std::cout << "=== Start building CFG for method " <<
+          // method->getName()
+          //           << " ===" << std::endl;
           std::shared_ptr<CFG> cfg = cfgBuilder->buildCFG(method);
-          std::cout << "=== Done building CFG for method " << method->getName()
-                    << " ===" << std::endl;
+          // std::cout << "=== Done building CFG for method " <<
+          // method->getName()
+          //           << " ===" << std::endl;
           if (cfg) {
             cfg->print(std::cout);
             if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
@@ -253,13 +240,13 @@ int main(int argc, char **argv) {
                   << std::endl;
               return EXIT_ERROR;
             }
-            std::cout << "Check Dead Assignments\n";
-            if (!static_check::LiveVariableAnalysis::checkDeadAssignments(
-                    cfg)) {
-              std::cerr << "Warning: Method " << method->getName()
-                        << " has dead assignments" << std::endl;
-              retCode = EXIT_WARNING;
-            }
+            // std::cout << "Check Dead Assignments\n";
+            // if (!static_check::LiveVariableAnalysis::checkDeadAssignments(
+            //         cfg)) {
+            //   std::cerr << "Warning: Method " << method->getName()
+            //             << " has dead assignments" << std::endl;
+            //   retCode = EXIT_WARNING;
+            // }
           } else {
             std::cout << "Method is null or has no body." << std::endl;
           }
@@ -267,6 +254,127 @@ int main(int argc, char **argv) {
       }
     }
     std::cout << "Done building CFGs....\n";
+
+    // astManager->getASTs()[0]->print(std::cout);
+
+    // code gen
+    auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
+    auto exprConverter =
+        std::make_shared<codegen::ExprIRConverter>(astManager, codeGenLabels);
+
+    // for object oriented
+    codegen::DispatchVectorBuilder().visit(astManager);
+    codegen::DispatchVectorBuilder::assignColours();
+    codegen::DispatchVectorBuilder::verifyColoured();
+
+    // IR building
+    auto tirBuilder =
+        std::make_shared<tir::TIRBuilder>(astManager, exprConverter);
+    tirBuilder->run();
+    // tirBuilder->print(std::cout);
+
+    // canonicalize IR
+    auto tirCanonicalizer =
+        std::make_shared<codegen::TIRCanonicalizer>(codeGenLabels);
+    for (auto &compUnit : tirBuilder->getCompUnits()) {
+      tirCanonicalizer->canonicalizeCompUnit(compUnit);
+    }
+    std::cout << "Done canonicalizing IR\n";
+    tirBuilder->print(std::cout);
+
+    // Get entrypoint method as a string
+    std::string entry_class;
+    for (int i = 1; i < argc; ++i) {
+      std::string arg = argv[i];
+      if (!arg.starts_with("--")) {
+        size_t slash = arg.find_last_of("/\\");
+        size_t dot = arg.find_last_of('.');
+        std::string filename = arg.substr(slash + 1, dot - slash - 1);
+        entry_class = filename;
+        break;
+      }
+    }
+
+    if (entry_class.empty()) {
+      std::cerr << "Error: No input class found to determine entry point.\n";
+      return EXIT_ERROR;
+    }
+
+    std::shared_ptr<parsetree::ast::ClassDecl> entryClassDecl = nullptr;
+    for (auto &program : astManager->getASTs()) {
+      auto body = program->getBody();
+      if (auto classDecl =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(body)) {
+        if (classDecl->getName() == entry_class) {
+          entryClassDecl = classDecl;
+          break;
+        }
+      }
+    }
+
+    if (!entryClassDecl) {
+      std::cerr << "Error: No entry class found.\n";
+      return EXIT_ERROR;
+    }
+
+    std::shared_ptr<parsetree::ast::MethodDecl> entryMethodDecl = nullptr;
+    for (auto &method : entryClassDecl->getMethods()) {
+      if (method->getName() == "test") {
+        entryMethodDecl = method;
+        break;
+      }
+    }
+
+    if (!entryMethodDecl) {
+      std::cerr << "Error: No entry method found.\n";
+      return EXIT_ERROR;
+    }
+
+    std::string entry_method =
+        codeGenLabels->getStaticMethodLabel(entryMethodDecl);
+    std::cout << "Entry method: " << entry_method << std::endl;
+
+    // Add flag for different register allocators (types: basic (default) and
+    // linear (unimplemented))
+    std::string allocator_type = "basic";
+    for (int i = 1; i < argc; ++i) {
+      std::string arg(argv[i]);
+      if (arg.rfind("--allocator=", 0) == 0) {
+        allocator_type = arg.substr(12);
+        if (allocator_type != "basic" && allocator_type != "linear") {
+          std::cerr << "Unknown allocator type: " << allocator_type
+                    << std::endl;
+          return EXIT_ERROR;
+        }
+      }
+    }
+
+    std::shared_ptr<codegen::RegisterAllocator> registerAllocator = nullptr;
+
+    if (allocator_type == "basic") {
+      registerAllocator = std::make_shared<codegen::BasicAllocator>();
+    } else if (allocator_type == "linear") {
+      std::cerr << "Linear scan allocator not implemented yet." << std::endl;
+      return EXIT_ERROR;
+    }
+
+    // code gen
+    fs::path outputDir = "output";
+
+    if (!fs::exists(outputDir)) {
+      // Directory does not exist, create it
+      fs::create_directory(outputDir);
+      std::cout << "Created directory: " << outputDir << std::endl;
+    } else {
+      // Directory exists, remove all contents
+      for (const auto &entry : fs::directory_iterator(outputDir)) {
+        fs::remove_all(entry);
+      }
+      std::cout << "Cleared contents of directory: " << outputDir << std::endl;
+    }
+    auto assemblyGenerator = std::make_shared<codegen::AssembyGenerator>(
+        codeGenLabels, registerAllocator, entry_method);
+    assemblyGenerator->generateAssembly(tirBuilder->getCompUnits());
 
     return retCode;
   } catch (const std::runtime_error &err) {

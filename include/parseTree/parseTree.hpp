@@ -186,7 +186,7 @@ public:
     return os;
   }
 
-  void setNegative() { isNegative = true; }
+  void setNegative() { isNegative = !isNegative; }
   bool isValid() const {
     if (type != Type::Integer) {
       return true;
