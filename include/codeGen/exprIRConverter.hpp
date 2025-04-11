@@ -60,6 +60,9 @@ class ExprIRConverter final
 public:
   std::shared_ptr<CodeGenLabels> codeGenLabels;
   std::shared_ptr<ExprIRConverter> innerExprConverter;
+  std::unordered_map<std::shared_ptr<tir::Expr>,
+                     std::shared_ptr<parsetree::ast::Type>>
+      realTypeMap;
 
   ExprIRConverter(
       std::shared_ptr<parsetree::ast::ASTManager> astManager,
@@ -122,6 +125,8 @@ private:
 
   std::shared_ptr<tir::Expr>
   mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) override;
+
+  bool isArrayLength(std::shared_ptr<parsetree::ast::FieldDecl> fieldDecl);
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<parsetree::ast::ClassDecl> currentClass = nullptr;

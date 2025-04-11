@@ -107,7 +107,15 @@ void ExprResolver::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   }
 
   // only check Expr
-  if (auto expr = std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
+  if (auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(node)) {
+    if (varDecl->hasInit()) {
+      auto type = evaluate(varDecl->getInitializer());
+      // std::cout << "for varDecl: " << varDecl->getName() << ", resolved type
+      // is "; type->print(std::cout);
+      varDecl->setRealType(type);
+    }
+  } else if (auto expr =
+                 std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
     evaluate(expr);
   } else {
     for (const auto &child : node->getChildren()) {
@@ -118,7 +126,8 @@ void ExprResolver::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   }
 }
 
-void ExprResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
+std::shared_ptr<parsetree::ast::Type>
+ExprResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
   currentScope = expr->getScope();
   auto nodes = expr->getExprNodes();
   auto ret = evaluateList(nodes);
@@ -147,8 +156,9 @@ void ExprResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
     }
   }
   expr->setExprNodes(resolved);
-  typeResolver->EvalList(resolved);
+  auto type = typeResolver->EvalList(resolved);
   staticResolver->evaluate(expr, staticState);
+  return type;
 }
 
 exprResolveType ExprResolver::evaluateList(

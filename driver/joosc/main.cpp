@@ -195,6 +195,8 @@ int main(int argc, char **argv) {
 
     std::cout << "Starting name disambiguation and type checking...\n";
 
+    // astManager->getASTs()[0]->print(std::cout);
+
     auto typeResolver =
         std::make_shared<static_check::TypeResolver>(astManager, env);
 

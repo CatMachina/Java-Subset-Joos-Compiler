@@ -234,11 +234,7 @@ public:
 
   std::shared_ptr<static_check::Decl> getResolvedDecl() { return resolvedDecl; }
 
-  std::ostream &print(std::ostream &os, int indent = 0) const override {
-    printIndent(os, indent);
-    os << "(ReferenceType " << toString() << ")\n";
-    return os;
-  }
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
 
   bool operator==(const Type &other) const override;
 };
@@ -613,6 +609,7 @@ class VarDecl : public Decl {
   std::shared_ptr<Expr> initializer;
   std::shared_ptr<ScopeID> scope;
   bool inParam = false;
+  std::shared_ptr<Type> realType = nullptr;
 
 public:
   VarDecl(std::shared_ptr<Type> type, std::string name,
@@ -625,10 +622,15 @@ public:
 
   void setInParam() { inParam = true; }
 
+  void setRealType(std::shared_ptr<Type> realType) {
+    this->realType = realType;
+  }
+
   // Getters
   std::shared_ptr<Type> getType() const { return type; }
   std::shared_ptr<Expr> getInitializer() const { return initializer; }
   std::shared_ptr<ScopeID> getScope() const { return scope; }
+  std::shared_ptr<Type> getRealType() const { return realType; }
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
     std::vector<std::shared_ptr<AstNode>> children;

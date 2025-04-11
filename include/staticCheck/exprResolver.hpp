@@ -140,7 +140,8 @@ private:
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> ast);
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>>
   resolveExprNode(const exprResolveType node);
-  void evaluate(std::shared_ptr<parsetree::ast::Expr> expr);
+  std::shared_ptr<parsetree::ast::Type>
+  evaluate(std::shared_ptr<parsetree::ast::Expr> expr);
   exprResolveType
   evaluateList(std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list);
 

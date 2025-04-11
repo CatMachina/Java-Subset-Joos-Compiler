@@ -779,4 +779,18 @@ bool ReferenceType::operator==(const Type &other) const {
   return true;
 }
 
+std::ostream &ReferenceType::print(std::ostream &os, int indent) const {
+  printIndent(os, indent);
+  std::string name = "";
+  if (isResolved()) {
+    auto decl = std::dynamic_pointer_cast<Decl>(resolvedDecl->getAstNode());
+    if (!decl) {
+      throw std::runtime_error("Decl not resolved");
+    }
+    name = decl->getName();
+  }
+  os << "(ReferenceType " << name << ")\n";
+  return os;
+}
+
 } // namespace parsetree::ast

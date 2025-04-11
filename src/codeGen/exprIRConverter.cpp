@@ -258,22 +258,44 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
 
     // Todo: If array length, special case handled in field access
     // static field
+    std::shared_ptr<parsetree::ast::Type> realType = nullptr;
     if (auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(
             memberName->getResolvedDecl())) {
+      if (fieldDecl->getRealType() &&
+          (fieldDecl->getRealType() != fieldDecl->getType())) {
+        realType = fieldDecl->getRealType();
+      }
       if (fieldDecl->isStatic()) {
-        return std::make_shared<tir::Temp>(
+        auto retExpr = std::make_shared<tir::Temp>(
             codeGenLabels->getStaticFieldLabel(fieldDecl), fieldDecl, true);
+        if (realType) {
+          realTypeMap[retExpr] = realType;
+        }
+        return retExpr;
       }
     } else if (auto varDecl =
                    std::dynamic_pointer_cast<parsetree::ast::VarDecl>(
                        memberName->getResolvedDecl())) {
+      if (varDecl->getRealType() &&
+          (varDecl->getRealType() != varDecl->getType())) {
+        realType = varDecl->getRealType();
+      }
       // parameter and local variable
       if (varDecl->isInParam()) {
-        return std::make_shared<tir::Temp>(
+        auto retExpr = std::make_shared<tir::Temp>(
             codeGenLabels->getParameterLabel(varDecl), varDecl);
+        if (realType) {
+          realTypeMap[retExpr] = realType;
+        }
+        return retExpr;
       }
-      return std::make_shared<tir::Temp>(
+      auto retExpr = std::make_shared<tir::Temp>(
           codeGenLabels->getLocalVariableLabel(varDecl), varDecl);
+
+      if (realType) {
+        realTypeMap[retExpr] = realType;
+      }
+      return retExpr;
     }
     // instance field
     if (auto fieldDecl = std::dynamic_pointer_cast<parsetree::ast::FieldDecl>(
@@ -285,18 +307,27 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
         if (offset == -1)
           throw std::runtime_error("cannot find field " + fieldDecl->getName() +
                                    " in current class");
-        return std::make_shared<tir::Mem>(
+
+        auto retExpr = std::make_shared<tir::Mem>(
             std::make_shared<tir::BinOp>(
                 tir::BinOp::OpType::ADD,
                 std::make_shared<tir::Temp>("this", currentClass),
                 std::make_shared<tir::Const>(4 * (offset + 1)) // +1 for header
                 ),
             fieldDecl);
+        if (realType) {
+          realTypeMap[retExpr] = realType;
+        }
+        return retExpr;
       }
       // obj.field
       // left for field access to handle
-      return std::make_shared<tir::TempTIR>(memberName,
-                                            tir::TempTIR::Type::FieldAccess);
+      auto retExpr = std::make_shared<tir::TempTIR>(
+          memberName, tir::TempTIR::Type::FieldAccess);
+      if (realType) {
+        realTypeMap[retExpr] = realType;
+      }
+      return retExpr;
     }
   }
   throw std::runtime_error("Invalid value in mapValue in codegen");
@@ -426,6 +457,16 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
   case parsetree::ast::BinOp::OpType::InstanceOf: {
     if (op->getLhsType() && op->getRhsType()) {
       auto lhsType = op->getLhsType();
+      auto it = realTypeMap.find(lhs);
+      if (it != realTypeMap.end()) {
+        // std::cout << "update lhs type from ";
+        // lhsType->print(std::cout);
+        // std::cout << " to ";
+        // it->second->print(std::cout);
+        // std::cout << std::endl;
+        lhsType = it->second;
+        realTypeMap.erase(it);
+      }
       auto rhsType = op->getRhsType();
       if (auto lhsRefType =
               std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
@@ -445,7 +486,9 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
           if (!lhsDecl || !rhsDecl) {
             throw std::runtime_error("InstanceOf operands are not classes");
           }
-          if (isSuperClass(rhsDecl, lhsDecl)) {
+          // std::cout << "checking instanceof with lhs: " << lhsDecl->getName()
+          // << ", rhs: " << rhsDecl->getName() << "\n";
+          if (lhsDecl == rhsDecl || isSuperClass(rhsDecl, lhsDecl)) {
             // return std::make_shared<tir::Const>(1);
             return std::make_shared<tir::BinOp>(
                 tir::BinOp::OpType::NEQ, lhs, std::make_shared<tir::Const>(0));
@@ -487,6 +530,20 @@ ExprIRConverter::evalUnOp(std::shared_ptr<parsetree::ast::UnOp> &op,
   }
 }
 
+bool ExprIRConverter::isArrayLength(
+    std::shared_ptr<parsetree::ast::FieldDecl> fieldDecl) {
+  std::shared_ptr<parsetree::ast::FieldDecl> lengthDecl = nullptr;
+  for (auto field : astManager->java_lang.Array->getFields()) {
+    if (field->getName() == "length") {
+      lengthDecl = field;
+    }
+  }
+  if (!lengthDecl) {
+    throw std::runtime_error("Cannot find array length field");
+  }
+  return fieldDecl == lengthDecl;
+}
+
 std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
     std::shared_ptr<parsetree::ast::FieldAccess> &op,
     const std::shared_ptr<tir::Expr> lhs,
@@ -505,6 +562,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
   auto fieldType = op->getResultType();
 
   std::shared_ptr<parsetree::ast::FieldDecl> fieldDecl = nullptr;
+  std::shared_ptr<parsetree::ast::Type> realType = nullptr;
 
   if (std::dynamic_pointer_cast<tir::TempTIR>(field)) {
 
@@ -532,6 +590,13 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
       throw std::runtime_error(
           "Invalid field access, field is not a FieldDecl");
     }
+
+    auto it = realTypeMap.find(fieldTIR);
+    if (it != realTypeMap.end()) {
+      realType = it->second;
+      realTypeMap.erase(it);
+    }
+
   } else if (auto memIR = std::dynamic_pointer_cast<tir::Mem>(field)) {
 
     // this.field
@@ -546,16 +611,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
   }
 
   // Special case: array length field
-  std::shared_ptr<parsetree::ast::FieldDecl> lengthDecl = nullptr;
-  for (auto field : astManager->java_lang.Array->getFields()) {
-    if (field->getName() == "length") {
-      lengthDecl = field;
-    }
-  }
-  if (!lengthDecl) {
-    throw std::runtime_error("Cannot find array length field");
-  }
-  if (fieldDecl == lengthDecl) {
+  if (isArrayLength(fieldDecl)) {
     // Get array
     std::string array_name = tir::Temp::generateName("array");
     auto get_array = std::make_shared<tir::Move>(
@@ -607,9 +663,13 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalFieldAccess(
       int fieldOffset =
           codegen::DispatchVectorBuilder::getDV(classDecl)->getFieldOffset(
               castedFieldDecl);
-      return std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+      auto retExpr = std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
           tir::BinOp::OpType::ADD, lhs,
           std::make_shared<tir::Const>(4 * (fieldOffset + 1))));
+      if (realType) {
+        realTypeMap[retExpr] = realType;
+      }
+      return retExpr;
     }
   }
 
@@ -699,10 +759,10 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalMethodInvocation(
     thisName = "this";
   }
 
-  if (thisStmt) {
-    std::cout << "thisStmt not null:" << std::endl;
-    thisStmt->print(std::cout);
-  }
+  // if (thisStmt) {
+  //   std::cout << "thisStmt not null:" << std::endl;
+  //   thisStmt->print(std::cout);
+  // }
 
   auto returnExpr = tir::Call::makeExpr(
       // gets method NameIR
@@ -782,11 +842,11 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
   auto typeClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
       typeRefType->getResolvedDecl()->getAstNode());
 
-  std::cout << "Class creation!" << std::endl;
-  std::cout << "Type Class: " << typeClass->getName() << std::endl;
+  // std::cout << "Class creation!" << std::endl;
+  // std::cout << "Type Class: " << typeClass->getName() << std::endl;
 
   auto classDV = codegen::DispatchVectorBuilder::getDV(typeClass);
-  std::cout << "Class DV: " << std::endl;
+  // std::cout << "Class DV: " << std::endl;
   classDV->print(std::cout);
   int num_fields = classDV->fieldVector.size();
   std::string obj_ref = tir::Temp::generateName("obj_ref");
