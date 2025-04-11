@@ -59,11 +59,15 @@ class ExprIRConverter final
 
 public:
   std::shared_ptr<CodeGenLabels> codeGenLabels;
+  std::shared_ptr<ExprIRConverter> innerExprConverter;
 
-  ExprIRConverter(std::shared_ptr<parsetree::ast::ASTManager> astManager,
-                  std::shared_ptr<CodeGenLabels> codeGenLabels) {
+  ExprIRConverter(
+      std::shared_ptr<parsetree::ast::ASTManager> astManager,
+      std::shared_ptr<CodeGenLabels> codeGenLabels,
+      std::shared_ptr<ExprIRConverter> innerExprConverter = nullptr) {
     this->astManager = astManager;
     this->codeGenLabels = codeGenLabels;
+    this->innerExprConverter = innerExprConverter;
   }
 
   void

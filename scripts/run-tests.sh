@@ -116,7 +116,7 @@ for testcase in "$TEST_DIR"/*; do
 
             if [ $exit_code -ne $expected_exit ]; then
                 error=true
-                LAST_CMD="$OUTPUT_DIR/main (exit code was $exit_code, expected 123)"
+                LAST_CMD="$OUTPUT_DIR/main (exit code was $exit_code, expected $expected_exit)"
             fi
         fi
 

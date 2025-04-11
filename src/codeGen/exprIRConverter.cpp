@@ -424,8 +424,34 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
 
   // need double check
   case parsetree::ast::BinOp::OpType::InstanceOf: {
-    if (op->getResultType() && op->getResultType()->isBoolean()) {
-      return std::make_shared<tir::Const>(1);
+    if (op->getLhsType() && op->getRhsType()) {
+      auto lhsType = op->getLhsType();
+      auto rhsType = op->getRhsType();
+      if (auto lhsRefType =
+              std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+                  lhsType)) {
+        if (auto rhsRefType =
+                std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+                    rhsType)) {
+          if (!(lhsRefType->isResolved() && rhsRefType->isResolved())) {
+            throw std::runtime_error("InstanceOf operands are not resolved");
+          }
+          auto lhsAstDecl = lhsRefType->getResolvedDecl()->getAstNode();
+          auto rhsAstDecl = rhsRefType->getResolvedDecl()->getAstNode();
+          auto lhsDecl =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(lhsAstDecl);
+          auto rhsDecl =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(rhsAstDecl);
+          if (!lhsDecl || !rhsDecl) {
+            throw std::runtime_error("InstanceOf operands are not classes");
+          }
+          if (isSuperClass(rhsDecl, lhsDecl)) {
+            // return std::make_shared<tir::Const>(1);
+            return std::make_shared<tir::BinOp>(
+                tir::BinOp::OpType::NEQ, lhs, std::make_shared<tir::Const>(0));
+          }
+        }
+      }
     }
     return std::make_shared<tir::Const>(0);
   }
@@ -781,14 +807,31 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
   std::vector<std::shared_ptr<tir::Stmt>> seq_vec = {move1, move2};
 
   // initialize all fields
-  // TODO: we need to initialize all fields!
+  if (innerExprConverter == nullptr) {
+    throw std::runtime_error(
+        "innerExprConverter should not recursively resolve");
+  }
+
   int count = 0;
   for (auto &field : classDV->fieldVector) {
+    if (!field)
+      continue;
+    std::shared_ptr<tir::Expr> initExpr = nullptr;
+    if (!field->hasInit()) {
+      initExpr = std::make_shared<tir::Const>(0);
+    } else {
+      auto initializer = field->getInitializer();
+      initExpr = innerExprConverter->evaluateList(initializer->getExprNodes());
+    }
+    if (!initExpr) {
+      throw std::runtime_error("Could not resolve field at class creation");
+    }
+
     seq_vec.push_back(std::make_shared<tir::Move>(
         std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
             tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(obj_ref),
             std::make_shared<tir::Const>(4 * (count + 1)))),
-        std::make_shared<tir::Const>(0)));
+        initExpr));
     count++;
   }
 

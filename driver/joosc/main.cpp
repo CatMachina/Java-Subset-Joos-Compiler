@@ -255,12 +255,14 @@ int main(int argc, char **argv) {
     }
     std::cout << "Done building CFGs....\n";
 
-    // astManager->getASTs()[0]->print(std::cout);
+    astManager->getASTs()[0]->print(std::cout);
 
     // code gen
     auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
-    auto exprConverter =
+    auto innerExprConverter =
         std::make_shared<codegen::ExprIRConverter>(astManager, codeGenLabels);
+    auto exprConverter = std::make_shared<codegen::ExprIRConverter>(
+        astManager, codeGenLabels, innerExprConverter);
 
     // for object oriented
     codegen::DispatchVectorBuilder().visit(astManager);

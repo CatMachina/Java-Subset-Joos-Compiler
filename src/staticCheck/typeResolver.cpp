@@ -553,6 +553,8 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
   case parsetree::ast::BinOp::OpType::InstanceOf: {
     if ((lhs->isNull() || isReferenceOrArrType(lhs)) &&
         (isReferenceOrArrType(rhs)) && isValidCast(rhs, lhs)) {
+      op->setLhsType(lhs);
+      op->setRhsType(rhs);
       return op->resolveResultType(
           envManager->BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
     }

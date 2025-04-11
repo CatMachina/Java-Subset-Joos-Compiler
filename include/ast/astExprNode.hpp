@@ -351,8 +351,20 @@ public:
 
   OpType getOp() const { return op; }
 
+  std::shared_ptr<parsetree::ast::Type> getLhsType() const { return lhsType; }
+  std::shared_ptr<parsetree::ast::Type> getRhsType() const { return rhsType; }
+
+  void setLhsType(std::shared_ptr<parsetree::ast::Type> type) {
+    lhsType = type;
+  }
+  void setRhsType(std::shared_ptr<parsetree::ast::Type> type) {
+    rhsType = type;
+  }
+
 private:
   OpType op;
+  std::shared_ptr<parsetree::ast::Type> lhsType;
+  std::shared_ptr<parsetree::ast::Type> rhsType;
 };
 
 class Assignment : public ExprOp {
