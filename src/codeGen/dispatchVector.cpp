@@ -6,12 +6,11 @@ DispatchVector::DispatchVector(
     std::shared_ptr<parsetree::ast::ClassDecl> classDecl) {
   bool foundObject = false;
   for (auto &superClass : classDecl->getSuperClasses()) {
-    if (!superClass || !superClass->getResolvedDecl() ||
-        !superClass->getResolvedDecl())
+    if (!superClass || !superClass->getResolvedDecl().getAstNode())
       continue;
     // Cast to class
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        superClass->getResolvedDecl()->getAstNode());
+        superClass->getResolvedDecl().getAstNode());
 
     // std::cout << "for class " << classDecl->getFullName() << " found "
     //           << superClassDecl->getFullName() << std::endl;
@@ -32,14 +31,14 @@ DispatchVector::DispatchVector(
   fieldVector.insert(fieldVector.end(), classFields.begin(), classFields.end());
 
   int maxColour = -1;
-  for (auto &method : classDecl->getMethods()) {
+  for (auto &method : classDecl->getAllMethods()) {
     if (!method || method->isConstructor())
       continue;
     int colour = DispatchVectorBuilder::getAssignment(method);
     maxColour = std::max(colour, maxColour);
   }
   methodVector.resize(maxColour + 1, nullptr);
-  for (auto &method : classDecl->getMethods()) {
+  for (auto &method : classDecl->getAllMethods()) {
     if (!method || method->isConstructor())
       continue;
     int colour = DispatchVectorBuilder::getAssignment(method);
@@ -51,6 +50,9 @@ DispatchVector::DispatchVector(
 void DispatchVectorBuilder::addMethodsToGraph(
     std::unordered_set<std::shared_ptr<parsetree::ast::MethodDecl>> methods) {
   graph.minColours = std::max(graph.minColours, methods.size());
+  // for (auto &method : methods) {
+  //   std::cout << "method: " << method->getFullName() << std::endl;
+  // }
 
   for (auto &method : methods) {
     if (method->isConstructor())

@@ -54,6 +54,25 @@ public:
     return (it != children.end()) ? it->second : nullptr;
   }
 
+  std::optional<packageChild>
+  findDeclRecursive(const std::string &targetName) const {
+    for (const auto &[key, value] : children) {
+      if (auto declPtr = std::get_if<std::shared_ptr<Decl>>(&value)) {
+        if (*declPtr && key == targetName) {
+          return value;
+        }
+      } else if (auto pkgPtr = std::get_if<std::shared_ptr<Package>>(&value)) {
+        if (*pkgPtr) {
+          auto result = (*pkgPtr)->findDeclRecursive(targetName);
+          if (result.has_value()) {
+            return result;
+          }
+        }
+      }
+    }
+    return std::nullopt;
+  }
+
   void printStructure(int depth = 0) const {
     for (int i = 0; i < depth; ++i)
       std::cout << "  ";

@@ -23,12 +23,11 @@ static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
   auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
 
   for (auto &superClass : childDecl->getSuperClasses()) {
-    if (!superClass || !superClass->getResolvedDecl() ||
-        !superClass->getResolvedDecl())
+    if (!superClass || !superClass->getResolvedDecl().getAstNode())
       continue;
     // Cast to class
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        superClass->getResolvedDecl()->getAstNode());
+        superClass->getResolvedDecl().getAstNode());
 
     if (superClassDecl == superDecl)
       return true;
@@ -479,8 +478,8 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
           if (!(lhsRefType->isResolved() && rhsRefType->isResolved())) {
             throw std::runtime_error("InstanceOf operands are not resolved");
           }
-          auto lhsAstDecl = lhsRefType->getResolvedDecl()->getAstNode();
-          auto rhsAstDecl = rhsRefType->getResolvedDecl()->getAstNode();
+          auto lhsAstDecl = lhsRefType->getResolvedDecl().getAstNode();
+          auto rhsAstDecl = rhsRefType->getResolvedDecl().getAstNode();
           auto lhsDecl =
               std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(lhsAstDecl);
           auto rhsDecl =
@@ -842,7 +841,7 @@ std::shared_ptr<tir::Expr> ExprIRConverter::evalNewObject(
   }
 
   auto typeClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-      typeRefType->getResolvedDecl()->getAstNode());
+      typeRefType->getResolvedDecl().getAstNode());
 
   // std::cout << "Class creation!" << std::endl;
   // std::cout << "Type Class: " << typeClass->getName() << std::endl;
@@ -1306,7 +1305,7 @@ ExprIRConverter::evalCast(std::shared_ptr<parsetree::ast::Cast> &op,
         throw std::runtime_error("Invalid cast to non resolved reference type");
       }
       auto resultClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-          typeRef->getResolvedDecl()->getAstNode());
+          typeRef->getResolvedDecl().getAstNode());
       if (!resultClass) {
         throw std::runtime_error(
             "Invalid cast to reference type not resolved to class");

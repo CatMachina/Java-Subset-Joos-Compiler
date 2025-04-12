@@ -74,6 +74,28 @@ public:
     return fullName;
   }
 };
+} // namespace parsetree::ast
+
+namespace static_check {
+class Decl {
+  std::shared_ptr<parsetree::ast::Decl> astNode;
+
+public:
+  explicit Decl(std::shared_ptr<parsetree::ast::Decl> node) : astNode(node) {}
+  void printDecl(int depth = 0) const {
+    for (int i = 0; i < depth; ++i)
+      std::cout << "  ";
+    std::cout << "(Decl: " << astNode->getName() << ")"
+              << "\n";
+  }
+  std::string getName() const { return astNode->getName(); }
+  std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode; }
+
+  bool operator==(const Decl &other) const { return astNode == other.astNode; }
+};
+} // namespace static_check
+
+namespace parsetree::ast {
 
 class CodeBody : virtual public AstNode {
 public:
@@ -208,7 +230,7 @@ public:
 
 class ReferenceType : public Type {
   std::shared_ptr<Decl> decl;
-  std::shared_ptr<static_check::Decl> resolvedDecl;
+  static_check::Decl resolvedDecl = static_check::Decl{nullptr};
 
 protected:
   // Only used by unresolved types.
@@ -220,18 +242,18 @@ public:
 
   bool isString() const override;
 
-  bool isResolved() const override { return resolvedDecl != nullptr; }
+  bool isResolved() const override {
+    return resolvedDecl.getAstNode() != nullptr;
+  }
   std::shared_ptr<Decl> getAsDecl() const override {
     if (!decl && !isResolved())
       throw std::runtime_error("Decl not resolved");
     return decl;
   }
 
-  void setResolvedDecl(const std::shared_ptr<static_check::Decl> resolvedDecl);
+  void setResolvedDecl(static_check::Decl resolvedDecl);
 
-  std::shared_ptr<static_check::Decl> getResolvedDecl() { return resolvedDecl; }
-
-  std::shared_ptr<Decl> getResolvedDeclAst() { return decl; }
+  static_check::Decl getResolvedDecl() { return resolvedDecl; }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override;
 
@@ -263,6 +285,12 @@ public:
 
   void addIdentifier(std::string identifier) {
     identifiers.emplace_back(identifier);
+  }
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override {
+    printIndent(os, indent + 1);
+    return os << "(UnresolvedType " << toString() << ")"
+              << "\n";
   }
 };
 
@@ -349,193 +377,6 @@ public:
     }
     children.push_back(std::dynamic_pointer_cast<AstNode>(body));
     return children;
-  }
-};
-
-class ClassDecl : virtual public CodeBody,
-                  virtual public Decl,
-                  public std::enable_shared_from_this<ClassDecl> {
-  std::shared_ptr<Modifiers> modifiers;
-  std::vector<std::shared_ptr<ReferenceType>> superClasses;
-  std::vector<std::shared_ptr<ReferenceType>> interfaces;
-  std::vector<std::shared_ptr<Decl>> classBodyDecls;
-  std::shared_ptr<ReferenceType> objectType;
-
-public:
-  ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
-            std::shared_ptr<ReferenceType> superClass,
-            std::shared_ptr<ReferenceType> objectType,
-            std::vector<std::shared_ptr<ReferenceType>> interfaces,
-            std::vector<std::shared_ptr<Decl>> classBodyDecls);
-
-  ClassDecl(std::string name) : Decl{name} {}
-
-  std::ostream &print(std::ostream &os, int indent = 0) const override;
-
-  std::vector<std::shared_ptr<ReferenceType>> getSuperClasses() {
-    return superClasses;
-  }
-
-  std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
-    return interfaces;
-  }
-
-  std::vector<std::shared_ptr<Decl>> getClassMembers() {
-    return classBodyDecls;
-  }
-
-  std::shared_ptr<Modifiers> getModifiers() { return modifiers; }
-
-  std::vector<std::shared_ptr<FieldDecl>> getFields() const {
-    std::vector<std::shared_ptr<FieldDecl>> fields;
-
-    for (const auto &decl : classBodyDecls) {
-      if (auto fieldDecl = std::dynamic_pointer_cast<FieldDecl>(decl)) {
-        fields.push_back(fieldDecl);
-      }
-    }
-
-    return fields;
-  }
-
-  int getFieldOffset(std::shared_ptr<FieldDecl> field) const {
-    int offset = 0;
-    for (const auto &decl : classBodyDecls) {
-      if (auto fieldDecl = std::dynamic_pointer_cast<FieldDecl>(decl)) {
-        if (fieldDecl == field) {
-          return offset;
-        }
-        offset += 1;
-      }
-    }
-
-    return -1;
-  }
-
-  std::vector<std::shared_ptr<MethodDecl>> getMethods() const {
-    std::vector<std::shared_ptr<MethodDecl>> methods;
-
-    for (const auto &decl : classBodyDecls) {
-      if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
-        methods.push_back(methodDecl);
-      }
-    }
-
-    return methods;
-  }
-
-  std::unordered_set<std::shared_ptr<MethodDecl>> getAllMethods() const;
-
-  std::vector<std::shared_ptr<MethodDecl>> getConstructors() const;
-
-  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::vector<std::shared_ptr<AstNode>> children;
-    for (const auto &node : classBodyDecls) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : interfaces) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : superClasses) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    // // do we need this
-    // for (const auto &node : getFields()) {
-    //   children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    // }
-    // for (const auto &node : getMethods()) {
-    //   children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    // }
-    return children;
-  }
-
-  void setParent(std::shared_ptr<CodeBody> parent) override;
-
-  std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
-
-  // WARNING - ONLY USE FOR java.lang.Object
-  void clearSuperClasses() { superClasses.clear(); }
-
-  std::shared_ptr<CodeBody> asCodeBody() const override {
-    auto ptr1 = std::const_pointer_cast<ClassDecl>(shared_from_this());
-    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
-    if (!ptr)
-      throw std::runtime_error("Failed to cast to CodeBody");
-    return ptr;
-    // return std::static_pointer_cast<CodeBody>(shared_from_this());
-  }
-  std::shared_ptr<Decl> asDecl() const override {
-    auto ptr1 = std::const_pointer_cast<ClassDecl>(shared_from_this());
-    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
-    if (!ptr)
-      throw std::runtime_error("Failed to cast to CodeBody");
-    return ptr;
-    // return std::static_pointer_cast<Decl>(shared_from_this());
-  }
-};
-
-class InterfaceDecl : virtual public CodeBody,
-                      virtual public Decl,
-                      public std::enable_shared_from_this<InterfaceDecl> {
-  std::shared_ptr<Modifiers> modifiers;
-  std::vector<std::shared_ptr<ReferenceType>> interfaces;
-  std::vector<std::shared_ptr<Decl>> interfaceBodyDecls;
-  std::shared_ptr<ReferenceType> objectType;
-
-public:
-  InterfaceDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
-                std::vector<std::shared_ptr<ReferenceType>> interfaces,
-                std::shared_ptr<ReferenceType> objectType,
-                std::vector<std::shared_ptr<Decl>> interfaceBody);
-
-  std::ostream &print(std::ostream &os, int indent = 0) const;
-
-  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
-    std::vector<std::shared_ptr<AstNode>> children;
-    for (const auto &node : interfaces) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    for (const auto &node : interfaceBodyDecls) {
-      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
-    }
-    return children;
-  }
-
-  std::vector<std::shared_ptr<MethodDecl>> getMethods() {
-    std::vector<std::shared_ptr<MethodDecl>> methods;
-
-    for (const auto &decl : interfaceBodyDecls) {
-      if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
-        methods.push_back(methodDecl);
-      }
-    }
-
-    return methods;
-  }
-
-  std::unordered_set<std::shared_ptr<MethodDecl>> getAllMethods() const;
-
-  std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
-    return interfaces;
-  }
-
-  void setParent(std::shared_ptr<CodeBody> parent) override;
-
-  std::shared_ptr<CodeBody> asCodeBody() const override {
-    auto ptr1 = std::const_pointer_cast<InterfaceDecl>(shared_from_this());
-    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
-    if (!ptr)
-      throw std::runtime_error("Failed to cast to CodeBody");
-    return ptr;
-    // return std::static_pointer_cast<CodeBody>(shared_from_this());
-  }
-  std::shared_ptr<Decl> asDecl() const override {
-    // return std::static_pointer_cast<Decl>(shared_from_this());
-    auto ptr1 = std::const_pointer_cast<InterfaceDecl>(shared_from_this());
-    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
-    if (!ptr)
-      throw std::runtime_error("Failed to cast to CodeBody");
-    return ptr;
   }
 };
 
@@ -757,6 +598,202 @@ public:
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override;
+};
+
+class ClassDecl : virtual public CodeBody,
+                  virtual public Decl,
+                  public std::enable_shared_from_this<ClassDecl> {
+  std::shared_ptr<Modifiers> modifiers;
+  std::vector<std::shared_ptr<ReferenceType>> superClasses;
+  std::vector<std::shared_ptr<ReferenceType>> interfaces;
+  std::vector<std::shared_ptr<Decl>> classBodyDecls;
+  std::shared_ptr<ReferenceType> objectType;
+
+  std::unordered_set<std::shared_ptr<MethodDecl>> allMethods;
+
+public:
+  ClassDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
+            std::shared_ptr<ReferenceType> superClass,
+            std::shared_ptr<ReferenceType> objectType,
+            std::vector<std::shared_ptr<ReferenceType>> interfaces,
+            std::vector<std::shared_ptr<Decl>> classBodyDecls);
+
+  ClassDecl(std::string name) : Decl{name} {}
+
+  std::ostream &print(std::ostream &os, int indent = 0) const override;
+
+  std::vector<std::shared_ptr<ReferenceType>> getSuperClasses() {
+    return superClasses;
+  }
+
+  std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
+    return interfaces;
+  }
+
+  std::vector<std::shared_ptr<Decl>> getClassMembers() {
+    return classBodyDecls;
+  }
+
+  std::shared_ptr<Modifiers> getModifiers() { return modifiers; }
+
+  std::vector<std::shared_ptr<FieldDecl>> getFields() const {
+    std::vector<std::shared_ptr<FieldDecl>> fields;
+
+    for (const auto &decl : classBodyDecls) {
+      if (auto fieldDecl = std::dynamic_pointer_cast<FieldDecl>(decl)) {
+        fields.push_back(fieldDecl);
+      }
+    }
+
+    return fields;
+  }
+
+  int getFieldOffset(std::shared_ptr<FieldDecl> field) const {
+    int offset = 0;
+    for (const auto &decl : classBodyDecls) {
+      if (auto fieldDecl = std::dynamic_pointer_cast<FieldDecl>(decl)) {
+        if (fieldDecl == field) {
+          return offset;
+        }
+        offset += 1;
+      }
+    }
+
+    return -1;
+  }
+
+  std::vector<std::shared_ptr<MethodDecl>> getMethods() const {
+    std::vector<std::shared_ptr<MethodDecl>> methods;
+
+    for (const auto &decl : classBodyDecls) {
+      if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+        methods.push_back(methodDecl);
+      }
+    }
+
+    return methods;
+  }
+
+  std::unordered_set<std::shared_ptr<MethodDecl>> &getAllMethods() {
+    return allMethods;
+  }
+
+  std::vector<std::shared_ptr<MethodDecl>> getConstructors() const;
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &node : classBodyDecls) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : interfaces) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : superClasses) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    // // do we need this
+    // for (const auto &node : getFields()) {
+    //   children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    // }
+    // for (const auto &node : getMethods()) {
+    //   children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    // }
+    return children;
+  }
+
+  void setParent(std::shared_ptr<CodeBody> parent) override;
+
+  std::shared_ptr<Modifiers> getModifiers() const { return modifiers; }
+
+  // WARNING - ONLY USE FOR java.lang.Object
+  void clearSuperClasses() { superClasses.clear(); }
+
+  std::shared_ptr<CodeBody> asCodeBody() const override {
+    auto ptr1 = std::const_pointer_cast<ClassDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<CodeBody>(shared_from_this());
+  }
+  std::shared_ptr<Decl> asDecl() const override {
+    auto ptr1 = std::const_pointer_cast<ClassDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<Decl>(shared_from_this());
+  }
+};
+
+class InterfaceDecl : virtual public CodeBody,
+                      virtual public Decl,
+                      public std::enable_shared_from_this<InterfaceDecl> {
+  std::shared_ptr<Modifiers> modifiers;
+  std::vector<std::shared_ptr<ReferenceType>> interfaces;
+  std::vector<std::shared_ptr<Decl>> interfaceBodyDecls;
+  std::shared_ptr<ReferenceType> objectType;
+
+  std::unordered_set<std::shared_ptr<MethodDecl>> allMethods;
+
+public:
+  InterfaceDecl(std::shared_ptr<Modifiers> modifiers, std::string name,
+                std::vector<std::shared_ptr<ReferenceType>> interfaces,
+                std::shared_ptr<ReferenceType> objectType,
+                std::vector<std::shared_ptr<Decl>> interfaceBody);
+
+  std::ostream &print(std::ostream &os, int indent = 0) const;
+
+  std::vector<std::shared_ptr<AstNode>> getChildren() const override {
+    std::vector<std::shared_ptr<AstNode>> children;
+    for (const auto &node : interfaces) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    for (const auto &node : interfaceBodyDecls) {
+      children.push_back(std::dynamic_pointer_cast<AstNode>(node));
+    }
+    return children;
+  }
+
+  std::vector<std::shared_ptr<MethodDecl>> getMethods() {
+    std::vector<std::shared_ptr<MethodDecl>> methods;
+
+    for (const auto &decl : interfaceBodyDecls) {
+      if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+        methods.push_back(methodDecl);
+      }
+    }
+
+    return methods;
+  }
+
+  std::unordered_set<std::shared_ptr<MethodDecl>> &getAllMethods() {
+    return allMethods;
+  }
+
+  std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
+    return interfaces;
+  }
+
+  void setParent(std::shared_ptr<CodeBody> parent) override;
+
+  std::shared_ptr<CodeBody> asCodeBody() const override {
+    auto ptr1 = std::const_pointer_cast<InterfaceDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<CodeBody>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+    // return std::static_pointer_cast<CodeBody>(shared_from_this());
+  }
+
+  std::shared_ptr<Decl> asDecl() const override {
+    // return std::static_pointer_cast<Decl>(shared_from_this());
+    auto ptr1 = std::const_pointer_cast<InterfaceDecl>(shared_from_this());
+    auto ptr = std::dynamic_pointer_cast<Decl>(ptr1);
+    if (!ptr)
+      throw std::runtime_error("Failed to cast to CodeBody");
+    return ptr;
+  }
 };
 
 // Statements /////////////////////////////////////////////////////////////
@@ -1234,20 +1271,3 @@ private:
 };
 
 } // namespace parsetree::ast
-
-namespace static_check {
-class Decl {
-  std::shared_ptr<parsetree::ast::Decl> astNode;
-
-public:
-  explicit Decl(std::shared_ptr<parsetree::ast::Decl> node) : astNode(node) {}
-  void printDecl(int depth = 0) const {
-    for (int i = 0; i < depth; ++i)
-      std::cout << "  ";
-    std::cout << "(Decl: " << astNode->getName() << ")"
-              << "\n";
-  }
-  std::string getName() const { return astNode->getName(); }
-  std::shared_ptr<parsetree::ast::Decl> getAstNode() const { return astNode; }
-};
-} // namespace static_check

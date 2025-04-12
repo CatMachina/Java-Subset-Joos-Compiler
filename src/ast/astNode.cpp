@@ -774,7 +774,7 @@ bool ReferenceType::operator==(const Type &other) const {
     return false;
   }
 
-  if (resolvedDecl->getAstNode() != otherRef->resolvedDecl->getAstNode()) {
+  if (resolvedDecl.getAstNode() != otherRef->resolvedDecl.getAstNode()) {
     return false;
   }
 
@@ -785,7 +785,7 @@ std::ostream &ReferenceType::print(std::ostream &os, int indent) const {
   printIndent(os, indent);
   std::string name = "";
   if (isResolved()) {
-    auto decl = std::dynamic_pointer_cast<Decl>(resolvedDecl->getAstNode());
+    auto decl = std::dynamic_pointer_cast<Decl>(resolvedDecl.getAstNode());
     if (!decl) {
       throw std::runtime_error("Decl not resolved");
     }
@@ -795,26 +795,31 @@ std::ostream &ReferenceType::print(std::ostream &os, int indent) const {
   return os;
 }
 
-void ReferenceType::setResolvedDecl(
-    const std::shared_ptr<static_check::Decl> resolvedDecl) {
+void ReferenceType::setResolvedDecl(static_check::Decl resolvedDecl) {
   if (isResolved() && resolvedDecl != this->resolvedDecl) {
     throw std::runtime_error("Decl already resolved");
   }
-  this->resolvedDecl = resolvedDecl;
-  auto declAst = resolvedDecl->getAstNode();
-  if (!declAst) {
-    throw std::runtime_error("Decl not resolved");
-  }
-  decl = std::dynamic_pointer_cast<Decl>(declAst);
-  std::cout << "setResolvedDecl for " << decl->getFullName() << std::endl;
+
+  auto decl = std::dynamic_pointer_cast<Decl>(resolvedDecl.getAstNode());
   if (!decl) {
-    throw std::runtime_error("Decl not resolved");
+    throw std::runtime_error("Decl not resolved when setResolvedDecl");
   }
+  std::cout << "setResolvedDecl for " << decl->getFullName() << std::endl;
+  this->resolvedDecl = resolvedDecl;
+  // auto declAst = resolvedDecl->getAstNode();
+  // if (!declAst) {
+  //   throw std::runtime_error("Decl not resolved");
+  // }
+  // decl = std::dynamic_pointer_cast<Decl>(declAst);
+  // std::cout << "setResolvedDecl for " << decl->getFullName() << std::endl;
+  // if (!decl) {
+  //   throw std::runtime_error("Decl not resolved");
+  // }
 }
 
 bool ReferenceType::isString() const {
   if (isResolved()) {
-    auto decl = std::dynamic_pointer_cast<Decl>(resolvedDecl->getAstNode());
+    auto decl = std::dynamic_pointer_cast<Decl>(resolvedDecl.getAstNode());
     if (!decl) {
       throw std::runtime_error("Decl not resolved");
     }
@@ -823,61 +828,65 @@ bool ReferenceType::isString() const {
   return false;
 }
 
-std::unordered_set<std::shared_ptr<MethodDecl>>
-ClassDecl::getAllMethods() const {
-  std::unordered_set<std::shared_ptr<MethodDecl>> methods;
-  for (const auto &decl : classBodyDecls) {
-    if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
-      methods.insert(methodDecl);
-    }
-  }
+// std::unordered_set<std::shared_ptr<MethodDecl>>
+// ClassDecl::getAllMethods() {
+//   if (allMethods.size() > 0) {
+//     return allMethods;
+//   }
+//   for (const auto &decl : classBodyDecls) {
+//     if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+//       allMethods.insert(methodDecl);
+//     }
+//   }
 
-  for (const auto &interface : interfaces) {
-    auto interfaceDecl = std::dynamic_pointer_cast<InterfaceDecl>(
-        interface->getResolvedDeclAst());
-    if (!interfaceDecl) {
-      throw std::runtime_error("Interface Decl not resolved");
-    }
-    for (const auto &method : interfaceDecl->getAllMethods()) {
-      methods.insert(method);
-    }
-  }
+//   for (const auto &interface : interfaces) {
+//     auto interfaceDecl = std::dynamic_pointer_cast<InterfaceDecl>(
+//         interface->getResolvedDeclAst());
+//     if (!interfaceDecl) {
+//       throw std::runtime_error("Interface Decl not resolved");
+//     }
+//     for (const auto &method : interfaceDecl->getAllMethods()) {
+//       allMethods.insert(method);
+//     }
+//   }
 
-  for (const auto &superClass : superClasses) {
-    auto superClassDecl =
-        std::dynamic_pointer_cast<ClassDecl>(superClass->getResolvedDeclAst());
-    if (!superClassDecl) {
-      throw std::runtime_error("Super Class Decl not resolved");
-    }
-    for (const auto &method : superClassDecl->getAllMethods()) {
-      methods.insert(method);
-    }
-  }
+//   for (const auto &superClass : superClasses) {
+//     auto superClassDecl =
+//         std::dynamic_pointer_cast<ClassDecl>(superClass->getResolvedDeclAst());
+//     if (!superClassDecl) {
+//       throw std::runtime_error("Super Class Decl not resolved");
+//     }
+//     for (const auto &method : superClassDecl->getAllMethods()) {
+//       allMethods.insert(method);
+//     }
+//   }
 
-  return methods;
-}
+//   return allMethods;
+// }
 
-std::unordered_set<std::shared_ptr<MethodDecl>>
-InterfaceDecl::getAllMethods() const {
-  std::unordered_set<std::shared_ptr<MethodDecl>> methods;
-  for (const auto &decl : interfaceBodyDecls) {
-    if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
-      methods.insert(methodDecl);
-    }
-  }
+// std::unordered_set<std::shared_ptr<MethodDecl>>
+// InterfaceDecl::getAllMethods() {
+//   if (allMethods.size() > 0) {
+//     return allMethods;
+//   }
+//   for (const auto &decl : interfaceBodyDecls) {
+//     if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+//       allMethods.insert(methodDecl);
+//     }
+//   }
 
-  for (const auto &interface : interfaces) {
-    auto interfaceDecl = std::dynamic_pointer_cast<InterfaceDecl>(
-        interface->getResolvedDeclAst());
-    if (!interfaceDecl) {
-      throw std::runtime_error("Interface Decl not resolved");
-    }
-    for (const auto &method : interfaceDecl->getAllMethods()) {
-      methods.insert(method);
-    }
-  }
+//   for (const auto &interface : interfaces) {
+//     auto interfaceDecl = std::dynamic_pointer_cast<InterfaceDecl>(
+//         interface->getResolvedDeclAst());
+//     if (!interfaceDecl) {
+//       throw std::runtime_error("Interface Decl not resolved");
+//     }
+//     for (const auto &method : interfaceDecl->getAllMethods()) {
+//       allMethods.insert(method);
+//     }
+//   }
 
-  return methods;
-}
+//   return allMethods;
+// }
 
 } // namespace parsetree::ast

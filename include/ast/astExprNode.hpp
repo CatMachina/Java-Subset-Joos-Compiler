@@ -26,8 +26,7 @@ public:
       if (!refType)
         return;
       if (!(refType->isResolved()))
-        refType->setResolvedDecl(
-            std::make_shared<static_check::Decl>(resolvedDecl));
+        refType->setResolvedDecl(static_check::Decl{resolvedDecl});
     }
   }
 

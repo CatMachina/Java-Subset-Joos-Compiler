@@ -56,7 +56,6 @@ add_library(CompilerLib
 
     # ast
     "src/ast/astNode.cpp"
-    "src/ast/typeLinkerWorkaround.cpp"
 
     # parser
     "src/lexer/joos1w.cpp"

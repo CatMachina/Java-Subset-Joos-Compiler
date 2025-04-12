@@ -9,7 +9,7 @@
 #include <vector>
 
 #include "ast/ast.hpp"
-#include "ast/typeLinkerWorkaround.hpp"
+#include "ast/populateMethodPass.hpp"
 #include "parseTree/parseTree.hpp"
 #include "parseTree/parseTreeVisitor.hpp"
 #include "parseTree/sourceNode.hpp"
@@ -180,6 +180,23 @@ int main(int argc, char **argv) {
     typeLinker->populateJavaLang();
     std::cout << "Passed type linking\n";
 
+    if (astManager->allDecls.size() != astManager->getASTs().size()) {
+      std::cerr
+          << "Mismatch from number of ASTs to number of classes/interfaces"
+          << std::endl;
+      std::cerr << "Number of classes/interfaces: "
+                << astManager->allDecls.size() << ", ";
+      std::cerr << "Number of ASTs: " << astManager->getASTs().size()
+                << std::endl;
+      return EXIT_ERROR;
+    }
+
+    // astManager->getASTs()[2]->print(std::cout);
+
+    auto populateMethodPass =
+        parsetree::ast::PopulateMethodPass(astManager, typeLinker);
+    populateMethodPass.populate();
+
     // hierarchy checking
     auto hierarchyChecker =
         std::make_shared<static_check::HierarchyCheck>(rootPackage);
@@ -258,7 +275,7 @@ int main(int argc, char **argv) {
     }
     std::cout << "Done building CFGs....\n";
 
-    astManager->getASTs()[0]->print(std::cout);
+    // astManager->getASTs()[0]->print(std::cout);
 
     // code gen
     auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
@@ -268,16 +285,15 @@ int main(int argc, char **argv) {
         astManager, codeGenLabels, innerExprConverter);
 
     // for object oriented
-    auto workaround =
-        std::make_shared<parsetree::ast::workaround::Workaround>(typeLinker);
-    workaround->visit(astManager);
-    auto dvBuilder = codegen::DispatchVectorBuilder(workaround);
+    auto dvBuilder = codegen::DispatchVectorBuilder();
     dvBuilder.visit(astManager);
     codegen::DispatchVectorBuilder::assignColours();
-    codegen::DispatchVectorBuilder::verifyColoured();
-
     // debug
-    dvBuilder.print();
+    for (auto &ast : astManager->getASTs()) {
+      dvBuilder.print(ast);
+    }
+
+    codegen::DispatchVectorBuilder::verifyColoured();
 
     // IR building
     auto tirBuilder =

@@ -25,7 +25,7 @@ GetTypeAsDecl(std::shared_ptr<parsetree::ast::Type> type,
               std::shared_ptr<parsetree::ast::ASTManager> manager) {
   if (auto refType =
           std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type)) {
-    return refType->getResolvedDecl()->getAstNode();
+    return refType->getResolvedDecl().getAstNode();
   } else if (type->isString()) {
     return manager->java_lang.String;
   } else if (type->isArray()) {

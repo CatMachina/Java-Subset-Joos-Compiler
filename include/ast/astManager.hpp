@@ -32,6 +32,8 @@ public:
     std::shared_ptr<ClassDecl> System;
     std::shared_ptr<InterfaceDecl> Serializable;
   } java_lang;
+
+  std::vector<std::shared_ptr<parsetree::ast::Decl>> allDecls;
 };
 
 } // namespace parsetree::ast

@@ -60,6 +60,19 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   if (!node)
     throw std::runtime_error("Node is null when resolving AST");
 
+  if (auto classDecl =
+          std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
+    // std::cout << "typeLinker pushing class " << classDecl->getFullName()
+    //           << " into allDecls\n";
+    astManager->allDecls.push_back(classDecl);
+  } else if (auto interfaceDecl =
+                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
+                     node)) {
+    // std::cout << "typeLinker pushing interface " << interfaceDecl->getFullName()
+    //           << " into allDecls\n";
+    astManager->allDecls.push_back(interfaceDecl);
+  }
+
   for (auto child : node->getChildren()) {
     if (!child)
       continue;
@@ -74,6 +87,9 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
         } else {
           resolveType(type);
         }
+      } else {
+        // std::cout << "skipping resolve type for ";
+        // type->print(std::cout);
       }
       if (!(type->isResolved()))
         throw std::runtime_error("Type still not resolved after resolveType");
@@ -90,6 +106,7 @@ void TypeLinker::resolve() {
   for (auto ast : astManager->getASTs()) {
     initContext(ast);
     resolveAST(ast->getBody());
+    // resolveAST(ast);
   }
 }
 
@@ -97,6 +114,12 @@ void TypeLinker::resolve() {
 
 void TypeLinker::initContext(
     std::shared_ptr<parsetree::ast::ProgramDecl> node) {
+  // std::cout << "initContext: ";
+  // if (node->isDefaultPackage()) {
+  //   std::cout << "default package" << std::endl;
+  // } else {
+  //   std::cout << node->getPackageName() << std::endl;
+  // }
   auto &context = contextMap[node];
   currentProgram = node;
   auto packageAstNode =
@@ -268,14 +291,19 @@ void TypeLinker::resolveType(
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(type);
   if (!unresolvedType)
     return;
-  // if (unresolvedType->isResolved())
-  //   return; // tbh should not happen
+  if (unresolvedType->isResolved())
+    return; // tbh should not happen
 
   if (unresolvedType->getIdentifiers().size() == 0)
     return; // ??
 
   Package::packageChild currentType;
   bool first = true;
+  // std::cout << "resolving type: ";
+  // for (auto &id : unresolvedType->getIdentifiers()) {
+  //   std::cout << id << " ";
+  // }
+  // std::cout << std::endl;
   for (auto &id : unresolvedType->getIdentifiers()) {
     if (first) {
       currentType = resolveSimpleName(id, program);
@@ -303,7 +331,67 @@ void TypeLinker::resolveType(
   if (!std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
     throw std::runtime_error("resolved type should be decl");
   }
-  unresolvedType->setResolvedDecl(std::get<std::shared_ptr<Decl>>(currentType));
+  // std::cout << "resolving unresolvedType: " << unresolvedType->toString()
+  //           << std::endl;
+  unresolvedType->setResolvedDecl(
+      *(std::get<std::shared_ptr<Decl>>(currentType)));
+  if (!unresolvedType->isResolved()) {
+    throw std::runtime_error("resolved type should be resolved");
+  }
+}
+
+std::shared_ptr<Decl> TypeLinker::resolveTypeAgain(
+    std::shared_ptr<parsetree::ast::Type> type,
+    std::shared_ptr<parsetree::ast::ProgramDecl> program) {
+  // only resolve if not resolved
+  auto unresolvedType =
+      std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(type);
+  if (!unresolvedType)
+    return nullptr;
+  if (unresolvedType->isResolved())
+    return nullptr; // tbh should not happen
+
+  if (unresolvedType->getIdentifiers().size() == 0)
+    return nullptr; // ??
+
+  Package::packageChild currentType;
+  bool first = true;
+  // std::cout << "resolving type again: ";
+  // for (auto &id : unresolvedType->getIdentifiers()) {
+  //   std::cout << id << " ";
+  // }
+  // std::cout << std::endl;
+  for (auto &id : unresolvedType->getIdentifiers()) {
+    if (first) {
+      currentType = resolveClassName(id);
+      if (std::holds_alternative<std::nullptr_t>(currentType)) {
+        currentType = resolveSimpleName(id, program);
+        if (std::holds_alternative<std::nullptr_t>(currentType)) {
+          throw std::runtime_error("Could not resolve type at " + id +
+                                   " due to failed resolveSimpleName and "
+                                   "resolveClassName at resolveTypeAgain");
+        }
+      }
+      first = false;
+    } else {
+      // interior nodes in the tree should not be decl
+      if (std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
+        throw std::runtime_error(
+            "resolving package should not be decl when resolving type");
+      }
+      auto pkg = std::get<std::shared_ptr<Package>>(currentType);
+      if (pkg->children.find(id) == pkg->children.end()) {
+        throw std::runtime_error("Could not resolve type " + id +
+                                 " since this is not found");
+      }
+      currentType = pkg->children.at(id);
+    }
+  }
+  // check the leaf node is decl
+  if (!std::holds_alternative<std::shared_ptr<Decl>>(currentType)) {
+    throw std::runtime_error("resolved type should be decl");
+  }
+  return std::get<std::shared_ptr<Decl>>(currentType);
 }
 
 Package::packageChild TypeLinker::resolveSimpleName(
@@ -315,6 +403,28 @@ Package::packageChild TypeLinker::resolveSimpleName(
   auto &context = contextMap[program];
   return context.find(simpleName) != context.end() ? context[simpleName]
                                                    : nullptr;
+}
+
+Package::packageChild
+TypeLinker::resolveClassName(const std::string &simpleName) {
+  for (const auto &[programDecl, packageMap] : contextMap) {
+    for (const auto &[key, value] : packageMap) {
+      if (auto declPtr = std::get_if<std::shared_ptr<Decl>>(&value)) {
+        if (*declPtr && key == simpleName) {
+          return value;
+        }
+      } else if (auto pkgPtr = std::get_if<std::shared_ptr<Package>>(&value)) {
+        if (*pkgPtr) {
+          auto result = (*pkgPtr)->findDeclRecursive(simpleName);
+          if (result.has_value()) {
+            return *result;
+          }
+        }
+      }
+    }
+  }
+
+  return nullptr;
 }
 
 Package::packageChild TypeLinker::resolveQualifiedName(
