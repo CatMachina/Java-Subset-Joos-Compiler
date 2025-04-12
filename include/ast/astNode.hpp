@@ -218,6 +218,8 @@ public:
   ReferenceType(std::shared_ptr<Decl> decl) : decl{decl} {}
   virtual std::string toString() const override { return "ReferenceType"; }
 
+  bool isString() const override;
+
   bool isResolved() const override { return resolvedDecl != nullptr; }
   std::shared_ptr<Decl> getAsDecl() const override {
     if (!decl && !isResolved())
@@ -225,14 +227,11 @@ public:
     return decl;
   }
 
-  void setResolvedDecl(const std::shared_ptr<static_check::Decl> resolvedDecl) {
-    if (isResolved() && resolvedDecl != this->resolvedDecl) {
-      throw std::runtime_error("Decl already resolved");
-    }
-    this->resolvedDecl = resolvedDecl;
-  }
+  void setResolvedDecl(const std::shared_ptr<static_check::Decl> resolvedDecl);
 
   std::shared_ptr<static_check::Decl> getResolvedDecl() { return resolvedDecl; }
+
+  std::shared_ptr<Decl> getResolvedDeclAst() { return decl; }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override;
 
@@ -425,6 +424,8 @@ public:
     return methods;
   }
 
+  std::unordered_set<std::shared_ptr<MethodDecl>> getAllMethods() const;
+
   std::vector<std::shared_ptr<MethodDecl>> getConstructors() const;
 
   std::vector<std::shared_ptr<AstNode>> getChildren() const override {
@@ -511,6 +512,8 @@ public:
 
     return methods;
   }
+
+  std::unordered_set<std::shared_ptr<MethodDecl>> getAllMethods() const;
 
   std::vector<std::shared_ptr<ReferenceType>> getInterfaces() {
     return interfaces;

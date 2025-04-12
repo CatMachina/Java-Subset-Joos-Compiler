@@ -496,7 +496,8 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
   case parsetree::ast::BinOp::OpType::Equal:
   case parsetree::ast::BinOp::OpType::NotEqual: {
     if ((lhs->isNumeric() && rhs->isNumeric()) ||
-        (lhs->isBoolean() && rhs->isBoolean())) {
+        (lhs->isBoolean() && rhs->isBoolean()) ||
+        (lhs->isString() && rhs->isString())) {
       return op->resolveResultType(
           envManager->BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
     }
@@ -511,6 +512,10 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
       return op->resolveResultType(
           envManager->BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
     }
+    std::cout << "lhs: ";
+    lhs->print(std::cout);
+    std::cout << "rhs: ";
+    rhs->print(std::cout);
     throw std::runtime_error("operands are not of the same type");
   }
 

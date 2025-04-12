@@ -200,11 +200,13 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       // resize the chars field to 4 * sizeof(value) + 8
       seqVec.push_back(std::make_shared<tir::Move>(
           std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(charsRefName)),
-          std::make_shared<tir::Const>(4 * val.length() + 8)));
+          tir::Call::makeMalloc(
+              std::make_shared<tir::Const>(4 * val.length() + 8))));
 
       // write size
       seqVec.push_back(std::make_shared<tir::Move>(
-          std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(charsRefName)),
+          std::make_shared<tir::Mem>(std::make_shared<tir::Mem>(
+              std::make_shared<tir::Temp>(charsRefName))),
           std::make_shared<tir::Const>(val.size())));
 
       // attach array DV

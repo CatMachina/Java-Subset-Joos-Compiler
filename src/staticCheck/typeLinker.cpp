@@ -268,8 +268,8 @@ void TypeLinker::resolveType(
       std::dynamic_pointer_cast<parsetree::ast::UnresolvedType>(type);
   if (!unresolvedType)
     return;
-  if (unresolvedType->isResolved())
-    return; // tbh should not happen
+  // if (unresolvedType->isResolved())
+  //   return; // tbh should not happen
 
   if (unresolvedType->getIdentifiers().size() == 0)
     return; // ??

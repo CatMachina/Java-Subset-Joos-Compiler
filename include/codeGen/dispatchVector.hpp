@@ -1,4 +1,5 @@
 #include "ast/ast.hpp"
+#include "ast/typeLinkerWorkaround.hpp"
 
 #include <set>
 
@@ -66,8 +67,10 @@ class DispatchVectorBuilder {
                                    std::shared_ptr<DispatchVector>>
       classDVs;
 
+  std::shared_ptr<parsetree::ast::workaround::Workaround> workaround;
+
   void addMethodsToGraph(
-      std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> methods);
+      std::unordered_set<std::shared_ptr<parsetree::ast::MethodDecl>> methods);
 
   void visitAST(std::shared_ptr<parsetree::ast::AstNode> node) {
     if (!node)
@@ -75,11 +78,19 @@ class DispatchVectorBuilder {
 
     if (auto classDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
-      addMethodsToGraph(classDecl->getMethods());
+      std::cout << "class: " << classDecl->getFullName() << std::endl;
+      for (auto method : workaround->getClassMethods(classDecl)) {
+        std::cout << "  method: " << method->getFullName() << std::endl;
+      }
+      addMethodsToGraph(workaround->getClassMethods(classDecl));
     } else if (auto interfaceDecl =
                    std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                        node)) {
-      addMethodsToGraph(interfaceDecl->getMethods());
+      std::cout << "interface: " << interfaceDecl->getFullName() << std::endl;
+      for (auto method : workaround->getInterfaceMethods(interfaceDecl)) {
+        std::cout << "  method: " << method->getFullName() << std::endl;
+      }
+      addMethodsToGraph(workaround->getInterfaceMethods(interfaceDecl));
     }
 
     for (const auto &child : node->getChildren()) {
@@ -90,7 +101,13 @@ class DispatchVectorBuilder {
   }
 
 public:
+  DispatchVectorBuilder(
+      std::shared_ptr<parsetree::ast::workaround::Workaround> workaround)
+      : workaround(workaround) {}
+
   static void assignColours() {
+    if (graph.neighbours.size() == 0)
+      return;
     auto firstVertex = graph.neighbours.begin()->first;
     graph.colour[firstVertex] = 1;
 
@@ -128,7 +145,10 @@ public:
     for (auto node : graph.methods) {
       int colour = graph.colour[node];
       if (colour <= 0) {
-        throw std::runtime_error("Method has not been assigned a colour");
+        node->print(std::cout);
+        throw std::runtime_error("In verifyColoured: Method has not been "
+                                 "assigned a colour with colour " +
+                                 std::to_string(colour));
       }
       for (auto neighbour : graph.neighbours[node]) {
         if (colour == graph.colour[neighbour]) {
@@ -146,7 +166,9 @@ public:
     }
     int colour = graph.colour[method];
     if (colour <= 0) {
-      throw std::runtime_error("Method has not been assigned a colour");
+      throw std::runtime_error("In getAssignment: Method has not been assigned "
+                               "a colour with colour " +
+                               std::to_string(colour));
     }
     return colour;
   }
@@ -168,6 +190,29 @@ public:
   void visit(std::shared_ptr<parsetree::ast::ASTManager> astManager) {
     for (auto ast : astManager->getASTs()) {
       visitAST(ast);
+    }
+  }
+
+  void
+  printClassDV(std::shared_ptr<parsetree::ast::ClassDecl> classDecl) const {
+    if (classDVs.find(classDecl) == classDVs.end()) {
+      throw std::runtime_error("Could not find classDV");
+    }
+    auto classDV = classDVs.at(classDecl);
+    std::cout << "==== " << classDecl->getFullName() << " ====\n";
+    int i = -1;
+    for (auto &method : classDV->methodVector) {
+      i++;
+      if (!method)
+        continue;
+      std::cout << "Method " << i << ": " << method->getFullName() << "\n";
+    }
+    std::cout << std::endl;
+  }
+
+  void print() const {
+    for (auto &classDV : classDVs) {
+      printClassDV(classDV.first);
     }
   }
 };

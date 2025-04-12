@@ -576,6 +576,8 @@ std::ostream &MethodDecl::print(std::ostream &os, int indent) const {
 
   // Print Modifiers
   printIndent(os, indent + 1);
+  os << "full name: " << getFullName() << "\n";
+  printIndent(os, indent + 1);
   os << "modifiers: {\n";
   printIndent(os, indent + 2);
   os << *modifiers << "\n";
@@ -791,6 +793,91 @@ std::ostream &ReferenceType::print(std::ostream &os, int indent) const {
   }
   os << "(ReferenceType " << name << ")\n";
   return os;
+}
+
+void ReferenceType::setResolvedDecl(
+    const std::shared_ptr<static_check::Decl> resolvedDecl) {
+  if (isResolved() && resolvedDecl != this->resolvedDecl) {
+    throw std::runtime_error("Decl already resolved");
+  }
+  this->resolvedDecl = resolvedDecl;
+  auto declAst = resolvedDecl->getAstNode();
+  if (!declAst) {
+    throw std::runtime_error("Decl not resolved");
+  }
+  decl = std::dynamic_pointer_cast<Decl>(declAst);
+  std::cout << "setResolvedDecl for " << decl->getFullName() << std::endl;
+  if (!decl) {
+    throw std::runtime_error("Decl not resolved");
+  }
+}
+
+bool ReferenceType::isString() const {
+  if (isResolved()) {
+    auto decl = std::dynamic_pointer_cast<Decl>(resolvedDecl->getAstNode());
+    if (!decl) {
+      throw std::runtime_error("Decl not resolved");
+    }
+    return decl->getName() == "String";
+  }
+  return false;
+}
+
+std::unordered_set<std::shared_ptr<MethodDecl>>
+ClassDecl::getAllMethods() const {
+  std::unordered_set<std::shared_ptr<MethodDecl>> methods;
+  for (const auto &decl : classBodyDecls) {
+    if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+      methods.insert(methodDecl);
+    }
+  }
+
+  for (const auto &interface : interfaces) {
+    auto interfaceDecl = std::dynamic_pointer_cast<InterfaceDecl>(
+        interface->getResolvedDeclAst());
+    if (!interfaceDecl) {
+      throw std::runtime_error("Interface Decl not resolved");
+    }
+    for (const auto &method : interfaceDecl->getAllMethods()) {
+      methods.insert(method);
+    }
+  }
+
+  for (const auto &superClass : superClasses) {
+    auto superClassDecl =
+        std::dynamic_pointer_cast<ClassDecl>(superClass->getResolvedDeclAst());
+    if (!superClassDecl) {
+      throw std::runtime_error("Super Class Decl not resolved");
+    }
+    for (const auto &method : superClassDecl->getAllMethods()) {
+      methods.insert(method);
+    }
+  }
+
+  return methods;
+}
+
+std::unordered_set<std::shared_ptr<MethodDecl>>
+InterfaceDecl::getAllMethods() const {
+  std::unordered_set<std::shared_ptr<MethodDecl>> methods;
+  for (const auto &decl : interfaceBodyDecls) {
+    if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+      methods.insert(methodDecl);
+    }
+  }
+
+  for (const auto &interface : interfaces) {
+    auto interfaceDecl = std::dynamic_pointer_cast<InterfaceDecl>(
+        interface->getResolvedDeclAst());
+    if (!interfaceDecl) {
+      throw std::runtime_error("Interface Decl not resolved");
+    }
+    for (const auto &method : interfaceDecl->getAllMethods()) {
+      methods.insert(method);
+    }
+  }
+
+  return methods;
 }
 
 } // namespace parsetree::ast

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ast/ast.hpp"
+#include "ast/typeLinkerWorkaround.hpp"
 #include "parseTree/parseTree.hpp"
 #include "parseTree/parseTreeVisitor.hpp"
 #include "parseTree/sourceNode.hpp"
@@ -195,7 +196,7 @@ int main(int argc, char **argv) {
 
     std::cout << "Starting name disambiguation and type checking...\n";
 
-    // astManager->getASTs()[0]->print(std::cout);
+    astManager->getASTs()[0]->print(std::cout);
 
     auto typeResolver =
         std::make_shared<static_check::TypeResolver>(astManager, env);
@@ -267,9 +268,16 @@ int main(int argc, char **argv) {
         astManager, codeGenLabels, innerExprConverter);
 
     // for object oriented
-    codegen::DispatchVectorBuilder().visit(astManager);
+    auto workaround =
+        std::make_shared<parsetree::ast::workaround::Workaround>(typeLinker);
+    workaround->visit(astManager);
+    auto dvBuilder = codegen::DispatchVectorBuilder(workaround);
+    dvBuilder.visit(astManager);
     codegen::DispatchVectorBuilder::assignColours();
     codegen::DispatchVectorBuilder::verifyColoured();
+
+    // debug
+    dvBuilder.print();
 
     // IR building
     auto tirBuilder =

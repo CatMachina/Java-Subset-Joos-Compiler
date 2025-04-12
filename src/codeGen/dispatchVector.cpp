@@ -49,7 +49,7 @@ DispatchVector::DispatchVector(
 }
 
 void DispatchVectorBuilder::addMethodsToGraph(
-    std::vector<std::shared_ptr<parsetree::ast::MethodDecl>> methods) {
+    std::unordered_set<std::shared_ptr<parsetree::ast::MethodDecl>> methods) {
   graph.minColours = std::max(graph.minColours, methods.size());
 
   for (auto &method : methods) {
