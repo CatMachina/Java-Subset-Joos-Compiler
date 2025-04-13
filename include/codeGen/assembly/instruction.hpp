@@ -34,10 +34,6 @@ protected:
   void addReadGPR(std::string reg) { readGPRs.insert(reg); }
   void addWriteGPR(std::string reg) { writeGPRs.insert(reg); }
 
-  const std::vector<std::shared_ptr<Operand>> &getOperands() const {
-    return operands;
-  }
-
 private:
   // Expand register set with overlaps and remove non-registers (e.g., global
   // data)
@@ -185,6 +181,10 @@ public:
       }
     }
     return std::move(result);
+  }
+
+  const std::vector<std::shared_ptr<Operand>> &getOperands() const {
+    return operands;
   }
 };
 

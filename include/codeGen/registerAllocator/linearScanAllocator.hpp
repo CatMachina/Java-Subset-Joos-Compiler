@@ -9,9 +9,8 @@ namespace codegen {
 
 class LiveVariableAnalysisInfo {
 public:
-  bool
-  isLiveOutBefore(std::shared_ptr<assembly::RegisterOp> op,
-                  std::shared_ptr<assembly::Instruction> instruction) const {
+  bool isLiveOutBefore(std::shared_ptr<assembly::RegisterOp> op,
+                       std::shared_ptr<assembly::Instruction> instruction) {
     return liveIntervalMap[op].contains(instruction);
   }
 
@@ -22,9 +21,9 @@ public:
 
 private:
   // operand is in the live-out set before these instructions
-  std::unordered_map<std::shared_ptr<assembly::RegisterOp>>,
-      std::unordered_set<std::shared_ptr<assembly::Instruction>>
-          liveIntervalMap;
+  std::unordered_map<std::shared_ptr<assembly::RegisterOp>,
+                     std::unordered_set<std::shared_ptr<assembly::Instruction>>>
+      liveIntervalMap;
 };
 
 class LinearScanAllocator : public RegisterAllocator {
@@ -38,6 +37,6 @@ private:
 
   void runLiveVariableAnalysis(
       std::vector<std::shared_ptr<assembly::Instruction>> &instructions);
-}
+};
 
 } // namespace codegen

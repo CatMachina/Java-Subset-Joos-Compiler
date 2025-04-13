@@ -7,28 +7,32 @@ namespace codegen {
 // single register, the variable is treated as live everywhere from the first
 // place it is live to the last. This set of locations is the variable's live
 // interval.
-void runLiveVariableAnalysis(
+void LinearScanAllocator::runLiveVariableAnalysis(
     std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
-  std::unordered_set<assembly::RegisterOp> liveOut;
+  std::unordered_set<std::shared_ptr<assembly::RegisterOp>> liveOut;
   for (auto it = instructions.rbegin(); it != instructions.rend(); ++it) {
     std::shared_ptr<assembly::Instruction> instruction = *it;
-    std::unordered_set<assembly::RegisterOp> use;
-    std::unordered_set<assembly::RegisterOp> def;
+    std::unordered_set<std::shared_ptr<assembly::RegisterOp>> use;
+    std::unordered_set<std::shared_ptr<assembly::RegisterOp>> def;
     for (auto operand : instruction->getOperands()) {
-      if (operand->isRead()) {
-        use.insert(operand);
-      } else if (operand->isWrite()) {
-        def.insert(operand);
+      if (auto registerOp =
+              std::dynamic_pointer_cast<assembly::RegisterOp>(operand)) {
+        if (operand->isRead()) {
+          use.insert(registerOp);
+        }
+        if (operand->isWrite()) {
+          def.insert(registerOp);
+        }
       }
     }
-    std::unordered_set<assembly::RegisterOp> liveIn;
+    std::unordered_set<std::shared_ptr<assembly::RegisterOp>> liveIn;
     for (auto operand : liveOut) {
       if (!def.contains(operand)) {
         liveIn.insert(operand);
       }
     }
     for (auto operand : use) {
-      liveIn.insert(use);
+      liveIn.insert(operand);
     }
     for (auto operand : liveIn) {
       lvaInfo->addToMap(operand, instruction);
