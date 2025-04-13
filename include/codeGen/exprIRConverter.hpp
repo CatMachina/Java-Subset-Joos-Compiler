@@ -4,6 +4,7 @@
 #include "ast/astManager.hpp"
 #include "codeGen/codeGenLabels.hpp"
 #include "staticCheck/evaluator.hpp"
+#include "staticCheck/typeResolver.hpp"
 #include "tir/InsnMapsBuilder.hpp"
 #include "tir/TIR.hpp"
 

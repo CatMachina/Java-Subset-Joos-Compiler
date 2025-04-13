@@ -75,7 +75,8 @@ class DispatchVectorBuilder {
 
     if (auto classDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(node)) {
-      // std::cout << "addMethodsToGraph for class: " << classDecl->getFullName()
+      // std::cout << "addMethodsToGraph for class: " <<
+      // classDecl->getFullName()
       //           << std::endl;
       if (classDecl->getAllMethods().size() == 0) {
         throw std::runtime_error("Class has no methods");

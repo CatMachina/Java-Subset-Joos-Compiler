@@ -456,9 +456,12 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
 
   // need double check
   case parsetree::ast::BinOp::OpType::InstanceOf: {
+    // std::cout << "ExprIRConverter::evalBinOp::InstanceOf" << std::endl;
     if (op->getLhsType() && op->getRhsType()) {
       auto lhsType = op->getLhsType();
       auto it = realTypeMap.find(lhs);
+      // std::cout << "from op, lhs: ";
+      // lhsType->print(std::cout);
       if (it != realTypeMap.end()) {
         // std::cout << "update lhs type from ";
         // lhsType->print(std::cout);
@@ -469,6 +472,71 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
         realTypeMap.erase(it);
       }
       auto rhsType = op->getRhsType();
+      // std::cout << "from op, rhs: ";
+      // rhsType->print(std::cout);
+
+      // special case: array type
+      if (auto lhsArrayType =
+              std::dynamic_pointer_cast<parsetree::ast::ArrayType>(lhsType)) {
+        // true if rhs is object, cloneable or serializable
+        if (auto rhsRefType =
+                std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+                    rhsType)) {
+          if (!(rhsRefType->isResolved())) {
+            throw std::runtime_error("rhs type in instanceof not resolved");
+          }
+          auto rhsRefTypeAst = rhsRefType->getResolvedDecl().getAstNode();
+          if (rhsRefTypeAst == astManager->java_lang.Object ||
+              rhsRefTypeAst == astManager->java_lang.Cloneable ||
+              rhsRefTypeAst == astManager->java_lang.Serializable) {
+            return std::make_shared<tir::Const>(1);
+          }
+        }
+
+        // true if rhs is array type of B and A is assignable to B
+        if (auto rhsArrayType =
+                std::dynamic_pointer_cast<parsetree::ast::ArrayType>(rhsType)) {
+          auto lhsElemType = lhsArrayType->getElementType();
+          auto rhsElemType = rhsArrayType->getElementType();
+          auto lhsElemRef =
+              std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+                  lhsElemType);
+          auto rhsElemRef =
+              std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
+                  rhsElemType);
+          if (!lhsElemRef || !rhsElemRef) {
+            throw std::runtime_error(
+                "InstanceOf array operands cannot be non-reference types");
+          }
+          if (!(lhsElemRef->isResolved() && rhsElemRef->isResolved())) {
+            throw std::runtime_error(
+                "InstanceOf array operands are not resolved");
+          }
+          auto lhsElemDecl =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+                  lhsElemRef->getResolvedDecl().getAstNode());
+          auto rhsElemDecl =
+              std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+                  rhsElemRef->getResolvedDecl().getAstNode());
+          if (!lhsElemDecl || !rhsElemDecl) {
+            throw std::runtime_error(
+                "InstanceOf array operands cannot be non-class types");
+          }
+          if (lhsElemDecl == rhsElemDecl ||
+              isSuperClass(rhsElemDecl, lhsElemDecl)) {
+            return std::make_shared<tir::Const>(1);
+          }
+        }
+        return std::make_shared<tir::Const>(0);
+
+        // lhs not array type and rhs array type -> false
+      } else if (auto rhsArrayType =
+                     std::dynamic_pointer_cast<parsetree::ast::ArrayType>(
+                         rhsType)) {
+        return std::make_shared<tir::Const>(0);
+      }
+
+      // lhs and rhs both are reference types
       if (auto lhsRefType =
               std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(
                   lhsType)) {

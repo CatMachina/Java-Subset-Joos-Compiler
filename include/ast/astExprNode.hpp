@@ -354,9 +354,13 @@ public:
   std::shared_ptr<parsetree::ast::Type> getRhsType() const { return rhsType; }
 
   void setLhsType(std::shared_ptr<parsetree::ast::Type> type) {
+    if (lhsType != nullptr)
+      return;
     lhsType = type;
   }
   void setRhsType(std::shared_ptr<parsetree::ast::Type> type) {
+    if (rhsType != nullptr)
+      return;
     rhsType = type;
   }
 

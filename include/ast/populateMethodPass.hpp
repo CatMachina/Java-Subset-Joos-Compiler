@@ -78,9 +78,9 @@ public:
           throw std::runtime_error("Class " + classDecl->getFullName() +
                                    " has no methods");
         } else {
-        //   std::cout << "Class " << classDecl->getFullName() << " has "
-        //             << classDecl->getAllMethods().size() << " methods"
-        //             << std::endl;
+          //   std::cout << "Class " << classDecl->getFullName() << " has "
+          //             << classDecl->getAllMethods().size() << " methods"
+          //             << std::endl;
         }
       }
 

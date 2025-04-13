@@ -68,7 +68,8 @@ void TypeLinker::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   } else if (auto interfaceDecl =
                  std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                      node)) {
-    // std::cout << "typeLinker pushing interface " << interfaceDecl->getFullName()
+    // std::cout << "typeLinker pushing interface " <<
+    // interfaceDecl->getFullName()
     //           << " into allDecls\n";
     astManager->allDecls.push_back(interfaceDecl);
   }
