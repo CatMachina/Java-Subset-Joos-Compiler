@@ -5,7 +5,7 @@
 
 namespace codegen {
 
-class AssembyGenerator {
+class AssemblyGenerator {
   std::shared_ptr<InstructionSelector> instructionSelector;
 
   std::shared_ptr<LinkingResolver> linkingResolver;
@@ -114,9 +114,9 @@ class AssembyGenerator {
   }
 
 public:
-  AssembyGenerator(std::shared_ptr<CodeGenLabels> codeGenLabels,
-                   std::shared_ptr<RegisterAllocator> registerAllocator,
-                   std::string entryMethod) {
+  AssemblyGenerator(std::shared_ptr<CodeGenLabels> codeGenLabels,
+                    std::shared_ptr<RegisterAllocator> registerAllocator,
+                    std::string entryMethod) {
     this->entryMethod = entryMethod;
     this->registerAllocator = registerAllocator;
     instructionSelector = std::make_shared<InstructionSelector>(codeGenLabels);

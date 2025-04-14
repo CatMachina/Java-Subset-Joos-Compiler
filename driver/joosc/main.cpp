@@ -400,7 +400,7 @@ int main(int argc, char **argv) {
       }
       std::cout << "Cleared contents of directory: " << outputDir << std::endl;
     }
-    auto assemblyGenerator = std::make_shared<codegen::AssembyGenerator>(
+    auto assemblyGenerator = std::make_shared<codegen::AssemblyGenerator>(
         codeGenLabels, registerAllocator, entry_method);
     assemblyGenerator->generateAssembly(tirBuilder->getCompUnits());
 
