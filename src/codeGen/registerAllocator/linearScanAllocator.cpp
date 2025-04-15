@@ -21,7 +21,7 @@ static bool compareEnd(const std::shared_ptr<LiveInterval> &a,
 // interval.
 void LinearScanAllocator::runLiveVariableAnalysis(
     const std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
-  std::unordered_set<std::shared_ptr<assembly::RegisterOp>> operands;
+  std::unordered_set<std::shared_ptr<assembly::RegisterOp>> regOps;
   std::unordered_set<std::shared_ptr<assembly::RegisterOp>> liveOut;
   int loc = instructions.size() - 1;
   for (auto it = instructions.rbegin(); it != instructions.rend(); ++it) {
@@ -29,44 +29,100 @@ void LinearScanAllocator::runLiveVariableAnalysis(
     std::unordered_set<std::shared_ptr<assembly::RegisterOp>> use;
     std::unordered_set<std::shared_ptr<assembly::RegisterOp>> def;
     for (auto operand : instruction->getOperands()) {
-      if (auto registerOp =
+      if (auto regOp =
               std::dynamic_pointer_cast<assembly::RegisterOp>(operand)) {
-        if (registerOp->isRead()) {
-          use.insert(registerOp);
+        if (regOp->isRead()) {
+          use.insert(regOp);
         }
-        if (registerOp->isWrite()) {
-          def.insert(registerOp);
+        if (regOp->isWrite()) {
+          def.insert(regOp);
         }
-        operands.insert(registerOp);
+        regOps.insert(regOp);
       }
     }
     std::unordered_set<std::shared_ptr<assembly::RegisterOp>> liveIn;
-    for (auto operand : liveOut) {
-      if (!def.contains(operand)) {
-        liveIn.insert(operand);
+    for (auto regOp : liveOut) {
+      if (def.find(regOp) == def.end()) {
+        liveIn.insert(regOp);
       }
     }
-    for (auto operand : use) {
-      liveIn.insert(operand);
+    for (auto regOp : use) {
+      liveIn.insert(regOp);
     }
-    for (auto operand : liveIn) {
-      liveOutBeforeMap[operand].push_back(loc);
+    for (auto regOp : liveIn) {
+      liveOutBeforeMap[regOp].push_back(loc);
     }
     liveOut = liveIn;
     loc--;
   }
   // Now store the live intervals for each variable
-  for (auto operand : operands) {
-    int begin = liveOutBeforeMap[operand].back();
-    int end = liveOutBeforeMap[operand].front();
-    auto interval = std::make_shared<LiveInterval>(
-        LiveInterval{operand, begin, end, false});
-    addLiveInterval(operand, interval);
+  for (auto regOp : regOps) {
+    // Pushed locs in reverse instruction order, so back() is earliest and
+    // front() is latest.
+    int begin = liveOutBeforeMap[regOp].back();
+    int end = liveOutBeforeMap[regOp].front();
+    auto interval =
+        std::make_shared<LiveInterval>(LiveInterval{regOp, begin, end, false});
+    addLiveInterval(regOp, interval);
   }
+}
+
+void LinearScanAllocator::spillToStack(
+    std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
+  int offset = 4;
+  std::vector<std::shared_ptr<assembly::Instruction>> finalInstructions;
+  for (auto regOp : toSpill) {
+    // assign offset to all virtual registers not assigned yet
+    if (registerOffsets.find(regOp->getReg()) == registerOffsets.end()) {
+      registerOffsets[regOp->getReg()] = offset;
+      offset += 4;
+    }
+  }
+  for (auto instruction : instructions) {
+    std::vector<std::shared_ptr<assembly::Instruction>> newInstructions;
+    bool containsToSpill = false;
+    for (auto operand : instruction->getOperands()) {
+      auto regOp = std::dynamic_pointer_cast<assembly::RegisterOp>(operand);
+      if (!regOp)
+        continue;
+      if (toSpill.find(regOp) != toSpill.end()) {
+        containsToSpill = true;
+        std::string reg = regOp->getReg();
+        if (regOp->isRead()) {
+          newInstructions.push_back(
+              std::make_unique<assembly::Comment>("Load from " + reg));
+          newInstructions.push_back(std::make_unique<assembly::Mov>(
+              std::make_shared<assembly::RegisterOp>(SPILL_REG),
+              std::make_unique<assembly::MemAddrOp>(
+                  assembly::R32_EBP, -1 * registerOffsets[reg])));
+        }
+        // Add back the original instruction
+        instruction->replaceRegister(reg, SPILL_REG);
+        newInstructions.push_back(instruction);
+        if (regOp->isWrite()) {
+          newInstructions.push_back(
+              std::make_unique<assembly::Comment>("Store to " + reg));
+          newInstructions.push_back(std::make_unique<assembly::Mov>(
+              std::make_unique<assembly::MemAddrOp>(assembly::R32_EBP,
+                                                    -1 * registerOffsets[reg]),
+              std::make_shared<assembly::RegisterOp>(SPILL_REG)));
+        }
+      }
+    }
+    if (!containsToSpill) {
+      finalInstructions.push_back(instruction);
+    } else {
+      finalInstructions.insert(finalInstructions.end(), newInstructions.begin(),
+                               newInstructions.end());
+    }
+  }
+  instructions = std::move(finalInstructions);
 }
 
 int LinearScanAllocator::allocateFor(
     std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
+  registerOffsets.clear();
+  toSpill.clear();
   // Begins with a live variable analysis
   runLiveVariableAnalysis(instructions);
   // Sort the live intervals in order of their first instruction
@@ -77,7 +133,7 @@ int LinearScanAllocator::allocateFor(
   std::sort(intervals.begin(), intervals.end(), compareBegin);
   // List of "active" live intervals; initially empty
   std::set<std::shared_ptr<LiveInterval>, decltype(compareEnd) *>
-      activeIntervals;
+      activeIntervals(compareEnd);
   int numSpilled = 0;
   // Loop through the first list
   for (auto interval : intervals) {
@@ -88,29 +144,38 @@ int LinearScanAllocator::allocateFor(
     if (auto mov = std::dynamic_pointer_cast<assembly::Mov>(
             instructions[interval->begin])) {
       std::shared_ptr<assembly::Operand> src = mov->getOperands()[1];
-      auto srcRegister = std::dynamic_pointer_cast<assembly::RegisterOp>(src);
-      if (srcRegister) {
+      if (auto srcRegister =
+              std::dynamic_pointer_cast<assembly::RegisterOp>(src)) {
         std::shared_ptr<LiveInterval> srcInterval =
             getLiveInterval(srcRegister);
         if (instructions[srcInterval->end] == mov) {
-          interval->setReg(srcInterval->getReg());
+          if (auto destRegister =
+                  std::dynamic_pointer_cast<assembly::RegisterOp>(
+                      mov->getOperands()[0]))
+            destRegister->setReg(srcInterval->getReg());
         }
       }
     }
+    std::unordered_set<std::shared_ptr<LiveInterval>> toRemove;
     // Any other, active interval whose last instructions has been passed
-    std::vector<std::shared_ptr<LiveInterval>> toAdd;
-    std::vector<std::shared_ptr<LiveInterval>> toRemove;
     for (auto activeInterval : activeIntervals) {
       if (activeInterval->end < interval->begin) {
         // Its assigned register is made available
         setFreeRegister(activeInterval->getReg());
-        // Remove from the active list;
-        toRemove.push_back(activeInterval);
+        // Remove from the active list
+        toRemove.insert(activeInterval);
       }
-      // The considered interval is then allocated a free register
+    }
+    // Update active intervals
+    for (auto interval : toRemove) {
+      activeIntervals.erase(interval);
+    }
+    // The considered interval is then allocated a free register
+    // And is added to the active list
+    if (hasFreeRegister()) {
       interval->setReg(getFreeRegister());
-      // And is added to the active list
-      toAdd.push_back(interval);
+      interval->isAllocated = true;
+      activeIntervals.insert(interval);
     }
     // If no register is available to be allocated to a variable, one of the
     // variable is chosen to be spilled
@@ -119,13 +184,11 @@ int LinearScanAllocator::allocateFor(
       std::shared_ptr<LiveInterval> lastEndInterval = *activeIntervals.rbegin();
       std::string freeRegister = lastEndInterval->getReg();
       setFreeRegister(freeRegister);
-      toRemove.push_back(lastEndInterval);
-      // TODO: implement
-      spillToStack(lastEndInterval->registerOp);
+      activeIntervals.erase(lastEndInterval);
+      toSpill.insert(lastEndInterval->regOp);
       numSpilled++;
       // Allocate register to the current interval;
       interval->setReg(freeRegister);
-      toAdd.push_back(interval);
     }
   }
   return numSpilled;

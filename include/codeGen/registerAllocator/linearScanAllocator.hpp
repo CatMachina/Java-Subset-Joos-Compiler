@@ -13,13 +13,13 @@
 namespace codegen {
 
 struct LiveInterval {
-  std::shared_ptr<assembly::RegisterOp> registerOp;
+  std::shared_ptr<assembly::RegisterOp> regOp;
   int begin;
   int end;
   bool isAllocated;
 
-  std::string getReg() const { return registerOp->getReg(); }
-  void setReg(std::string reg) { registerOp->setReg(reg); }
+  std::string getReg() const { return regOp->getReg(); }
+  void setReg(std::string reg) { regOp->setReg(reg); }
 };
 
 class LinearScanAllocator : public RegisterAllocator {
@@ -57,13 +57,13 @@ private:
 
   // Register Allocation
 
-  std::unordered_set<std::string> freeRegisters = {"ebx", "ecx", "edx", "esi",
-                                                   "edi"};
+  std::unordered_set<std::string> freeRegisters = {
+      assembly::R32_EBX, assembly::R32_EDX, assembly::R32_ESI,
+      assembly::R32_EDI};
+
+  bool hasFreeRegister() const { return !freeRegisters.empty(); }
 
   std::string getFreeRegister() {
-    if (freeRegisters.empty()) {
-      return "";
-    }
     std::string reg = *freeRegisters.begin();
     freeRegisters.erase(reg);
     return reg;
@@ -71,7 +71,14 @@ private:
 
   void setFreeRegister(std::string reg) { freeRegisters.insert(reg); }
 
-  void spillToStack(std::shared_ptr<assembly::RegisterOp> op);
+  // Spilling to Stack
+
+  const std::string SPILL_REG = assembly::R32_ECX;
+
+  std::unordered_set<std::shared_ptr<assembly::RegisterOp>> toSpill;
+
+  void spillToStack(
+      std::vector<std::shared_ptr<assembly::Instruction>> &instructions);
 };
 
 } // namespace codegen
