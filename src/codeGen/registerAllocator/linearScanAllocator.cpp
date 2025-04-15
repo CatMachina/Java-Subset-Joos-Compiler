@@ -55,7 +55,7 @@ void LinearScanAllocator::runLiveVariableAnalysis(
     liveOut = liveIn;
     loc--;
   }
-  // Now store the live intervals for each variable
+  // Compute the live intervals for each variable
   for (auto regOp : regOps) {
     // Pushed locs in reverse instruction order, so back() is earliest and
     // front() is latest.
@@ -184,6 +184,12 @@ int LinearScanAllocator::allocateFor(
       activeIntervals(compareEnd);
   // Loop through the first list
   for (auto interval : intervals) {
+    // For IMul and IDiv
+    if (assembly::isGPR(interval->regOp->getReg())) {
+      markAsInUse(interval->regOp->getReg());
+      interval->isAllocated = true;
+      activeIntervals.insert(interval);
+    }
     // When the live interval begins with a mov instruction, we look for the
     // opportunity to do move coalescing, by assigning the destination of the
     // instruction the same register as the source in the case where the
@@ -208,7 +214,7 @@ int LinearScanAllocator::allocateFor(
     for (auto activeInterval : activeIntervals) {
       if (activeInterval->end < interval->begin) {
         // Its assigned register is made available
-        setFreeRegister(activeInterval->getReg());
+        freeRegister(activeInterval->getReg());
         // Remove from the active list
         toRemove.insert(activeInterval);
       }
@@ -220,7 +226,7 @@ int LinearScanAllocator::allocateFor(
     // The considered interval is then allocated a free register
     // And is added to the active list
     if (hasFreeRegister()) {
-      interval->setReg(getFreeRegister());
+      interval->setReg(allocateFreeRegister());
       interval->isAllocated = true;
       activeIntervals.insert(interval);
     }
@@ -229,12 +235,13 @@ int LinearScanAllocator::allocateFor(
     if (!interval->isAllocated) {
       // Heuristic: spill the active interval with the last end time
       std::shared_ptr<LiveInterval> lastEndInterval = *activeIntervals.rbegin();
-      std::string freeRegister = lastEndInterval->getReg();
-      setFreeRegister(freeRegister);
+      std::string reg = lastEndInterval->getReg();
+      freeRegister(reg);
       activeIntervals.erase(lastEndInterval);
       toSpill.insert(lastEndInterval->regOp);
-      // Allocate register to the current interval;
-      interval->setReg(freeRegister);
+      // Allocate register to the current interval
+      interval->setReg(reg);
+      interval->isAllocated = true;
     }
   }
   return toSpill.size();

@@ -63,13 +63,17 @@ private:
 
   bool hasFreeRegister() const { return !freeRegisters.empty(); }
 
-  std::string getFreeRegister() {
+  std::string allocateFreeRegister() {
     std::string reg = *freeRegisters.begin();
     freeRegisters.erase(reg);
     return reg;
   }
 
-  void setFreeRegister(std::string reg) { freeRegisters.insert(reg); }
+  void markAsInUse(std::string reg) {
+    freeRegisters.erase(reg);
+  }
+
+  void freeRegister(std::string reg) { freeRegisters.insert(reg); }
 
   // Spilling to Stack
 
