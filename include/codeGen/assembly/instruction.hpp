@@ -186,6 +186,13 @@ public:
   const std::vector<std::shared_ptr<Operand>> &getOperands() const {
     return operands;
   }
+
+  void setOperand(int idx, std::shared_ptr<Operand> operand) {
+    if (idx >= getOperands().size()) {
+      throw std::runtime_error("Instruction::setOperand: out of bounds");
+    }
+    operands[idx] = operand;
+  }
 };
 
 // mov	move data from src to dest

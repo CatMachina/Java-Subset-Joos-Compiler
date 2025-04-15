@@ -77,6 +77,8 @@ private:
 
   std::unordered_set<std::shared_ptr<assembly::RegisterOp>> toSpill;
 
+  void populateOffset();
+
   void spillToStack(
       std::vector<std::shared_ptr<assembly::Instruction>> &instructions);
 };
