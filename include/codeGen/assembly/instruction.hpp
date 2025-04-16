@@ -283,7 +283,6 @@ public:
     addReadGPR(assembly::R32_EAX);
     addWriteGPR(assembly::R32_EAX);
 
-    addReadGPR(assembly::R32_EDX);
     addWriteGPR(assembly::R32_EDX);
   }
 

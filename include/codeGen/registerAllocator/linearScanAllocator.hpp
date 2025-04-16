@@ -16,21 +16,27 @@ struct LiveInterval {
   std::string reg;
   int begin;
   int end;
-  bool isAllocated;
 
-  // std::string getReg() const { return regOp->getReg(); }
-  // void setReg(std::string reg) { regOp->setReg(reg); }
+  std::string toString() const {
+    return "Live Interval " + reg + " [" + std::to_string(begin) + ", " +
+           std::to_string(end) + "]";
+  }
+
+  bool isAllocated() { return assembly::isGPR(reg); }
 };
 
 class LinearScanAllocator : public RegisterAllocator {
 public:
-  void testLiveVariableAnalysis();
-
   void runLiveVariableAnalysis(
       const std::vector<std::shared_ptr<assembly::Instruction>> &instructions);
 
   int allocateFor(std::vector<std::shared_ptr<assembly::Instruction>>
                       &instructions) override;
+
+  // Tests
+  // TODO: remove later
+  void testLiveVariableAnalysis();
+  void testAllocateFor();
 
 private:
   // Live Variable Analysis
@@ -60,17 +66,55 @@ private:
       assembly::R32_EBX, assembly::R32_EDX, assembly::R32_ESI,
       assembly::R32_EDI};
 
+  struct CompareEnd {
+    bool operator()(const std::shared_ptr<LiveInterval> &a,
+                    const std::shared_ptr<LiveInterval> &b) const {
+      return a->end < b->end;
+    }
+  };
+
+  // Sorted in order of their first instructions
+  std::vector<std::shared_ptr<LiveInterval>> intervals;
+
+  // Second list of "active" live intervals, sorted in order of the intervals'
+  // last instruction
+  std::set<std::shared_ptr<LiveInterval>, CompareEnd> activeIntervals;
+
+  void init() {
+    intervals.clear();
+    activeIntervals.clear();
+    registerOffsets.clear();
+    toSpill.clear();
+  }
+
   bool hasFreeRegister() const { return !freeRegisters.empty(); }
 
   std::string allocateFreeRegister() {
     std::string reg = *freeRegisters.begin();
     freeRegisters.erase(reg);
+    std::cout << "allocateFreeRegister: " << reg << std::endl;
     return reg;
   }
 
-  void markAsInUse(std::string reg) { freeRegisters.erase(reg); }
+  void markAsInUse(std::string reg) {
+    std::cout << "markAsInUse: " << reg << std::endl;
+    freeRegisters.erase(reg);
+  }
 
-  void freeRegister(std::string reg) { freeRegisters.insert(reg); }
+  void markAsFree(std::string reg) {
+    std::cout << "markAsFree: " << reg << std::endl;
+    freeRegisters.insert(reg);
+  }
+
+  void activate(std::shared_ptr<LiveInterval> interval) {
+    std::cout << "activate: " << interval->toString() << std::endl;
+    activeIntervals.insert(interval);
+  }
+
+  void deactivate(std::shared_ptr<LiveInterval> interval) {
+    std::cout << "deactivate: " << interval->toString() << std::endl;
+    activeIntervals.erase(interval);
+  }
 
   // Spilling to Stack
 

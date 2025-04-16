@@ -4,16 +4,6 @@ namespace codegen {
 
 // Helpers
 
-static bool compareBegin(const std::shared_ptr<LiveInterval> &a,
-                         const std::shared_ptr<LiveInterval> &b) {
-  return a->begin < b->begin;
-}
-
-static bool compareEnd(const std::shared_ptr<LiveInterval> &a,
-                       const std::shared_ptr<LiveInterval> &b) {
-  return a->end < b->end;
-}
-
 // Each variable (that is, temporary) is live at a subset of locations in the
 // code—its live range; however, to ensure that each variable is assigned to a
 // single register, the variable is treated as live everywhere from the first
@@ -21,30 +11,24 @@ static bool compareEnd(const std::shared_ptr<LiveInterval> &a,
 // interval.
 void LinearScanAllocator::runLiveVariableAnalysis(
     const std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
-  std::unordered_set<std::string> regs;
-  std::unordered_set<std::string> liveOut;
+  std::unordered_set<std::string> regs, liveOut;
   int loc = instructions.size() - 1;
   for (auto it = instructions.rbegin(); it != instructions.rend(); ++it) {
     std::shared_ptr<assembly::Instruction> instruction = *it;
-    std::cout << "=== " << instruction->toString() << std::endl;
-    std::unordered_set<std::string> use;
-    std::unordered_set<std::string> def;
-    std::unordered_set<std::string> liveIn;
-    for (auto operand : instruction->getOperands()) {
-      if (auto regOp =
-              std::dynamic_pointer_cast<assembly::RegisterOp>(operand)) {
-        std::string reg = regOp->getReg();
-        if (regOp->isRead()) {
-          use.insert(reg);
-        }
-        if (regOp->isWrite()) {
-          def.insert(reg);
-        }
-        if (liveOutBeforeMap.find(reg) == liveOutBeforeMap.end()) {
-          liveOutBeforeMap[reg] = std::vector<int>();
-        }
-        regs.insert(reg);
+    std::cout << "=== Instruction " << instruction->toString() << std::endl;
+    std::unordered_set<std::string> use, def, liveIn;
+    // Populate use and def
+    for (auto reg : instruction->getReadRegisters()) {
+      use.insert(reg);
+    }
+    for (auto reg : instruction->getWriteRegisters()) {
+      def.insert(reg);
+    }
+    for (auto reg : instruction->getAllUsedRegisters()) {
+      if (liveOutBeforeMap.find(reg) == liveOutBeforeMap.end()) {
+        liveOutBeforeMap[reg] = std::vector<int>();
       }
+      regs.insert(reg);
     }
     std::cout << "Use: ";
     for (auto reg : use) {
@@ -55,16 +39,19 @@ void LinearScanAllocator::runLiveVariableAnalysis(
       std::cout << reg << ", ";
     }
     std::cout << std::endl;
+    // Exclude def
     for (auto reg : liveOut) {
       if (def.find(reg) == def.end()) {
         liveIn.insert(reg);
       }
     }
+    // Union with use
     for (auto reg : use) {
       liveIn.insert(reg);
     }
+    std::cout << "Regs in Live In: " << std::endl;
     for (auto reg : liveIn) {
-      std::cout << "Reg " << reg << std::endl;
+      std::cout << reg << ": ";
       liveOutBeforeMap[reg].push_back(loc);
       for (auto loc : liveOutBeforeMap[reg]) {
         std::cout << loc << ", ";
@@ -89,12 +76,12 @@ void LinearScanAllocator::runLiveVariableAnalysis(
     }
     int begin = liveOutBeforeMap[reg].back();
     int end = liveOutBeforeMap[reg].front();
-    std::cout << "Live Interval for " << reg << ": [" << begin << ", " << end
-              << "]\n";
     auto interval =
-        std::make_shared<LiveInterval>(LiveInterval{reg, begin, end, false});
+        std::make_shared<LiveInterval>(LiveInterval{reg, begin, end});
+    std::cout << interval->toString() << std::endl;
     addLiveInterval(reg, interval);
   }
+  std::cout << "Linear Scan: Done Live Variable Analysis" << std::endl;
 }
 
 void LinearScanAllocator::populateOffset() {
@@ -156,10 +143,6 @@ void LinearScanAllocator::spillToStack(
     }
     // More complicated case: two registers to spill
     else if (spillRegs.size() == 2) {
-      // bool isRead0 = spillRegs[0]->isRead();
-      // bool isWrite0 = spillRegs[0]->isWrite();
-      // bool isRead1 = spillRegs[1]->isRead();
-      // bool isWrite1 = spillRegs[1]->isWrite();
       std::string reg0 = spillRegs[0]->getReg();
       std::string reg1 = spillRegs[1]->getReg();
       bool isRead0 = true;
@@ -201,80 +184,90 @@ void LinearScanAllocator::spillToStack(
 
 int LinearScanAllocator::allocateFor(
     std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
-  registerOffsets.clear();
-  toSpill.clear();
+  init();
   // Begins with a live variable analysis
   runLiveVariableAnalysis(instructions);
-  // Sort the live intervals in order of their first instruction
-  std::vector<std::shared_ptr<LiveInterval>> intervals;
+  // Populate the intervals list
   for (auto pair : liveIntervalMap) {
     intervals.push_back(pair.second);
   }
+  // Sort in order of their first instructions
+  auto compareBegin = [](const std::shared_ptr<LiveInterval> &a,
+                         const std::shared_ptr<LiveInterval> &b) {
+    return a->begin < b->begin;
+  };
   std::sort(intervals.begin(), intervals.end(), compareBegin);
-  // List of "active" live intervals; initially empty
-  std::set<std::shared_ptr<LiveInterval>, decltype(compareEnd) *>
-      activeIntervals(compareEnd);
   // Loop through the first list
   for (auto interval : intervals) {
+    std::cout << "=== " << interval->toString() << std::endl;
     // For IMul and IDiv
     if (assembly::isGPR(interval->reg)) {
       markAsInUse(interval->reg);
-      interval->isAllocated = true;
-      activeIntervals.insert(interval);
+      activate(interval);
+      continue;
     }
-    // When the live interval begins with a mov instruction, we look for the
-    // opportunity to do move coalescing, by assigning the destination of the
-    // instruction the same register as the source in the case where the
-    // source is a variable whose live interval ends at this instruction.
+    // When the live interval begins with a mov instruction
+    // TODO: disable for now
+    /*
     if (auto mov = std::dynamic_pointer_cast<assembly::Mov>(
             instructions[interval->begin])) {
+      // In the case where the source is a variable whose live interval ends at
+      // this instruction.
+      std::shared_ptr<assembly::Operand> dest = mov->getOperands()[0];
       std::shared_ptr<assembly::Operand> src = mov->getOperands()[1];
-      if (auto srcRegOp =
-              std::dynamic_pointer_cast<assembly::RegisterOp>(src)) {
+      auto srcRegOp = std::dynamic_pointer_cast<assembly::RegisterOp>(src);
+      auto destRegOp = std::dynamic_pointer_cast<assembly::RegisterOp>(dest);
+      if (srcRegOp && destRegOp) {
         std::shared_ptr<LiveInterval> srcInterval =
             getLiveInterval(srcRegOp->getReg());
         if (instructions[srcInterval->end] == mov) {
-          if (auto destRegOp = std::dynamic_pointer_cast<assembly::RegisterOp>(
-                  mov->getOperands()[0]))
-            destRegOp->setReg(srcInterval->reg);
+          // Perfrorm move coalescing, by assigning the destination of the
+          // instruction the same register as the source
+          destRegOp->setReg(srcInterval->reg);
         }
       }
     }
+    */
     std::unordered_set<std::shared_ptr<LiveInterval>> toRemove;
     // Any other, active interval whose last instructions has been passed
     for (auto activeInterval : activeIntervals) {
       if (activeInterval->end < interval->begin) {
         // Its assigned register is made available
-        freeRegister(activeInterval->reg);
+        markAsFree(activeInterval->reg);
         // Remove from the active list
         toRemove.insert(activeInterval);
       }
     }
     // Update active intervals
     for (auto interval : toRemove) {
-      activeIntervals.erase(interval);
+      deactivate(interval);
     }
     // The considered interval is then allocated a free register
-    // And is added to the active list
     if (hasFreeRegister()) {
       interval->reg = allocateFreeRegister();
-      interval->isAllocated = true;
-      activeIntervals.insert(interval);
+      // And is added to the active list
+      activate(interval);
     }
     // If no register is available to be allocated to a variable, one of the
     // variable is chosen to be spilled
-    if (!interval->isAllocated) {
+    if (!interval->isAllocated()) {
       // Heuristic: spill the active interval with the last end time
       std::shared_ptr<LiveInterval> lastEndInterval = *activeIntervals.rbegin();
+      std::cout << "lastEndInterval: " << lastEndInterval->toString()
+                << std::endl;
       std::string reg = lastEndInterval->reg;
-      freeRegister(reg);
-      activeIntervals.erase(lastEndInterval);
+      markAsFree(reg);
+      deactivate(lastEndInterval);
       toSpill.insert(lastEndInterval->reg);
       // Allocate register to the current interval
       interval->reg = reg;
-      interval->isAllocated = true;
     }
   }
+  std::cout << "Spill registers: ";
+  for (auto reg : toSpill) {
+    std::cout << reg << ", ";
+  }
+  std::cout << std::endl;
   return toSpill.size();
 }
 
@@ -285,9 +278,7 @@ void LinearScanAllocator::testLiveVariableAnalysis() {
     return std::make_shared<RegisterOp>(name); // always create a fresh instance
   };
 
-  auto imm = [](int val) {
-    return std::make_shared<ImmediateOp>(val);
-  };
+  auto imm = [](int val) { return std::make_shared<ImmediateOp>(val); };
 
   auto mem = [&](const std::string &base, int offset = 0) {
     return std::make_shared<MemAddrOp>(base, "", offset, 1);
@@ -306,34 +297,56 @@ void LinearScanAllocator::testLiveVariableAnalysis() {
 
   runLiveVariableAnalysis(instructions);
 
-  std::vector<std::unordered_set<std::string>> expected = {
-      {"b", "a"}, {"b", "a"}, {"b", "a"}, {"c", "a"}, {"b", "a"},
-      {"b", "d"}, {"d"},        {"eax"},      {}};
+  std::unordered_map<std::string, std::pair<int, int>> expectedIntervals = {
+      {"a", {0, 5}}, {"b", {1, 6}}, {"c", {4, 4}}, {"d", {6, 7}}};
 
-  int idx = 0;
-  for (auto it = instructions.begin(); it != instructions.end(); ++it, ++idx) {
-    std::unordered_set<std::string> actual;
-    for (const auto &pair : liveOutBeforeMap) {
-      const auto &reg = pair.first;
-      const auto &locs = pair.second;
-      for (int loc : locs) {
-        if (loc == idx) {
-          actual.insert(reg);
-        }
-      }
+  for (const auto &[reg, expected] : expectedIntervals) {
+    auto it = liveIntervalMap.find(reg);
+    if (it == liveIntervalMap.end()) {
+      std::cerr << "Missing interval for virtual register: " << reg << "\n";
+      assert(false);
     }
-    if (actual != expected[idx]) {
-      std::cerr << "Mismatch at instruction " << idx << " ("
-                << (*it)->toString() << ")\n";
-      std::cerr << "Expected: ";
-      for (const auto &r : expected[idx]) std::cerr << r << " ";
-      std::cerr << "\nActual: ";
-      for (const auto &r : actual) std::cerr << r << " ";
-      std::cerr << "\n";
+    const auto &interval = it->second;
+    if (interval->begin != expected.first || interval->end != expected.second) {
+      std::cerr << "Incorrect interval for virtual register " << reg
+                << ": expected [" << expected.first << ", " << expected.second
+                << "], got [" << interval->begin << ", " << interval->end
+                << "]\n";
       assert(false);
     }
   }
-  std::cout << "Live variable analysis test passed!\n";
+
+  std::cout << "Live variable interval test passed!\n";
+}
+
+void LinearScanAllocator::testAllocateFor() {
+  using namespace assembly;
+
+  auto reg = [](const std::string &name) {
+    return std::make_shared<RegisterOp>(name); // always create a fresh instance
+  };
+
+  auto imm = [](int val) { return std::make_shared<ImmediateOp>(val); };
+
+  auto mem = [&](const std::string &base, int offset = 0) {
+    return std::make_shared<MemAddrOp>(base, "", offset, 1);
+  };
+
+  std::vector<std::shared_ptr<Instruction>> instructions = {
+      std::make_shared<Mov>(reg("b"), reg("a")),
+      std::make_shared<Add>(reg("b"), imm(2)),
+      std::make_shared<IMul>(reg("b")),
+      std::make_shared<Mov>(reg("c"), reg("b")),
+      std::make_shared<Lea>(reg("b"), mem("c", 1)),
+      std::make_shared<Mov>(reg("d"), reg("a")),
+      std::make_shared<IMul>(reg("b")),
+      std::make_shared<Mov>(reg("eax"), reg("d")),
+      std::make_shared<Ret>()};
+
+  int spilled = allocateFor(instructions);
+  assert(spilled == 0); // No spilling expected with 3 virtuals (a, b, c, d)
+
+  std::cout << "Linear scan allocation test done\n";
 }
 
 } // namespace codegen
