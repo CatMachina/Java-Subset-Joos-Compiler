@@ -13,17 +13,19 @@
 namespace codegen {
 
 struct LiveInterval {
-  std::shared_ptr<assembly::RegisterOp> regOp;
+  std::string reg;
   int begin;
   int end;
   bool isAllocated;
 
-  std::string getReg() const { return regOp->getReg(); }
-  void setReg(std::string reg) { regOp->setReg(reg); }
+  // std::string getReg() const { return regOp->getReg(); }
+  // void setReg(std::string reg) { regOp->setReg(reg); }
 };
 
 class LinearScanAllocator : public RegisterAllocator {
 public:
+  void testLiveVariableAnalysis();
+
   void runLiveVariableAnalysis(
       const std::vector<std::shared_ptr<assembly::Instruction>> &instructions);
 
@@ -35,24 +37,21 @@ private:
 
   // Mapping from variables to the list of locations before which variable is
   // live-out
-  std::unordered_map<std::shared_ptr<assembly::RegisterOp>, std::vector<int>>
-      liveOutBeforeMap;
+  std::unordered_map<std::string, std::vector<int>> liveOutBeforeMap;
 
-  std::unordered_map<std::shared_ptr<assembly::RegisterOp>,
-                     std::shared_ptr<LiveInterval>>
+  std::unordered_map<std::string, std::shared_ptr<LiveInterval>>
       liveIntervalMap;
 
-  void addLiveInterval(std::shared_ptr<assembly::RegisterOp> op,
+  void addLiveInterval(std::string reg,
                        std::shared_ptr<LiveInterval> interval) {
-    liveIntervalMap.insert({op, interval});
+    liveIntervalMap.insert({reg, interval});
   }
 
-  std::shared_ptr<LiveInterval>
-  getLiveInterval(std::shared_ptr<assembly::RegisterOp> op) {
-    if (!liveIntervalMap.contains(op)) {
+  std::shared_ptr<LiveInterval> getLiveInterval(std::string reg) {
+    if (!liveIntervalMap.contains(reg)) {
       return nullptr;
     }
-    return liveIntervalMap[op];
+    return liveIntervalMap[reg];
   }
 
   // Register Allocation
@@ -69,9 +68,7 @@ private:
     return reg;
   }
 
-  void markAsInUse(std::string reg) {
-    freeRegisters.erase(reg);
-  }
+  void markAsInUse(std::string reg) { freeRegisters.erase(reg); }
 
   void freeRegister(std::string reg) { freeRegisters.insert(reg); }
 
@@ -79,7 +76,7 @@ private:
 
   const std::string SPILL_REG = assembly::R32_ECX;
 
-  std::unordered_set<std::shared_ptr<assembly::RegisterOp>> toSpill;
+  std::unordered_set<std::string> toSpill;
 
   void populateOffset();
 
