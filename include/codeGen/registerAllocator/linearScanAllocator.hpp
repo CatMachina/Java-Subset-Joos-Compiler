@@ -21,8 +21,6 @@ struct LiveInterval {
     return "Live Interval " + reg + " [" + std::to_string(begin) + ", " +
            std::to_string(end) + "]";
   }
-
-  bool isAllocated() { return assembly::isGPR(reg); }
 };
 
 class LinearScanAllocator : public RegisterAllocator {
@@ -37,6 +35,10 @@ public:
   // TODO: remove later
   void testLiveVariableAnalysis();
   void testAllocateFor();
+  void testAllocateWithSpilling();
+  void testDoubleSpillReads();
+  void testSpillReadWriteAndRead();
+  void testHeavySpillingArithmetic();
 
 private:
   // Live Variable Analysis
@@ -50,6 +52,7 @@ private:
 
   void addLiveInterval(std::string reg,
                        std::shared_ptr<LiveInterval> interval) {
+    std::cout << "addLiveInterval: " << interval->toString() << std::endl;
     liveIntervalMap.insert({reg, interval});
   }
 
@@ -65,6 +68,8 @@ private:
   std::unordered_set<std::string> freeRegisters = {
       assembly::R32_EBX, assembly::R32_EDX, assembly::R32_ESI,
       assembly::R32_EDI};
+
+  std::unordered_map<std::string, std::string> virtualToGPR;
 
   struct CompareEnd {
     bool operator()(const std::shared_ptr<LiveInterval> &a,
@@ -115,6 +120,9 @@ private:
     std::cout << "deactivate: " << interval->toString() << std::endl;
     activeIntervals.erase(interval);
   }
+
+  void replaceRegisters(
+      std::vector<std::shared_ptr<assembly::Instruction>> &instructions);
 
   // Spilling to Stack
 

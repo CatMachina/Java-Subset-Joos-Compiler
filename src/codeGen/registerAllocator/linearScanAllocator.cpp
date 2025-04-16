@@ -2,7 +2,16 @@
 
 namespace codegen {
 
-// Helpers
+//////////////////// Helpers ////////////////////
+
+static void printInstructions(
+    const std::vector<std::shared_ptr<assembly::Instruction>> instructions) {
+  for (auto instruction : instructions) {
+    std::cout << instruction->toString() << std::endl;
+  }
+}
+
+//////////////////// Live Variable Analysis ////////////////////
 
 // Each variable (that is, temporary) is live at a subset of locations in the
 // code—its live range; however, to ensure that each variable is assigned to a
@@ -67,6 +76,7 @@ void LinearScanAllocator::runLiveVariableAnalysis(
     std::cout << std::endl;
   }
   // Compute the live intervals for each variable
+  std::shared_ptr<LiveInterval> interval;
   for (auto reg : regs) {
     // Pushed locs in reverse instruction order, so back() is earliest and
     // front() is latest.
@@ -76,13 +86,13 @@ void LinearScanAllocator::runLiveVariableAnalysis(
     }
     int begin = liveOutBeforeMap[reg].back();
     int end = liveOutBeforeMap[reg].front();
-    auto interval =
-        std::make_shared<LiveInterval>(LiveInterval{reg, begin, end});
-    std::cout << interval->toString() << std::endl;
+    interval = std::make_shared<LiveInterval>(LiveInterval{reg, begin, end});
     addLiveInterval(reg, interval);
   }
   std::cout << "Linear Scan: Done Live Variable Analysis" << std::endl;
 }
+
+//////////////////// Spilling to Stack ////////////////////
 
 void LinearScanAllocator::populateOffset() {
   int offset = 4;
@@ -99,13 +109,10 @@ void LinearScanAllocator::spillToStack(
   std::vector<std::shared_ptr<assembly::Instruction>> finalInstructions;
   populateOffset();
   for (auto instruction : instructions) {
-    std::vector<std::shared_ptr<assembly::RegisterOp>> spillRegs;
-    for (auto operand : instruction->getOperands()) {
-      auto regOp = std::dynamic_pointer_cast<assembly::RegisterOp>(operand);
-      if (!regOp)
-        continue;
-      if (toSpill.find(regOp->getReg()) != toSpill.end()) {
-        spillRegs.push_back(regOp);
+    std::vector<std::string> spillRegs;
+    for (auto reg : instruction->getAllUsedVirtualRegisters()) {
+      if (toSpill.find(reg) != toSpill.end()) {
+        spillRegs.push_back(reg);
       }
     }
     // No register to spill
@@ -115,12 +122,17 @@ void LinearScanAllocator::spillToStack(
     }
     // Prepare for the new load and store instructions
     std::vector<std::shared_ptr<assembly::Instruction>> newInstructions;
+    std::unordered_set<std::string> reads =
+        instruction->getReadVirtualRegisters();
+    std::unordered_set<std::string> writes =
+        instruction->getWriteVirtualRegisters();
     // Simpler case: just one register to spill
     if (spillRegs.size() == 1) {
-      std::shared_ptr<assembly::RegisterOp> regOp = spillRegs[0];
-      std::string reg = spillRegs[0]->getReg();
+      std::string reg = spillRegs[0];
+      bool isRead = reads.contains(reg);
+      bool isWrite = writes.contains(reg);
       // Load for read
-      if (regOp->isRead()) {
+      if (isRead) {
         newInstructions.push_back(
             std::make_shared<assembly::Comment>("Load from " + reg));
         newInstructions.push_back(std::make_shared<assembly::Mov>(
@@ -132,7 +144,7 @@ void LinearScanAllocator::spillToStack(
       instruction->replaceRegister(reg, SPILL_REG);
       newInstructions.push_back(instruction);
       // Store for write
-      if (regOp->isWrite()) {
+      if (isWrite) {
         newInstructions.push_back(
             std::make_shared<assembly::Comment>("Store to " + reg));
         newInstructions.push_back(std::make_shared<assembly::Mov>(
@@ -143,20 +155,19 @@ void LinearScanAllocator::spillToStack(
     }
     // More complicated case: two registers to spill
     else if (spillRegs.size() == 2) {
-      std::string reg0 = spillRegs[0]->getReg();
-      std::string reg1 = spillRegs[1]->getReg();
-      bool isRead0 = true;
-      bool isWrite0 = false;
-      bool isRead1 = true;
-      bool isWrite1 = true;
+      std::string reg0 = spillRegs[0];
+      std::string reg1 = spillRegs[1];
+      bool isRead0 = reads.contains(reg0);
+      bool isWrite0 = writes.contains(reg0);
+      bool isRead1 = reads.contains(reg1);
       if (isRead0 && isRead1) {
         // Load arg0
         newInstructions.push_back(
             std::make_shared<assembly::Comment>("Load from " + reg0));
         newInstructions.push_back(std::make_shared<assembly::Mov>(
+            std::make_shared<assembly::RegisterOp>(SPILL_REG),
             std::make_unique<assembly::MemAddrOp>(assembly::R32_EBP,
-                                                  -1 * registerOffsets[reg0]),
-            std::make_shared<assembly::RegisterOp>(SPILL_REG)));
+                                                  -1 * registerOffsets[reg0])));
         // Perform operation between arg0 and arg1 (from memory)
         newInstructions.push_back(
             std::make_shared<assembly::Comment>("Operate directly on memory"));
@@ -164,6 +175,7 @@ void LinearScanAllocator::spillToStack(
         instruction->setOperand(
             1, std::make_unique<assembly::MemAddrOp>(
                    assembly::R32_EBP, -1 * registerOffsets[reg1]));
+        newInstructions.push_back(instruction);
         if (isWrite0) {
           // Store arg0
           newInstructions.push_back(
@@ -179,7 +191,20 @@ void LinearScanAllocator::spillToStack(
     finalInstructions.insert(finalInstructions.end(), newInstructions.begin(),
                              newInstructions.end());
   }
-  instructions = std::move(finalInstructions);
+  instructions = finalInstructions;
+}
+
+//////////////////// Register Allocation ////////////////////
+
+void LinearScanAllocator::replaceRegisters(
+    std::vector<std::shared_ptr<assembly::Instruction>> &instructions) {
+  for (auto instruction : instructions) {
+    for (auto reg : instruction->getAllUsedVirtualRegisters()) {
+      if (virtualToGPR.find(reg) != virtualToGPR.end()) {
+        instruction->replaceRegister(reg, virtualToGPR[reg]);
+      }
+    }
+  }
 }
 
 int LinearScanAllocator::allocateFor(
@@ -233,7 +258,10 @@ int LinearScanAllocator::allocateFor(
     for (auto activeInterval : activeIntervals) {
       if (activeInterval->end < interval->begin) {
         // Its assigned register is made available
-        markAsFree(activeInterval->reg);
+        std::string toFree = assembly::isGPR(activeInterval->reg)
+                                 ? activeInterval->reg
+                                 : virtualToGPR[activeInterval->reg];
+        markAsFree(toFree);
         // Remove from the active list
         toRemove.insert(activeInterval);
       }
@@ -244,32 +272,44 @@ int LinearScanAllocator::allocateFor(
     }
     // The considered interval is then allocated a free register
     if (hasFreeRegister()) {
-      interval->reg = allocateFreeRegister();
+      virtualToGPR.insert({interval->reg, allocateFreeRegister()});
       // And is added to the active list
       activate(interval);
     }
     // If no register is available to be allocated to a variable, one of the
     // variable is chosen to be spilled
-    if (!interval->isAllocated()) {
+    if (virtualToGPR.find(interval->reg) == virtualToGPR.end()) {
       // Heuristic: spill the active interval with the last end time
       std::shared_ptr<LiveInterval> lastEndInterval = *activeIntervals.rbegin();
       std::cout << "lastEndInterval: " << lastEndInterval->toString()
                 << std::endl;
-      std::string reg = lastEndInterval->reg;
-      markAsFree(reg);
-      deactivate(lastEndInterval);
       toSpill.insert(lastEndInterval->reg);
+      std::string gpr = virtualToGPR[lastEndInterval->reg];
+      virtualToGPR.erase(lastEndInterval->reg);
+      deactivate(lastEndInterval);
       // Allocate register to the current interval
-      interval->reg = reg;
+      virtualToGPR.insert({interval->reg, gpr});
+      activeIntervals.insert(interval);
     }
   }
-  std::cout << "Spill registers: ";
-  for (auto reg : toSpill) {
-    std::cout << reg << ", ";
+  std::cout << "\nVirtual to GPR:" << std::endl;
+  for (auto pair : virtualToGPR) {
+    std::cout << pair.first << ": " << pair.second << std::endl;
   }
-  std::cout << std::endl;
+  std::cout << "\nSpill registers:" << std::endl;
+  for (auto reg : toSpill) {
+    std::cout << reg << std::endl;
+  }
+  replaceRegisters(instructions);
+  std::cout << "\nAfter replacing registers:" << std::endl;
+  printInstructions(instructions);
+  spillToStack(instructions);
+  std::cout << "\nAfter spilling to stack:" << std::endl;
+  printInstructions(instructions);
   return toSpill.size();
 }
+
+//////////////////// Tests ////////////////////
 
 void LinearScanAllocator::testLiveVariableAnalysis() {
   using namespace assembly;
@@ -347,6 +387,146 @@ void LinearScanAllocator::testAllocateFor() {
   assert(spilled == 0); // No spilling expected with 3 virtuals (a, b, c, d)
 
   std::cout << "Linear scan allocation test done\n";
+}
+
+void LinearScanAllocator::testAllocateWithSpilling() {
+  using namespace assembly;
+
+  auto reg = [](const std::string &name) {
+    return std::make_shared<RegisterOp>(name); // fresh virtual register
+  };
+
+  auto imm = [](int val) { return std::make_shared<ImmediateOp>(val); };
+
+  auto mem = [&](const std::string &base, int offset = 0) {
+    return std::make_shared<MemAddrOp>(base, "", offset, 1);
+  };
+
+  std::vector<std::shared_ptr<Instruction>> instructions = {
+      std::make_shared<Mov>(reg("r1"), imm(1)), // r1 live
+      std::make_shared<Mov>(reg("r2"), imm(2)), // r1, r2 live
+      std::make_shared<Mov>(reg("r3"), imm(3)), // r1, r2, r3 live
+      std::make_shared<Mov>(reg("r4"), imm(4)), // r1-r4 live
+      std::make_shared<Mov>(reg("r5"),
+                            imm(5)), // r1-r5 live -> should trigger spilling
+      std::make_shared<Add>(reg("r1"), reg("r2")),
+      std::make_shared<Add>(reg("r3"), reg("r4")),
+      std::make_shared<Add>(reg("r1"), reg("r5")), // use spilled r5
+      std::make_shared<Mov>(reg("eax"), reg("r1")),
+      std::make_shared<Ret>()};
+
+  int spilled = allocateFor(instructions);
+  assert(spilled > 0); // Expect spilling due to r1-r5 pressure
+
+  std::cout << "Linear scan spilling test done (spilled = " << spilled << ")\n";
+}
+
+void LinearScanAllocator::testDoubleSpillReads() {
+  using namespace assembly;
+
+  auto reg = [](const std::string &name) {
+    return std::make_shared<RegisterOp>(name);
+  };
+
+  auto imm = [](int val) { return std::make_shared<ImmediateOp>(val); };
+
+  std::vector<std::shared_ptr<Instruction>> instructions = {
+      std::make_shared<Mov>(reg("r1"), imm(10)), // r1 live
+      std::make_shared<Mov>(reg("r2"), imm(20)), // r2 live
+      std::make_shared<Mov>(reg("r3"), imm(30)), // r3 live
+      std::make_shared<Mov>(reg("r4"), imm(40)), // r4 live
+      std::make_shared<Mov>(reg("r5"), imm(50)), // r5 live
+      std::make_shared<Mov>(reg("r6"), imm(60)), // r6 live
+
+      // Keep r2–r5 live with dummy uses
+      std::make_shared<Add>(reg("r2"), imm(0)),
+      std::make_shared<Add>(reg("r3"), imm(0)),
+      std::make_shared<Add>(reg("r4"), imm(0)),
+      std::make_shared<Add>(reg("r5"), imm(0)),
+
+      // Both r1 and r6 are used here → force reload if spilled
+      std::make_shared<Cmp>(reg("r1"), reg("r6")),
+
+      std::make_shared<Mov>(reg("eax"), reg("r1")), std::make_shared<Ret>()};
+
+  int spilled = allocateFor(instructions);
+  assert(spilled >= 2); // We want at least r1 and r6 to be spilled
+
+  std::cout << "Double spill read test done (spilled = " << spilled << ")\n";
+}
+
+void LinearScanAllocator::testSpillReadWriteAndRead() {
+  using namespace assembly;
+
+  auto reg = [](const std::string &name) {
+    return std::make_shared<RegisterOp>(name);
+  };
+
+  auto imm = [](int val) { return std::make_shared<ImmediateOp>(val); };
+
+  std::vector<std::shared_ptr<Instruction>> instructions = {
+      std::make_shared<Mov>(reg("r1"), imm(10)), // r1 live
+      std::make_shared<Mov>(reg("r6"), imm(60)), // r6 live
+      std::make_shared<Mov>(reg("r2"), imm(20)), // r2 live
+      std::make_shared<Mov>(reg("r3"), imm(30)), // r3 live
+      std::make_shared<Mov>(reg("r4"), imm(40)), // r4 live
+      std::make_shared<Mov>(reg("r5"), imm(50)), // r5 live
+
+      // Keep r2–r5 live longer to increase pressure
+      std::make_shared<Add>(reg("r2"), imm(0)),
+      std::make_shared<Add>(reg("r3"), imm(0)),
+      std::make_shared<Add>(reg("r4"), imm(0)),
+      std::make_shared<Add>(reg("r5"), imm(0)),
+
+      // Force spill of both r1 (read/write) and r6 (read)
+      std::make_shared<Add>(reg("r1"), reg("r6")),
+
+      std::make_shared<Mov>(reg("eax"), reg("r1")), std::make_shared<Ret>()};
+
+  int spilled = allocateFor(instructions);
+  assert(spilled >= 2); // Ensure both r1 and r6 spilled
+
+  std::cout << "Spill test for read+write + read done (spilled = " << spilled
+            << ")\n";
+}
+
+void LinearScanAllocator::testHeavySpillingArithmetic() {
+  using namespace assembly;
+
+  auto reg = [](const std::string &name) {
+    return std::make_shared<RegisterOp>(name);
+  };
+
+  auto imm = [](int val) { return std::make_shared<ImmediateOp>(val); };
+
+  std::vector<std::shared_ptr<Instruction>> instructions = {
+      std::make_shared<Mov>(reg("r1"), imm(10)), // r1 - read/write
+      std::make_shared<Mov>(reg("r2"), imm(20)),
+      std::make_shared<Mov>(reg("r3"), imm(30)),
+      std::make_shared<Mov>(reg("r4"), imm(40)),
+      std::make_shared<Mov>(reg("r5"), imm(50)),
+      std::make_shared<Mov>(reg("r6"), imm(60)), // r6 - read
+      std::make_shared<Mov>(reg("r7"), imm(70)), // just keep alive
+      std::make_shared<Mov>(reg("r8"), imm(80)), // just keep alive
+
+      std::make_shared<Add>(reg("r2"), imm(0)),
+      std::make_shared<Add>(reg("r3"), imm(0)),
+      std::make_shared<Add>(reg("r4"), imm(0)),
+      std::make_shared<Add>(reg("r5"), imm(0)),
+      std::make_shared<Add>(reg("r7"), imm(0)),
+      std::make_shared<Add>(reg("r8"), imm(0)),
+
+      // r1 is read+write, r6 is read
+      std::make_shared<Sub>(reg("r1"), reg("r6")),
+
+      std::make_shared<Mov>(reg("eax"), reg("r1")), std::make_shared<Ret>()};
+
+  int spilled = allocateFor(instructions);
+  assert(spilled >=
+         4); // Expect at least 4 spills with 8 virtuals and 4 registers
+
+  std::cout << "Heavy spilling arithmetic test done (spilled = " << spilled
+            << ")\n";
 }
 
 } // namespace codegen
