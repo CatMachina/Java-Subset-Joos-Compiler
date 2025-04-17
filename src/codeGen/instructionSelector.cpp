@@ -364,6 +364,20 @@ StmtTile InstructionSelector::selectTile(std::shared_ptr<tir::Stmt> stmt) {
 
     }
 
+    // special case : NATIVEjava.io.OutputStream.nativeWrite call
+    else if (functionName == "NATIVEjava.io.OutputStream.nativeWrite") {
+      if (call->getNumArgs() != 1) {
+        throw std::runtime_error(
+            "Invalid number of arguments for nativeWrite, got " +
+            std::to_string(call->getNumArgs()));
+      }
+
+      tile = std::make_shared<Tile>(std::vector<TileInstruction>{
+          selectTile(call->getArgs()[0], assembly::R32_EAX),
+          std::make_shared<assembly::Call>(
+              std::make_shared<assembly::LabelOp>(functionName))});
+    }
+
     // regular case
     else {
       // push args to stack reverse order (C decl)

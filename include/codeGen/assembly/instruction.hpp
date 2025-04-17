@@ -284,6 +284,7 @@ public:
     addWriteGPR(assembly::R32_EAX);
 
     addWriteGPR(assembly::R32_EDX);
+    addReadGPR(assembly::R32_EDX);
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
@@ -564,6 +565,12 @@ public:
   Call(std::shared_ptr<Operand> target) {
     target->setRead();
     addOperand(target);
+
+    addWriteGPR(assembly::R32_EAX);
+    if (target->toString() == "__malloc" ||
+        target->toString() == "NATIVEjava.io.OutputStream.nativeWrite") {
+      addReadGPR(assembly::R32_EAX);
+    }
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
