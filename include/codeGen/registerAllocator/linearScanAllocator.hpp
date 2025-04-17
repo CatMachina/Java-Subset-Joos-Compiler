@@ -31,15 +31,6 @@ public:
   int allocateFor(std::vector<std::shared_ptr<assembly::Instruction>>
                       &instructions) override;
 
-  // Tests
-  // TODO: remove later
-  void testLiveVariableAnalysis();
-  void testAllocateFor();
-  void testAllocateWithSpilling();
-  void testDoubleSpillReads();
-  void testSpillReadWriteAndRead();
-  void testHeavySpillingArithmetic();
-
 private:
   // Live Variable Analysis
 
@@ -66,12 +57,12 @@ private:
   // Register Allocation
 
   const std::unordered_set<std::string> availableRegisters = {
-      assembly::R32_EBX, assembly::R32_EDX, assembly::R32_ESI,
-      assembly::R32_EDI};
+      assembly::R32_EBX, assembly::R32_ECX, assembly::R32_EDX,
+      assembly::R32_ESI, assembly::R32_EDI};
 
   std::unordered_set<std::string> freeRegisters = {
-      assembly::R32_EBX, assembly::R32_EDX, assembly::R32_ESI,
-      assembly::R32_EDI};
+      assembly::R32_EBX, assembly::R32_ECX, assembly::R32_EDX,
+      assembly::R32_ESI, assembly::R32_EDI};
 
   std::unordered_map<std::string, std::string> virtualToGPR;
 
@@ -133,8 +124,7 @@ private:
 
   // Spilling to Stack
 
-  const std::string SPILL_REG = assembly::R32_ECX;
-  const std::string SCRATCH_REG = assembly::R32_EAX;
+  const std::string SPILL_REG = assembly::R32_EAX;
 
   void populateOffsets(
       std::vector<std::shared_ptr<assembly::Instruction>> &instructions);

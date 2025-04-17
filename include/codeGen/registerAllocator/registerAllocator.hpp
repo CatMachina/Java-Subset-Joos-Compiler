@@ -16,7 +16,8 @@ protected:
 
   void replaceVirtualRegisters(
       std::shared_ptr<assembly::Instruction> &instruction,
-      std::vector<std::shared_ptr<assembly::Instruction>> &newInstructions) {
+      std::vector<std::shared_ptr<assembly::Instruction>> &newInstructions,
+      bool needSave = false) {
     auto originalInstructionString = instruction->toString();
     auto readRegisters = instruction->getReadVirtualRegisters();
     auto writeRegisters = instruction->getWriteVirtualRegisters();
@@ -36,12 +37,24 @@ protected:
 
     // load from each read
     for (const auto &reg : readRegisters) {
+      if (needSave) {
+        newInstructions.push_back(
+            std::make_unique<assembly::Comment>("Save " + virtualToGPR[reg]));
+        newInstructions.push_back(std::make_shared<assembly::Push>(
+            std::make_shared<assembly::RegisterOp>(virtualToGPR[reg])));
+      }
       newInstructions.push_back(
           std::make_unique<assembly::Comment>("Load from " + reg));
       newInstructions.push_back(std::make_unique<assembly::Mov>(
           std::make_shared<assembly::RegisterOp>(virtualToGPR[reg]),
           std::make_unique<assembly::MemAddrOp>(assembly::R32_EBP,
                                                 -1 * registerOffsets[reg])));
+      if (needSave) {
+        newInstructions.push_back(std::make_unique<assembly::Comment>(
+            "Restore " + virtualToGPR[reg]));
+        newInstructions.push_back(std::make_shared<assembly::Pop>(
+            std::make_shared<assembly::RegisterOp>(virtualToGPR[reg])));
+      }
     }
 
     // add back the original instruction
@@ -53,12 +66,24 @@ protected:
 
     // store for each write
     for (const auto &reg : writeRegisters) {
+      if (needSave) {
+        newInstructions.push_back(
+            std::make_unique<assembly::Comment>("Save " + virtualToGPR[reg]));
+        newInstructions.push_back(std::make_shared<assembly::Push>(
+            std::make_shared<assembly::RegisterOp>(virtualToGPR[reg])));
+      }
       newInstructions.push_back(
           std::make_unique<assembly::Comment>("Store to " + reg));
       newInstructions.push_back(std::make_unique<assembly::Mov>(
           std::make_unique<assembly::MemAddrOp>(assembly::R32_EBP,
                                                 -1 * registerOffsets[reg]),
           std::make_shared<assembly::RegisterOp>(virtualToGPR[reg])));
+      if (needSave) {
+        newInstructions.push_back(std::make_unique<assembly::Comment>(
+            "Restore " + virtualToGPR[reg]));
+        newInstructions.push_back(std::make_shared<assembly::Pop>(
+            std::make_shared<assembly::RegisterOp>(virtualToGPR[reg])));
+      }
     }
   }
 
