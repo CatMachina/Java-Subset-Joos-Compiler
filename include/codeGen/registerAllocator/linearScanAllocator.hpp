@@ -52,7 +52,7 @@ private:
 
   void addLiveInterval(std::string reg,
                        std::shared_ptr<LiveInterval> interval) {
-    std::cout << "addLiveInterval: " << interval->toString() << std::endl;
+    // std::cout << "addLiveInterval: " << interval->toString() << std::endl;
     liveIntervalMap.insert({reg, interval});
   }
 
@@ -64,6 +64,10 @@ private:
   }
 
   // Register Allocation
+
+  const std::unordered_set<std::string> availableRegisters = {
+      assembly::R32_EBX, assembly::R32_EDX, assembly::R32_ESI,
+      assembly::R32_EDI};
 
   std::unordered_set<std::string> freeRegisters = {
       assembly::R32_EBX, assembly::R32_EDX, assembly::R32_ESI,
@@ -86,10 +90,13 @@ private:
   std::set<std::shared_ptr<LiveInterval>, CompareEnd> activeIntervals;
 
   void init() {
+    liveOutBeforeMap.clear();
+    liveIntervalMap.clear();
+    freeRegisters = availableRegisters;
+    virtualToGPR.clear();
     intervals.clear();
     activeIntervals.clear();
     registerOffsets.clear();
-    toSpill.clear();
   }
 
   bool hasFreeRegister() const { return !freeRegisters.empty(); }
@@ -97,27 +104,27 @@ private:
   std::string allocateFreeRegister() {
     std::string reg = *freeRegisters.begin();
     freeRegisters.erase(reg);
-    std::cout << "allocateFreeRegister: " << reg << std::endl;
+    // std::cout << "allocateFreeRegister: " << reg << std::endl;
     return reg;
   }
 
   void markAsInUse(std::string reg) {
-    std::cout << "markAsInUse: " << reg << std::endl;
+    // std::cout << "markAsInUse: " << reg << std::endl;
     freeRegisters.erase(reg);
   }
 
   void markAsFree(std::string reg) {
-    std::cout << "markAsFree: " << reg << std::endl;
+    // std::cout << "markAsFree: " << reg << std::endl;
     freeRegisters.insert(reg);
   }
 
   void activate(std::shared_ptr<LiveInterval> interval) {
-    std::cout << "activate: " << interval->toString() << std::endl;
+    // std::cout << "activate: " << interval->toString() << std::endl;
     activeIntervals.insert(interval);
   }
 
   void deactivate(std::shared_ptr<LiveInterval> interval) {
-    std::cout << "deactivate: " << interval->toString() << std::endl;
+    // std::cout << "deactivate: " << interval->toString() << std::endl;
     activeIntervals.erase(interval);
   }
 
@@ -127,10 +134,10 @@ private:
   // Spilling to Stack
 
   const std::string SPILL_REG = assembly::R32_ECX;
+  const std::string SCRATCH_REG = assembly::R32_EAX;
 
-  std::unordered_set<std::string> toSpill;
-
-  void populateOffset();
+  void populateOffsets(
+      std::vector<std::shared_ptr<assembly::Instruction>> &instructions);
 
   void spillToStack(
       std::vector<std::shared_ptr<assembly::Instruction>> &instructions);

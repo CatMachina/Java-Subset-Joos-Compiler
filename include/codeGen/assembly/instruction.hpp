@@ -284,7 +284,6 @@ public:
     addWriteGPR(assembly::R32_EAX);
 
     addWriteGPR(assembly::R32_EDX);
-    addReadGPR(assembly::R32_EDX);
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {
