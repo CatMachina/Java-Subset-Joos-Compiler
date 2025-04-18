@@ -142,6 +142,7 @@ public:
   [[nodiscard]] virtual bool isPrimitive() const { return false; };
   [[nodiscard]] virtual bool isNull() const { return false; };
   [[nodiscard]] virtual bool isNumeric() const { return false; }
+  [[nodiscard]] virtual bool isCharacter() const { return false; }
   [[nodiscard]] virtual bool isBoolean() const { return false; }
   [[nodiscard]] virtual bool isArray() const { return false; }
 
@@ -648,6 +649,17 @@ public:
     return fields;
   }
 
+  std::shared_ptr<FieldDecl> getField(const std::string &fieldName) const {
+    for (const auto &decl : classBodyDecls) {
+      if (auto fieldDecl = std::dynamic_pointer_cast<FieldDecl>(decl)) {
+        if (decl->getName() == fieldName) {
+          return fieldDecl;
+        }
+      }
+    }
+    return nullptr;
+  }
+
   int getFieldOffset(std::shared_ptr<FieldDecl> field) const {
     int offset = 0;
     for (const auto &decl : classBodyDecls) {
@@ -672,6 +684,18 @@ public:
     }
 
     return methods;
+  }
+
+  std::shared_ptr<MethodDecl> getMethod(const std::string &methodName) const {
+    for (const auto &decl : classBodyDecls) {
+      if (auto methodDecl = std::dynamic_pointer_cast<MethodDecl>(decl)) {
+        if (methodDecl->getName() == methodName) {
+          return methodDecl;
+        }
+      }
+    }
+
+    return nullptr;
   }
 
   std::unordered_set<std::shared_ptr<MethodDecl>> &getAllMethods() {
@@ -1089,6 +1113,7 @@ public:
     return type_ == Type::Int || type_ == Type::Char || type_ == Type::Short ||
            type_ == Type::Byte;
   }
+  bool isCharacter() const override { return type_ == Type::Char; }
   bool isBoolean() const override { return type_ == Type::Boolean; }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {

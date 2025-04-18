@@ -114,6 +114,7 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
 
       // get the string value
       auto val = literal->getAsString();
+      // std::cout << "val: " << val << "." << std::endl;
       std::vector<std::shared_ptr<tir::Stmt>> seqVec;
 
       auto stringClass = astManager->java_lang.String;
@@ -138,15 +139,18 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
                                       nullptr, true)));
 
       // initialize all fields
-      // TODO: should we actually initialize them or placeholder 0 is fine
       int count = 0;
       for (auto &field : stringDV->fieldVector) {
+        auto initializer = field->hasInit()
+        ? innerExprConverter->evaluateList(
+          field->getInitializer()->getExprNodes())
+          : std::make_shared<tir::Const>(0);
         seqVec.push_back(std::make_shared<tir::Move>(
             std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
                 tir::BinOp::OpType::ADD,
                 std::make_shared<tir::Temp>(stringRefName),
                 std::make_shared<tir::Const>((count + 1) * 4))),
-            std::make_shared<tir::Const>(0)));
+        initializer));
         count++;
       }
 
@@ -172,18 +176,12 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
           std::make_shared<tir::Temp>(stringRefName), args)));
 
       // get chars field
-      std::shared_ptr<parsetree::ast::FieldDecl> charsField = nullptr;
-      for (auto &field : stringClass->getFields()) {
-        if (field->getName() == "chars") {
-          charsField = field;
-          break;
-        }
-        // charsFieldIndex++;
-      }
+      std::shared_ptr<parsetree::ast::FieldDecl> charsField =
+      stringClass->getField("chars");
       if (charsField == nullptr) {
         throw std::runtime_error("Chars field not found in String class");
       }
-      int charsFieldIndex = stringDV->getFieldOffset(charsField);
+      int charsFieldIndex = stringDV->getFieldOffset(charsField) + 1;
 
       // create chars ref
       std::string charsRefName = tir::Temp::generateName("chars_ref");
@@ -206,7 +204,7 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
       seqVec.push_back(std::make_shared<tir::Move>(
           std::make_shared<tir::Mem>(std::make_shared<tir::Mem>(
               std::make_shared<tir::Temp>(charsRefName))),
-          std::make_shared<tir::Const>(val.size())));
+          std::make_shared<tir::Const>(val.length())));
 
       // attach array DV
       auto arrayClass = astManager->java_lang.Arrays;
@@ -334,6 +332,465 @@ ExprIRConverter::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
   throw std::runtime_error("Invalid value in mapValue in codegen");
 }
 
+// Get earliest toString method
+std::shared_ptr<parsetree::ast::MethodDecl>
+getToStringMethod(std::shared_ptr<parsetree::ast::ClassDecl> classDecl,
+                  std::shared_ptr<parsetree::ast::ClassDecl> object) {
+  for (auto func : classDecl->getAllMethods()) {
+    if (func->getName() == "toString" && func->getParams().size() == 0) {
+      return func;
+    }
+  }
+  int numSuperClasses = classDecl->getSuperClasses().size();
+  for (auto &super : classDecl->getSuperClasses()) {
+    if (!super || !super->isResolved())
+      continue;
+    auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
+        super->getResolvedDecl().getAstNode());
+    if (!superDecl)
+      continue;
+    // Since Object is always a parent, only traverse to object if it's the only
+    // parent
+    if (numSuperClasses != 1 && superDecl == object)
+      continue;
+    auto method = getToStringMethod(superDecl, object);
+    if (method)
+      return method;
+  }
+  return nullptr;
+}
+
+std::shared_ptr<tir::Expr> ExprIRConverter::evalStringConcatenation(
+    std::shared_ptr<parsetree::ast::BinOp> &op,
+    const std::shared_ptr<tir::Expr> lhs,
+    const std::shared_ptr<tir::Expr> rhs) {
+  // If both, then make new string entry and add both chars
+  const std::string stringConcatPrefix = "string_concat_";
+  std::cout << "String Concatentation: " << std::endl;
+  lhs->print(std::cout);
+  rhs->print(std::cout);
+  std::cout << "Done SC Print!" << std::endl;
+  
+  if (op->getLhsType()->isString() && op->getRhsType()->isString()) {
+    {
+      /** Old implementation (manually construct new string) */
+    // std::cout << "String Concatenation: both sides string" << std::endl;
+    // Initiliazing metadata for string instances
+    // auto stringClass = astManager->java_lang.String;
+    // auto stringDV = codegen::DispatchVectorBuilder::getDV(stringClass);
+    // int numFields = stringDV->fieldVector.size();
+    // // get chars field
+    // std::shared_ptr<parsetree::ast::FieldDecl> charsField =
+    //     stringClass->getField("chars");
+    // if (charsField == nullptr) {
+    //   throw std::runtime_error("Chars field not found in String class");
+    // }
+    // int charsFieldIndex = stringDV->getFieldOffset(charsField) + 1;
+    // std::cout << "charsFieldIndex (stringConcat): " << charsFieldIndex << std::endl;
+
+    // Evaluating a + b where a,b are strings
+    // std::vector<std::shared_ptr<tir::Stmt>> seqVec;
+    // std::cout << "String Concatenation: initialized" << std::endl;
+    // Keep a and b in registers to avoid redundancy
+    // std::string strA = tir::Temp::generateName(stringConcatPrefix + "str_a");
+    // std::string strB = tir::Temp::generateName(stringConcatPrefix + "str_b");
+    // seqVec.push_back(
+    //     std::make_shared<tir::Move>(std::make_shared<tir::Temp>(strA), lhs));
+    // seqVec.push_back(
+    //     std::make_shared<tir::Move>(std::make_shared<tir::Temp>(strB), rhs));
+    // // Get position of a's characters
+    // std::string charsRefA =
+    //     tir::Temp::generateName(stringConcatPrefix + "chars_ref_a");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(charsRefA),
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(strA),
+    //         std::make_shared<tir::Const>(charsFieldIndex * 4)))));
+    // // Get string a length
+    // std::string lenA = tir::Temp::generateName(stringConcatPrefix + "len_a");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(lenA),
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(charsRefA))));
+
+    // // Get position of b's characters
+    // std::string charsRefB =
+    //     tir::Temp::generateName(stringConcatPrefix + "chars_ref_b");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(charsRefB),
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(strB),
+    //         std::make_shared<tir::Const>(charsFieldIndex * 4)))));
+    // // Get string b length
+    // std::string lenB = tir::Temp::generateName(stringConcatPrefix + "len_b");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(lenB),
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(charsRefB))));
+
+    // std::cout << "String Concatenation: get lens and chars" << std::endl;
+    // // Get total size + malloc size
+    // std::string totalLen =
+    //     tir::Temp::generateName(stringConcatPrefix + "total_len");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(totalLen),
+    //     std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD,
+    //                                  std::make_shared<tir::Temp>(lenA),
+    //                                  std::make_shared<tir::Temp>(lenB))));
+    // std::string newCharsRef =
+    //     tir::Temp::generateName(stringConcatPrefix + "new_chars_ref");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(newCharsRef),
+    //     tir::Call::makeMalloc(std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD,
+    //         std::make_shared<tir::BinOp>(tir::BinOp::OpType::MUL,
+    //                                      std::make_shared<tir::Temp>(totalLen),
+    //                                      std::make_shared<tir::Const>(4)),
+    //         std::make_shared<tir::Const>(8)))));
+
+    // // Fill in new string's character array metadata
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(newCharsRef)),
+    //     std::make_shared<tir::Temp>(totalLen)));
+    
+    // // attach array DV
+    // auto arrayClass = astManager->java_lang.Arrays;
+    // if (arrayClass == nullptr) {
+    //   throw std::runtime_error("java.util.Arrays class not found");
+    // }
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     // MEM(arr + 4) = DV for arrays
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD,
+    //         std::make_shared<tir::Mem>(
+    //             std::make_shared<tir::Temp>(newCharsRef)),
+    //         std::make_shared<tir::Const>(4))),
+    //     std::make_shared<tir::Temp>(codeGenLabels->getClassLabel(arrayClass),
+    //                                 nullptr, true)));
+    // std::cout << "String Concatenation: done new chars" << std::endl;
+    // // Copy a_chars to new chars
+    // // Loop A Condition
+    // std::string iA = tir::Temp::generateName(stringConcatPrefix + "i_a");
+    // std::string loopA =
+    //     tir::Label::generateName(stringConcatPrefix + "loop_copy_a");
+    // std::string loopB =
+    //     tir::Label::generateName(stringConcatPrefix + "loop_copy_b");
+    // std::string condA = tir::Temp::generateName(stringConcatPrefix + "cond_a");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(iA), std::make_shared<tir::Const>(0)));
+    // seqVec.push_back(std::make_shared<tir::Label>(loopA));
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(condA),
+    //     std::make_shared<tir::BinOp>(tir::BinOp::OpType::GEQ,
+    //                                  std::make_shared<tir::Temp>(iA),
+    //                                  std::make_shared<tir::Temp>(lenA))));
+    // seqVec.push_back(std::make_shared<tir::CJump>(
+    //     std::make_shared<tir::Temp>(condA), loopB));
+    // // Loop A Body
+    // std::string srcA = tir::Temp::generateName(stringConcatPrefix + "src_a");
+    // std::string dstA = tir::Temp::generateName(stringConcatPrefix + "dst_a");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(srcA),
+    //     std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(charsRefA),
+    //         std::make_shared<tir::BinOp>(
+    //             tir::BinOp::OpType::ADD, std::make_shared<tir::Const>(8),
+    //             std::make_shared<tir::BinOp>(
+    //                 tir::BinOp::OpType::MUL, std::make_shared<tir::Temp>(iA),
+    //                 std::make_shared<tir::Const>(4))))));
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(dstA),
+    //     std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(newCharsRef),
+    //         std::make_shared<tir::BinOp>(
+    //             tir::BinOp::OpType::ADD, std::make_shared<tir::Const>(8),
+    //             std::make_shared<tir::BinOp>(
+    //                 tir::BinOp::OpType::MUL, std::make_shared<tir::Temp>(iA),
+    //                 std::make_shared<tir::Const>(4))))));
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(dstA)),
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(srcA))));
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(iA),
+    //     std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD,
+    //                                  std::make_shared<tir::Temp>(iA),
+    //                                  std::make_shared<tir::Const>(1))));
+    // seqVec.push_back(
+    //     std::make_shared<tir::Jump>(std::make_shared<tir::Name>(loopA)));
+    // std::cout << "String Concatenation: done Loop A" << std::endl;
+    // // Copy b_chars to new chars
+    // // Loop B Condition
+    // std::string iB = tir::Temp::generateName(stringConcatPrefix + "i_b");
+    // std::string buildString =
+    //     tir::Label::generateName(stringConcatPrefix + "build_string");
+    // std::string condB = tir::Temp::generateName(stringConcatPrefix + "cond_b");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(iB), std::make_shared<tir::Const>(0)));
+    // seqVec.push_back(std::make_shared<tir::Label>(loopB));
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(condB),
+    //     std::make_shared<tir::BinOp>(tir::BinOp::OpType::GEQ,
+    //                                  std::make_shared<tir::Temp>(iB),
+    //                                  std::make_shared<tir::Temp>(lenB))));
+    // seqVec.push_back(std::make_shared<tir::CJump>(
+    //     std::make_shared<tir::Temp>(condB), buildString));
+    // // Loop B Body
+    // std::string srcB = tir::Temp::generateName(stringConcatPrefix + "src_b");
+    // std::string dstB = tir::Temp::generateName(stringConcatPrefix + "dst_b");
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(srcB),
+    //     std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(charsRefB),
+    //         std::make_shared<tir::BinOp>(
+    //             tir::BinOp::OpType::ADD, std::make_shared<tir::Const>(8),
+    //             std::make_shared<tir::BinOp>(
+    //                 tir::BinOp::OpType::MUL, std::make_shared<tir::Temp>(iB),
+    //                 std::make_shared<tir::Const>(4))))));
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(dstB),
+    //     std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(newCharsRef),
+    //         std::make_shared<tir::BinOp>(
+    //             tir::BinOp::OpType::ADD, std::make_shared<tir::Const>(8),
+    //             std::make_shared<tir::BinOp>(
+    //                 tir::BinOp::OpType::MUL,
+    //                 std::make_shared<tir::BinOp>(
+    //                     tir::BinOp::OpType::ADD,
+    //                     std::make_shared<tir::Temp>(lenA),
+    //                     std::make_shared<tir::Temp>(iB)),
+    //                 std::make_shared<tir::Const>(4))))));
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(dstB)),
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(srcB))));
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(iB),
+    //     std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD,
+    //                                  std::make_shared<tir::Temp>(iB),
+    //                                  std::make_shared<tir::Const>(1))));
+    // seqVec.push_back(
+    //     std::make_shared<tir::Jump>(std::make_shared<tir::Name>(loopB)));
+    // std::cout << "String Concatenation: done Loop B" << std::endl;
+    // seqVec.push_back(std::make_shared<tir::Label>(buildString));
+
+    // Finalize building the string
+    // std::string stringRefName = tir::Temp::generateName("string_ref");
+
+    // // allocate space for class
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Temp>(stringRefName),
+    //     tir::Call::makeMalloc(
+    //         std::make_shared<tir::Const>((numFields + 1) * 4))));
+
+    // // first location is DV
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::Temp>(stringRefName)),
+    //     std::make_shared<tir::Temp>(codeGenLabels->getClassLabel(stringClass),
+    //                                 nullptr, true)));
+
+    // // initialize all fields
+    // int count = 0;
+    // for (auto &field : stringDV->fieldVector)
+    // {
+    //   auto initializer = field->hasInit()
+    //                          ? innerExprConverter->evaluateList(
+    //                                field->getInitializer()->getExprNodes())
+    //                          : std::make_shared<tir::Const>(0);
+    //   seqVec.push_back(std::make_shared<tir::Move>(
+    //       std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+    //           tir::BinOp::OpType::ADD,
+    //           std::make_shared<tir::Temp>(stringRefName),
+    //           std::make_shared<tir::Const>((count + 1) * 4))),
+    //       initializer));
+    //   count++;
+    // }
+    // // find the zero arg constructor for string
+    // std::shared_ptr<parsetree::ast::MethodDecl> constructor = nullptr;
+    // for (auto &method : stringClass->getConstructors())
+    // {
+    //   if (method->getParams().size() == 0)
+    //   {
+    //     constructor = method;
+    //     break;
+    //   }
+    // }
+    // if (constructor == nullptr)
+    // {
+    //   throw std::runtime_error("No zero arg constructor for String found");
+    // }
+    // // call the constructor
+    // seqVec.push_back(std::make_shared<tir::Exp>(std::make_shared<tir::Call>(
+    //     std::make_shared<tir::Name>(codeGenLabels->getMethodLabel(constructor)),
+    //     std::make_shared<tir::Temp>(stringRefName),
+    //     std::vector<std::shared_ptr<tir::Expr>>{})));
+
+    // std::cout << "String Concatenation: done build new string" << std::endl;
+    // seqVec.push_back(std::make_shared<tir::Move>(
+    //     std::make_shared<tir::Mem>(std::make_shared<tir::BinOp>(
+    //         tir::BinOp::OpType::ADD, std::make_shared<tir::Temp>(stringRefName),
+    //         std::make_shared<tir::Const>(charsFieldIndex * 4))),
+    //     std::make_shared<tir::Temp>(newCharsRef)));
+  }
+    /** New implementation, leverage existing concat call on string */
+    auto concatMethod = astManager->java_lang.String->getMethod("concat");
+    if (!concatMethod)
+    {
+      throw std::runtime_error("String object has no concat method");
+    }
+    std::vector<std::shared_ptr<tir::Expr>> args{ rhs };
+
+    // Leverage concat method
+    auto methodName = std::make_shared<parsetree::ast::MethodName>(
+        concatMethod->getFullName(), source::SourceRange());
+    methodName->setResolvedDecl(concatMethod);
+    auto methodNameTIR = std::make_shared<tir::TempTIR>(
+        methodName, tir::TempTIR::Type::MethodName);
+    auto methodTIR = std::make_shared<tir::TempTIR>(
+        std::pair<std::shared_ptr<tir::Expr>, std::shared_ptr<tir::Expr>>{
+            lhs, methodNameTIR},
+        tir::TempTIR::Type::MethodCall);
+    std::vector<std::shared_ptr<parsetree::ast::ExprNode>> methodInvocationArgs;
+    auto methodInvocation = std::make_shared<parsetree::ast::MethodInvocation>(
+        1, methodInvocationArgs);
+    auto newString = evalMethodInvocation(methodInvocation, methodTIR, args);
+
+    return newString;
+  }
+  std::shared_ptr<parsetree::ast::Type> type = nullptr;
+  std::shared_ptr<tir::Expr> oldExpr = nullptr;
+  std::shared_ptr<parsetree::ast::ExprValue> nullLiteral =
+      std::make_shared<parsetree::ast::Literal>(
+          std::make_shared<parsetree::Literal>(parsetree::Literal::Type::String,
+                                               "null"),
+          std::make_shared<parsetree::ast::BasicType>(
+              parsetree::ast::BasicType::Type::String));
+  auto nullExpr = mapValue(nullLiteral);
+  if (!op->getLhsType()->isString()) {
+    type = op->getLhsType();
+    oldExpr = lhs;
+  } else {
+    type = op->getRhsType();
+    oldExpr = rhs;
+  }
+  std::shared_ptr<parsetree::ast::ClassDecl> classDecl = nullptr;
+  std::shared_ptr<parsetree::ast::MethodDecl> classConstructor = nullptr;
+  if (type->isCharacter()) {
+    classDecl = astManager->java_lang.Character;
+    for (auto constructor : classDecl->getConstructors()) {
+      auto params = constructor->getParams();
+      if (params.size() == 1 && params[0]->getType()->isCharacter()) {
+        classConstructor = constructor;
+        break;
+      }
+    }
+  } else if (type->isBoolean()) {
+    classDecl = astManager->java_lang.Boolean;
+    for (auto constructor : classDecl->getConstructors()) {
+      auto params = constructor->getParams();
+      if (params.size() == 1 && params[0]->getType()->isBoolean()) {
+        classConstructor = constructor;
+        break;
+      }
+    }
+  } else if (type->isNumeric()) {
+    classDecl = astManager->java_lang.Integer;
+    for (auto constructor : classDecl->getConstructors()) {
+      auto params = constructor->getParams();
+      if (params.size() == 1 && params[0]->getType()->isNumeric()) {
+        classConstructor = constructor;
+        break;
+      }
+    }
+  } else if (type->isNull()) {
+    auto newOp = std::make_shared<parsetree::ast::BinOp>(
+        parsetree::ast::BinOp::OpType::Add);
+    if (!op->getLhsType()->isString()) {
+      newOp->setLhsType(std::make_shared<parsetree::ast::BasicType>(
+          parsetree::ast::BasicType::Type::String));
+      newOp->setRhsType(op->getRhsType());
+      return evalStringConcatenation(newOp, nullExpr, rhs);
+    }
+    newOp->setLhsType(op->getLhsType());
+    newOp->setRhsType(std::make_shared<parsetree::ast::BasicType>(
+        parsetree::ast::BasicType::Type::String));
+    return evalStringConcatenation(newOp, lhs, nullExpr);
+  } else {
+    throw std::runtime_error(
+        "Performing string concatenation on an invalid type");
+  }
+  // Call evalNewObject
+  // ReferenceType should be the casted class
+  auto referenceType =
+      std::make_shared<parsetree::ast::ReferenceType>(classDecl);
+  referenceType->setResolvedDecl(static_check::Decl(classDecl));
+  // TypeNode decl should resolve to class constructor taking in its own
+  // primitive type
+  auto typeNode = std::make_shared<parsetree::ast::TypeNode>(referenceType);
+  typeNode->setResolvedDecl(classConstructor);
+  // Create the arguments to make new object call;
+  auto obj =
+  std::make_shared<tir::TempTIR>(typeNode, tir::TempTIR::Type::TypeNode);
+  auto objOp = std::make_shared<parsetree::ast::ClassCreation>(1);
+  auto newObj = evalNewObject(objOp, obj, {oldExpr});
+  // Find the appropriate toString method
+  auto toString = getToStringMethod(classDecl, astManager->java_lang.Object);
+  if (!toString) {
+    for (auto func : astManager->java_lang.Object->getAllMethods()) {
+      if (!func->isConstructor() && func->getName() == "toString" &&
+          func->getParams().size() == 0) {
+        toString = func;
+        break;
+      }
+    }
+  }
+  // Call toString on the newly created object
+  auto methodName = std::make_shared<parsetree::ast::MethodName>(
+      toString->getFullName(), source::SourceRange());
+  methodName->setResolvedDecl(toString);
+  auto methodNameTIR = std::make_shared<tir::TempTIR>(
+      methodName, tir::TempTIR::Type::MethodName);
+  auto methodTIR = std::make_shared<tir::TempTIR>(
+      std::pair<std::shared_ptr<tir::Expr>, std::shared_ptr<tir::Expr>>{
+          newObj, methodNameTIR},
+      tir::TempTIR::Type::MethodCall);
+  std::vector<std::shared_ptr<parsetree::ast::ExprNode>> methodInvocationArgs;
+  auto methodInvocation = std::make_shared<parsetree::ast::MethodInvocation>(
+      0, methodInvocationArgs);
+  auto newString = evalMethodInvocation(methodInvocation, methodTIR, {});
+
+  // Perform a check if the result is null
+  std::vector<std::shared_ptr<tir::Stmt>> checkSeqVec;
+  std::string input = tir::Temp::generateName(stringConcatPrefix + "input");
+  checkSeqVec.push_back(std::make_shared<tir::Move>(
+      std::make_shared<tir::Temp>(input), newString));
+  std::string stringNotNull =
+      tir::Label::generateName(stringConcatPrefix + "string_not_null");
+  std::string doneCheck =
+      tir::Label::generateName(stringConcatPrefix + "done_null_check");
+  checkSeqVec.push_back(std::make_shared<tir::CJump>(
+      std::make_shared<tir::BinOp>(tir::BinOp::OpType::NEQ,
+                                   std::make_shared<tir::Temp>(input),
+                                   std::make_shared<tir::Const>(0)),
+      stringNotNull));
+  checkSeqVec.push_back(std::make_shared<tir::Move>(
+      std::make_shared<tir::Temp>(input), nullExpr));
+  checkSeqVec.push_back(std::make_shared<tir::Label>(stringNotNull));
+  auto finalExpr =
+      std::make_shared<tir::ESeq>(std::make_shared<tir::Seq>(checkSeqVec),
+                                  std::make_shared<tir::Temp>(input));
+
+  // Now recurse once to evaluate the string concatenation!
+  auto newOp = std::make_shared<parsetree::ast::BinOp>(
+      parsetree::ast::BinOp::OpType::Add);
+  if (!op->getLhsType()->isString()) {
+    newOp->setLhsType(std::make_shared<parsetree::ast::BasicType>(
+      parsetree::ast::BasicType::Type::String));
+      newOp->setRhsType(op->getRhsType());
+      return evalStringConcatenation(newOp, finalExpr, rhs);
+    }
+  newOp->setLhsType(op->getLhsType());
+  newOp->setRhsType(std::make_shared<parsetree::ast::BasicType>(
+      parsetree::ast::BasicType::Type::String));
+  return evalStringConcatenation(newOp, lhs, finalExpr);
+}
+
 std::shared_ptr<tir::Expr>
 ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
                            const std::shared_ptr<tir::Expr> lhs,
@@ -438,8 +895,16 @@ ExprIRConverter::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
     return std::make_shared<tir::BinOp>(tir::BinOp::OpType::NEQ, lhs, rhs);
 
   case parsetree::ast::BinOp::OpType::Plus:
-  case parsetree::ast::BinOp::OpType::Add:
+  case parsetree::ast::BinOp::OpType::Add: {
+    // std::cout << "Printing Op:" << std::endl;
+    // std::cout << op << "" << std::endl;
+    // std::cout << op->getLhsType()->isString() << "" << std::endl;
+    // std::cout << op->getRhsType()->isString() << "" << std::endl;
+    if (op->getLhsType()->isString() || op->getRhsType()->isString()) {
+      return evalStringConcatenation(op, lhs, rhs);
+    }
     return std::make_shared<tir::BinOp>(tir::BinOp::OpType::ADD, lhs, rhs);
+  }
 
   case parsetree::ast::BinOp::OpType::Minus:
   case parsetree::ast::BinOp::OpType::Subtract:

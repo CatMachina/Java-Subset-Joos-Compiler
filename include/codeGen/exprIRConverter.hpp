@@ -129,6 +129,11 @@ private:
 
   bool isArrayLength(std::shared_ptr<parsetree::ast::FieldDecl> fieldDecl);
 
+  std::shared_ptr<tir::Expr>
+  evalStringConcatenation(std::shared_ptr<parsetree::ast::BinOp> &op,
+                          const std::shared_ptr<tir::Expr> lhs,
+                          const std::shared_ptr<tir::Expr> rhs);
+
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<parsetree::ast::ClassDecl> currentClass = nullptr;
 };
