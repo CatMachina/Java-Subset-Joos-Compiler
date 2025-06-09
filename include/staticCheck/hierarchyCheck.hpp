@@ -30,9 +30,8 @@ class HierarchyCheck {
   sanitizedSuperClasses(std::shared_ptr<parsetree::ast::ClassDecl> classDecl) {
     std::vector<std::shared_ptr<parsetree::ast::ClassDecl>> superClasses;
     for (auto &superClass : classDecl->getSuperClasses()) {
-      if (superClass && superClass->getResolvedDecl() &&
-          superClass->getResolvedDecl()->getAstNode()) {
-        auto astNode = superClass->getResolvedDecl()->getAstNode();
+      if (superClass && superClass->getResolvedDecl().getAstNode()) {
+        auto astNode = superClass->getResolvedDecl().getAstNode();
         std::shared_ptr<parsetree::ast::ClassDecl> superClassDecl =
             dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
         if (astNode->getName() != "Object") {
@@ -144,7 +143,11 @@ class HierarchyCheck {
       for (auto &superClass : classDecl->getSuperClasses()) {
         if (!superClass)
           continue;
-        auto astNode = superClass->getResolvedDecl()->getAstNode();
+        if (superClass->getResolvedDecl().getAstNode() == nullptr) {
+          superClass->print(std::cout);
+          throw std::runtime_error("Superclass not resolved");
+        }
+        auto astNode = superClass->getResolvedDecl().getAstNode();
         // If in current stack, then there's a cycle
         if (inStack.count(astNode))
           return false;
@@ -156,7 +159,7 @@ class HierarchyCheck {
       for (auto &superInterface : classDecl->getInterfaces()) {
         if (!superInterface)
           continue;
-        auto astNode = superInterface->getResolvedDecl()->getAstNode();
+        auto astNode = superInterface->getResolvedDecl().getAstNode();
         // If in current stack, then there's a cycle
         if (inStack.count(astNode))
           return false;
@@ -171,7 +174,7 @@ class HierarchyCheck {
       for (auto &superInterface : interfaceDecl->getInterfaces()) {
         if (!superInterface)
           continue;
-        auto astNode = superInterface->getResolvedDecl()->getAstNode();
+        auto astNode = superInterface->getResolvedDecl().getAstNode();
         // If in current stack, then there's a cycle
         if (inStack.count(astNode))
           return false;
@@ -198,18 +201,17 @@ class HierarchyCheck {
           dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode);
       // Check super classes
       for (auto &superClass : classDecl->getSuperClasses()) {
-        if (!superClass || !superClass->getResolvedDecl() ||
-            !superClass->getResolvedDecl()->getAstNode())
+        if (!superClass || !superClass->getResolvedDecl().getAstNode())
           continue;
 
         // Check if extended class is a class
-        if (!isClass(superClass->getResolvedDecl()->getAstNode()))
+        if (!isClass(superClass->getResolvedDecl().getAstNode()))
           return false;
 
         // Cast to class
         std::shared_ptr<parsetree::ast::ClassDecl> superClassDecl =
             dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-                superClass->getResolvedDecl()->getAstNode());
+                superClass->getResolvedDecl().getAstNode());
         // Check if class is final
         if (superClassDecl->getModifiers() &&
             superClassDecl->getModifiers()->isFinal())
@@ -220,20 +222,18 @@ class HierarchyCheck {
       std::unordered_set<std::shared_ptr<parsetree::ast::Decl>>
           uniqueInterfaces;
       for (auto &superInterface : classDecl->getInterfaces()) {
-        if (!superInterface || !superInterface->getResolvedDecl() ||
-            !superInterface->getResolvedDecl()->getAstNode())
+        if (!superInterface || !superInterface->getResolvedDecl().getAstNode())
           continue;
 
         // Check if interfaces is an interface
-        if (!isInterface(superInterface->getResolvedDecl()->getAstNode()))
+        if (!isInterface(superInterface->getResolvedDecl().getAstNode()))
           return false;
 
         // Store and check for duplicate interfaces
         if (uniqueInterfaces.count(
-                superInterface->getResolvedDecl()->getAstNode()))
+                superInterface->getResolvedDecl().getAstNode()))
           return false;
-        uniqueInterfaces.insert(
-            superInterface->getResolvedDecl()->getAstNode());
+        uniqueInterfaces.insert(superInterface->getResolvedDecl().getAstNode());
       }
     } else if (isInterface(astNode)) {
       // Do interfaces check
@@ -244,19 +244,17 @@ class HierarchyCheck {
       std::unordered_set<std::shared_ptr<parsetree::ast::Decl>>
           uniqueInterfaces;
       for (auto &superInterface : interfaceDecl->getInterfaces()) {
-        if (!superInterface || !superInterface->getResolvedDecl() ||
-            !superInterface->getResolvedDecl()->getAstNode())
+        if (!superInterface || !superInterface->getResolvedDecl().getAstNode())
           continue;
         // Check if interfaces is an interface
-        if (!isInterface(superInterface->getResolvedDecl()->getAstNode()))
+        if (!isInterface(superInterface->getResolvedDecl().getAstNode()))
           return false;
 
         // Store and check for duplicate interfaces
         if (uniqueInterfaces.count(
-                superInterface->getResolvedDecl()->getAstNode()))
+                superInterface->getResolvedDecl().getAstNode()))
           return false;
-        uniqueInterfaces.insert(
-            superInterface->getResolvedDecl()->getAstNode());
+        uniqueInterfaces.insert(superInterface->getResolvedDecl().getAstNode());
       }
     }
     return true;
@@ -320,12 +318,11 @@ class HierarchyCheck {
     if (auto classDecl =
             std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(astNode)) {
       for (auto &superInterface : classDecl->getInterfaces()) {
-        if (!superInterface || !superInterface->getResolvedDecl() ||
-            !superInterface->getResolvedDecl()->getAstNode())
+        if (!superInterface || !superInterface->getResolvedDecl().getAstNode())
           continue;
         auto superInterfaceDecl =
             std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                superInterface->getResolvedDecl()->getAstNode());
+                superInterface->getResolvedDecl().getAstNode());
         if (superInterfaceDecl &&
             !getInheritedMethods(superInterfaceDecl, abstractMethodMap,
                                  methodMap, implements))
@@ -374,12 +371,11 @@ class HierarchyCheck {
                        astNode)) {
       // Get inherited abstract methods
       for (auto &superInterface : interfaceDecl->getInterfaces()) {
-        if (!superInterface || !superInterface->getResolvedDecl() ||
-            !superInterface->getResolvedDecl()->getAstNode())
+        if (!superInterface || !superInterface->getResolvedDecl().getAstNode())
           continue;
         auto superInterfaceDecl =
             std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                superInterface->getResolvedDecl()->getAstNode());
+                superInterface->getResolvedDecl().getAstNode());
         if (superInterfaceDecl &&
             !getInheritedMethods(superInterfaceDecl, abstractMethodMap,
                                  methodMap, implements))
@@ -492,7 +488,7 @@ class HierarchyCheck {
         for (auto &superClass : classDecl->getSuperClasses()) {
           if (!superClass)
             continue;
-          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superClass->getResolvedDecl().getAstNode()) {
             auto superClassDecl =
                 std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
             if (!superClassDecl)
@@ -530,8 +526,7 @@ class HierarchyCheck {
         for (auto &superInterface : interfaceDecl->getInterfaces()) {
           if (!superInterface)
             continue;
-          if (auto superDecl =
-                  superInterface->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superInterface->getResolvedDecl().getAstNode()) {
             auto superInterfaceDecl =
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
@@ -575,7 +570,7 @@ class HierarchyCheck {
         for (auto &superClass : classDecl->getSuperClasses()) {
           if (!superClass)
             continue;
-          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superClass->getResolvedDecl().getAstNode()) {
             auto superClassDecl =
                 std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
             if (!superClassDecl)
@@ -610,8 +605,7 @@ class HierarchyCheck {
         for (auto &superInterface : interfaceDecl->getInterfaces()) {
           if (!superInterface)
             continue;
-          if (auto superDecl =
-                  superInterface->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superInterface->getResolvedDecl().getAstNode()) {
             auto superInterfaceDecl =
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
@@ -655,7 +649,7 @@ class HierarchyCheck {
         for (auto &superClass : classDecl->getSuperClasses()) {
           if (!superClass)
             continue;
-          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superClass->getResolvedDecl().getAstNode()) {
             auto superClassDecl =
                 std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
             if (!superClassDecl)
@@ -711,12 +705,12 @@ class HierarchyCheck {
         }
 
         for (auto &superInterface : superInterfaces) {
-          if (!superInterface || !superInterface->getResolvedDecl()) {
+          if (!superInterface ||
+              !superInterface->getResolvedDecl().getAstNode()) {
             continue;
           }
 
-          if (auto superDecl =
-                  superInterface->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superInterface->getResolvedDecl().getAstNode()) {
             auto superInterfaceDecl =
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
@@ -768,8 +762,7 @@ class HierarchyCheck {
         for (auto &superInterface : classDecl->getInterfaces()) {
           if (!superInterface)
             continue;
-          if (auto superDecl =
-                  superInterface->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superInterface->getResolvedDecl().getAstNode()) {
             auto superInterfaceDecl =
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);
@@ -826,9 +819,9 @@ class HierarchyCheck {
         std::string signature = method->getSignature();
 
         for (auto &superClass : superClasses) {
-          if (!superClass || !superClass->getResolvedDecl())
+          if (!superClass || !superClass->getResolvedDecl().getAstNode())
             continue;
-          if (auto superDecl = superClass->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superClass->getResolvedDecl().getAstNode()) {
             auto superClassDecl =
                 std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(superDecl);
             if (!superClassDecl)
@@ -885,12 +878,12 @@ class HierarchyCheck {
         }
 
         for (auto &superInterface : superInterfaces) {
-          if (!superInterface || !superInterface->getResolvedDecl()) {
+          if (!superInterface ||
+              !superInterface->getResolvedDecl().getAstNode()) {
             continue;
           }
 
-          if (auto superDecl =
-                  superInterface->getResolvedDecl()->getAstNode()) {
+          if (auto superDecl = superInterface->getResolvedDecl().getAstNode()) {
             auto superInterfaceDecl =
                 std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
                     superDecl);

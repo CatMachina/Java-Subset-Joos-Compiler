@@ -82,7 +82,7 @@ void ASTValidator::validateMethod(
           if (!(superRef->isResolved())) {
             throw std::runtime_error("Super class not resolved");
           }
-          auto superDecl = superRef->getResolvedDecl()->getAstNode();
+          auto superDecl = superRef->getResolvedDecl().getAstNode();
           if (superDecl->getName() == "Object")
             continue;
 

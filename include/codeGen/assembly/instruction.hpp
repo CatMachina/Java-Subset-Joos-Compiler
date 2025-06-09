@@ -34,10 +34,6 @@ protected:
   void addReadGPR(std::string reg) { readGPRs.insert(reg); }
   void addWriteGPR(std::string reg) { writeGPRs.insert(reg); }
 
-  const std::vector<std::shared_ptr<Operand>> &getOperands() const {
-    return operands;
-  }
-
 private:
   // Expand register set with overlaps and remove non-registers (e.g., global
   // data)
@@ -186,6 +182,17 @@ public:
     }
     return std::move(result);
   }
+
+  const std::vector<std::shared_ptr<Operand>> &getOperands() const {
+    return operands;
+  }
+
+  void setOperand(int idx, std::shared_ptr<Operand> operand) {
+    if (idx >= getOperands().size()) {
+      throw std::runtime_error("Instruction::setOperand: out of bounds");
+    }
+    operands[idx] = operand;
+  }
 };
 
 // mov	move data from src to dest
@@ -276,7 +283,6 @@ public:
     addReadGPR(assembly::R32_EAX);
     addWriteGPR(assembly::R32_EAX);
 
-    addReadGPR(assembly::R32_EDX);
     addWriteGPR(assembly::R32_EDX);
   }
 
@@ -558,6 +564,12 @@ public:
   Call(std::shared_ptr<Operand> target) {
     target->setRead();
     addOperand(target);
+
+    addWriteGPR(assembly::R32_EAX);
+    if (target->toString() == "__malloc" ||
+        target->toString() == "NATIVEjava.io.OutputStream.nativeWrite") {
+      addReadGPR(assembly::R32_EAX);
+    }
   }
 
   std::ostream &print(std::ostream &os, int indent = 0) const override {

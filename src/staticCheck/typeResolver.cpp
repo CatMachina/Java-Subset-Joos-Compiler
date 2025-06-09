@@ -22,7 +22,7 @@ bool TypeResolver::isTypeString(
     return true;
   if (auto refType =
           std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type)) {
-    return refType->getResolvedDecl()->getAstNode() ==
+    return refType->getResolvedDecl().getAstNode() ==
            astManager->java_lang.String;
   }
   return false;
@@ -54,12 +54,11 @@ bool TypeResolver::isSuperClass(
   auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
 
   for (auto &superClass : childDecl->getSuperClasses()) {
-    if (!superClass || !superClass->getResolvedDecl() ||
-        !superClass->getResolvedDecl())
+    if (!superClass || !superClass->getResolvedDecl().getAstNode())
       continue;
     // Cast to class
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        superClass->getResolvedDecl()->getAstNode());
+        superClass->getResolvedDecl().getAstNode());
 
     if (superClassDecl == superDecl)
       return true;
@@ -88,13 +87,12 @@ static bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> interface,
     auto childDecl =
         std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(child);
     for (auto &superInterface : childDecl->getInterfaces()) {
-      if (!superInterface || !superInterface->getResolvedDecl() ||
-          !superInterface->getResolvedDecl())
+      if (!superInterface || !superInterface->getResolvedDecl().getAstNode())
         continue;
       // Cast to class
       auto superInterfaceDecl =
           std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-              superInterface->getResolvedDecl()->getAstNode());
+              superInterface->getResolvedDecl().getAstNode());
 
       if (superInterfaceDecl == interface)
         return true;
@@ -104,14 +102,13 @@ static bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> interface,
         return true;
     }
     for (auto &superClass : childDecl->getSuperClasses()) {
-      if (!superClass || !superClass->getResolvedDecl() ||
-          !superClass->getResolvedDecl())
+      if (!superClass || !superClass->getResolvedDecl().getAstNode())
         continue;
 
       // Cast to class
       auto superClassDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-              superClass->getResolvedDecl()->getAstNode());
+              superClass->getResolvedDecl().getAstNode());
 
       if (isSuperInterface(interface,
                            std::dynamic_pointer_cast<parsetree::ast::AstNode>(
@@ -122,13 +119,12 @@ static bool isSuperInterface(std::shared_ptr<parsetree::ast::AstNode> interface,
     auto childDecl =
         std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(child);
     for (auto &superInterface : childDecl->getInterfaces()) {
-      if (!superInterface || !superInterface->getResolvedDecl() ||
-          !superInterface->getResolvedDecl())
+      if (!superInterface || !superInterface->getResolvedDecl().getAstNode())
         continue;
       // Cast to interface
       auto superInterfaceDecl =
           std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-              superInterface->getResolvedDecl()->getAstNode());
+              superInterface->getResolvedDecl().getAstNode());
 
       if (superInterfaceDecl == interface)
         return true;
@@ -236,12 +232,12 @@ bool TypeResolver::isAssignableTo(
   // astManager->java_lang.String conversions
   if (rhs->isString() && leftRef) {
     if (auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-            leftRef->getResolvedDecl()->getAstNode())) {
+            leftRef->getResolvedDecl().getAstNode())) {
       return isSuperClass(leftClass, astManager->java_lang.String);
     }
     if (auto leftInterface =
             std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                leftRef->getResolvedDecl()->getAstNode())) {
+                leftRef->getResolvedDecl().getAstNode())) {
       return isSuperInterface(leftInterface, astManager->java_lang.String);
     }
     return false;
@@ -268,28 +264,28 @@ bool TypeResolver::isAssignableTo(
   if (leftRef && rightRef) {
     // 3.2 Class assignability
     if (auto rightClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-            rightRef->getResolvedDecl()->getAstNode())) {
+            rightRef->getResolvedDecl().getAstNode())) {
       if (auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-              leftRef->getResolvedDecl()->getAstNode())) {
+              leftRef->getResolvedDecl().getAstNode())) {
         return isSuperClass(leftClass, rightClass);
       }
       if (auto leftInterface =
               std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                  leftRef->getResolvedDecl()->getAstNode())) {
+                  leftRef->getResolvedDecl().getAstNode())) {
         return isSuperInterface(leftInterface, rightClass);
       }
     }
     // 3.3 Interface assignability
     if (auto rightInterface =
             std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                rightRef->getResolvedDecl()->getAstNode())) {
+                rightRef->getResolvedDecl().getAstNode())) {
       if (auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-              leftRef->getResolvedDecl()->getAstNode())) {
+              leftRef->getResolvedDecl().getAstNode())) {
         return leftClass == astManager->java_lang.Object;
       }
       if (auto leftInterface =
               std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-                  leftRef->getResolvedDecl()->getAstNode())) {
+                  leftRef->getResolvedDecl().getAstNode())) {
         return isSuperInterface(leftInterface, rightInterface);
       }
     }
@@ -307,11 +303,11 @@ bool TypeResolver::isAssignableTo(
 
     if (leftRef) {
       // Serializable decl
-      return leftRef->getResolvedDecl()->getAstNode() ==
+      return leftRef->getResolvedDecl().getAstNode() ==
                  astManager->java_lang.Object ||
-             leftRef->getResolvedDecl()->getAstNode() ==
+             leftRef->getResolvedDecl().getAstNode() ==
                  astManager->java_lang.Cloneable ||
-             leftRef->getResolvedDecl()->getAstNode() ==
+             leftRef->getResolvedDecl().getAstNode() ==
                  astManager->java_lang.Serializable;
     }
   }
@@ -361,7 +357,7 @@ bool TypeResolver::isValidCast(
   if (exprRef) {
     // If casting to an array, it must be a cast to `Object`, which is valid
     if (castArr)
-      return exprRef->getResolvedDecl()->getAstNode() ==
+      return exprRef->getResolvedDecl().getAstNode() ==
              astManager->java_lang.Object;
     // If the cast type is not a reference type, the cast is invalid
     if (!castRef)
@@ -369,14 +365,14 @@ bool TypeResolver::isValidCast(
 
     auto leftInterface =
         std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-            exprRef->getResolvedDecl()->getAstNode());
+            exprRef->getResolvedDecl().getAstNode());
     auto rightInterface =
         std::dynamic_pointer_cast<parsetree::ast::InterfaceDecl>(
-            castRef->getResolvedDecl()->getAstNode());
+            castRef->getResolvedDecl().getAstNode());
     auto leftClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        exprRef->getResolvedDecl()->getAstNode());
+        exprRef->getResolvedDecl().getAstNode());
     auto rightClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        castRef->getResolvedDecl()->getAstNode());
+        castRef->getResolvedDecl().getAstNode());
 
     // Interface-to-interface casts are always valid
     if (leftInterface && rightInterface)
@@ -406,9 +402,9 @@ bool TypeResolver::isValidCast(
     }
     // Arrays can be cast to Object or Serializable
     if (castRef) {
-      if (castRef->getResolvedDecl()->getAstNode() ==
+      if (castRef->getResolvedDecl().getAstNode() ==
               astManager->java_lang.Object ||
-          castRef->getResolvedDecl()->getAstNode() ==
+          castRef->getResolvedDecl().getAstNode() ==
               astManager->java_lang.Serializable) {
         return true;
       }
@@ -434,8 +430,7 @@ TypeResolver::mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) {
     if (method->isConstructor()) {
       auto retType = std::make_shared<parsetree::ast::ReferenceType>(
           method->getParent()->asDecl());
-      retType->setResolvedDecl(
-          std::make_shared<Decl>(method->getParent()->asDecl()));
+      retType->setResolvedDecl(Decl{method->getParent()->asDecl()});
       type->setReturnType(retType);
     }
     // Return the resolved method type.
@@ -475,6 +470,8 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
   if (auto result = op->getResultType(); result) {
     return result;
   }
+  op->setLhsType(lhs);
+  op->setRhsType(rhs);
 
   switch (op->getOp()) {
   case parsetree::ast::BinOp::OpType::Assign:
@@ -496,7 +493,8 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
   case parsetree::ast::BinOp::OpType::Equal:
   case parsetree::ast::BinOp::OpType::NotEqual: {
     if ((lhs->isNumeric() && rhs->isNumeric()) ||
-        (lhs->isBoolean() && rhs->isBoolean())) {
+        (lhs->isBoolean() && rhs->isBoolean()) ||
+        (lhs->isString() && rhs->isString())) {
       return op->resolveResultType(
           envManager->BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
     }
@@ -511,6 +509,10 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
       return op->resolveResultType(
           envManager->BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
     }
+    std::cout << "lhs: ";
+    lhs->print(std::cout);
+    std::cout << "rhs: ";
+    rhs->print(std::cout);
     throw std::runtime_error("operands are not of the same type");
   }
 
@@ -553,6 +555,8 @@ TypeResolver::evalBinOp(std::shared_ptr<parsetree::ast::BinOp> &op,
   case parsetree::ast::BinOp::OpType::InstanceOf: {
     if ((lhs->isNull() || isReferenceOrArrType(lhs)) &&
         (isReferenceOrArrType(rhs)) && isValidCast(rhs, lhs)) {
+      // op->setLhsType(lhs);
+      // op->setRhsType(rhs);
       return op->resolveResultType(
           envManager->BuildBasicType(parsetree::ast::BasicType::Type::Boolean));
     }

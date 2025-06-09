@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 
 ASSIGNMENT_ARG=$1
-ASSIGNMENT=${ASSIGNMENT_ARG:="a5"}
+ASSIGNMENT=${ASSIGNMENT_ARG:="a6"}
 TEST_DIR="/u/cs444/pub/assignment_testcases/$ASSIGNMENT"
-STDLIB="/u/cs444/pub/stdlib/5.2"
+STDLIB="/u/cs444/pub/stdlib/6.1"
 RUNTIME="$STDLIB/runtime.s"
 NASM="/u/cs444/bin/nasm"
 
@@ -116,7 +116,7 @@ for testcase in "$TEST_DIR"/*; do
 
             if [ $exit_code -ne $expected_exit ]; then
                 error=true
-                LAST_CMD="$OUTPUT_DIR/main (exit code was $exit_code, expected 123)"
+                LAST_CMD="$OUTPUT_DIR/main (exit code was $exit_code, expected $expected_exit)"
             fi
         fi
 

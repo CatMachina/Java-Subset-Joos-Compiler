@@ -35,13 +35,12 @@ bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
   auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
 
   for (auto &superClass : childDecl->getSuperClasses()) {
-    if (!superClass || !superClass->getResolvedDecl() ||
-        !superClass->getResolvedDecl())
+    if (!superClass || !superClass->getResolvedDecl().getAstNode())
       continue;
 
     // Cast to class
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        superClass->getResolvedDecl()->getAstNode());
+        superClass->getResolvedDecl().getAstNode());
 
     if (superClassDecl == superDecl)
       return true;
@@ -107,7 +106,15 @@ void ExprResolver::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   }
 
   // only check Expr
-  if (auto expr = std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
+  if (auto varDecl = std::dynamic_pointer_cast<parsetree::ast::VarDecl>(node)) {
+    if (varDecl->hasInit()) {
+      auto type = evaluate(varDecl->getInitializer());
+      // std::cout << "for varDecl: " << varDecl->getName() << ", resolved type
+      // is "; type->print(std::cout);
+      varDecl->setRealType(type);
+    }
+  } else if (auto expr =
+                 std::dynamic_pointer_cast<parsetree::ast::Expr>(node)) {
     evaluate(expr);
   } else {
     for (const auto &child : node->getChildren()) {
@@ -118,7 +125,8 @@ void ExprResolver::resolveAST(std::shared_ptr<parsetree::ast::AstNode> node) {
   }
 }
 
-void ExprResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
+std::shared_ptr<parsetree::ast::Type>
+ExprResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
   currentScope = expr->getScope();
   auto nodes = expr->getExprNodes();
   auto ret = evaluateList(nodes);
@@ -147,8 +155,9 @@ void ExprResolver::evaluate(std::shared_ptr<parsetree::ast::Expr> expr) {
     }
   }
   expr->setExprNodes(resolved);
-  typeResolver->EvalList(resolved);
+  auto type = typeResolver->EvalList(resolved);
   staticResolver->evaluate(expr, staticState);
+  return type;
 }
 
 exprResolveType ExprResolver::evaluateList(
@@ -194,8 +203,8 @@ ExprResolver::resolveExprNode(const exprResolveType node) {
       } else {
         auto refType =
             std::make_shared<parsetree::ast::ReferenceType>(currentDecl);
-        refType->setResolvedDecl(std::make_shared<Decl>(currentDecl));
-        if (!refType->getResolvedDecl())
+        refType->setResolvedDecl(Decl{currentDecl});
+        if (!refType->getResolvedDecl().getAstNode())
           throw std::runtime_error("resolved decl not sets");
         thisNode->resolveDeclAndType(currentDecl, refType);
       }
@@ -422,7 +431,7 @@ ExprResolver::resolveMemberName(std::shared_ptr<ExprNameLinked> expr) {
     // Resolve the declaration as a reference type if not already resolved.
     if (!expr->getNode()->isTypeResolved()) {
       auto refType = std::make_shared<parsetree::ast::ReferenceType>(declNode);
-      refType->setResolvedDecl(std::make_shared<Decl>(declNode));
+      refType->setResolvedDecl(Decl{declNode});
       expr->getNode()->resolveDeclAndType(declNode, refType);
     } else if (!expr->getNode()->isDeclResolved()) {
       expr->getNode()->setResolvedDecl(declNode);
@@ -876,7 +885,7 @@ ExprResolver::evalNewObject(std::shared_ptr<parsetree::ast::ClassCreation> &op,
   auto typeAsDecl = rType->getAsDecl();
   if (!typeAsDecl)
     typeAsDecl = std::dynamic_pointer_cast<parsetree::ast::Decl>(
-        rType->getResolvedDecl()->getAstNode());
+        rType->getResolvedDecl().getAstNode());
   auto ctx = typeAsDecl->asCodeBody();
   if (auto classDecl =
           std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(ctx)) {
@@ -1267,12 +1276,16 @@ void ExprResolver::resolvePackageAccess(
   }
   // reclassify
   if (std::holds_alternative<std::shared_ptr<Decl>>(subpkg)) {
-    auto pkgdecl = std::get<std::shared_ptr<Decl>>(subpkg);
+    auto pkgdeclPtr = std::get<std::shared_ptr<Decl>>(subpkg);
+    auto pkgdecl = *pkgdeclPtr;
     access->setValueType(ExprNameLinked::ValueType::TypeName);
+    if (!pkgdecl.getAstNode()) {
+      throw std::runtime_error("package should be resolved but not!");
+    }
     auto pkgType =
-        std::make_shared<parsetree::ast::ReferenceType>(pkgdecl->getAstNode());
+        std::make_shared<parsetree::ast::ReferenceType>(pkgdecl.getAstNode());
     pkgType->setResolvedDecl(pkgdecl);
-    access->getNode()->resolveDeclAndType(pkgdecl->getAstNode(), pkgType);
+    access->getNode()->resolveDeclAndType(pkgdecl.getAstNode(), pkgType);
   } else {
     access->setValueType(ExprNameLinked::ValueType::PackageName);
     access->setPackage(std::get<std::shared_ptr<Package>>(subpkg));
@@ -1524,14 +1537,14 @@ bool ExprResolver::areParameterTypesApplicable(
 bool ExprResolver::isMethodMoreSpecific(
     std::shared_ptr<parsetree::ast::MethodDecl> a,
     std::shared_ptr<parsetree::ast::MethodDecl> b) const {
-  auto aDecl = std::make_shared<Decl>(
-      std::dynamic_pointer_cast<parsetree::ast::Decl>(a->getParent()));
-  auto T = std::make_shared<parsetree::ast::ReferenceType>(aDecl->getAstNode());
+  auto aDecl =
+      Decl{std::dynamic_pointer_cast<parsetree::ast::Decl>(a->getParent())};
+  auto T = std::make_shared<parsetree::ast::ReferenceType>(aDecl.getAstNode());
   T->setResolvedDecl(aDecl);
 
-  auto bDecl = std::make_shared<Decl>(
-      std::dynamic_pointer_cast<parsetree::ast::Decl>(b->getParent()));
-  auto U = std::make_shared<parsetree::ast::ReferenceType>(bDecl->getAstNode());
+  auto bDecl =
+      Decl{std::dynamic_pointer_cast<parsetree::ast::Decl>(b->getParent())};
+  auto U = std::make_shared<parsetree::ast::ReferenceType>(bDecl.getAstNode());
   U->setResolvedDecl(bDecl);
 
   if (!typeResolver->isAssignableTo(U, T))

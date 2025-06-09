@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "ast/ast.hpp"
+#include "ast/populateMethodPass.hpp"
 #include "parseTree/parseTree.hpp"
 #include "parseTree/parseTreeVisitor.hpp"
 #include "parseTree/sourceNode.hpp"
@@ -179,6 +180,23 @@ int main(int argc, char **argv) {
     typeLinker->populateJavaLang();
     std::cout << "Passed type linking\n";
 
+    if (astManager->allDecls.size() != astManager->getASTs().size()) {
+      std::cerr
+          << "Mismatch from number of ASTs to number of classes/interfaces"
+          << std::endl;
+      std::cerr << "Number of classes/interfaces: "
+                << astManager->allDecls.size() << ", ";
+      std::cerr << "Number of ASTs: " << astManager->getASTs().size()
+                << std::endl;
+      return EXIT_ERROR;
+    }
+
+    // astManager->getASTs()[2]->print(std::cout);
+
+    auto populateMethodPass =
+        parsetree::ast::PopulateMethodPass(astManager, typeLinker);
+    populateMethodPass.populate();
+
     // hierarchy checking
     auto hierarchyChecker =
         std::make_shared<static_check::HierarchyCheck>(rootPackage);
@@ -194,6 +212,8 @@ int main(int argc, char **argv) {
     // }
 
     std::cout << "Starting name disambiguation and type checking...\n";
+
+    astManager->getASTs()[0]->print(std::cout);
 
     auto typeResolver =
         std::make_shared<static_check::TypeResolver>(astManager, env);
@@ -225,7 +245,7 @@ int main(int argc, char **argv) {
           // method->getName()
           //           << " ===" << std::endl;
           if (cfg) {
-            cfg->print(std::cout);
+            // cfg->print(std::cout);
             if (!static_check::ReachabilityAnalysis::checkUnreachableStatements(
                     cfg)) {
               std::cerr << "Method " << method->getName()
@@ -259,12 +279,20 @@ int main(int argc, char **argv) {
 
     // code gen
     auto codeGenLabels = std::make_shared<codegen::CodeGenLabels>();
-    auto exprConverter =
+    auto innerExprConverter =
         std::make_shared<codegen::ExprIRConverter>(astManager, codeGenLabels);
+    auto exprConverter = std::make_shared<codegen::ExprIRConverter>(
+        astManager, codeGenLabels, innerExprConverter);
 
     // for object oriented
-    codegen::DispatchVectorBuilder().visit(astManager);
+    auto dvBuilder = codegen::DispatchVectorBuilder();
+    dvBuilder.visit(astManager);
     codegen::DispatchVectorBuilder::assignColours();
+    // debug
+    for (auto &ast : astManager->getASTs()) {
+      dvBuilder.print(ast);
+    }
+
     codegen::DispatchVectorBuilder::verifyColoured();
 
     // IR building
@@ -372,7 +400,7 @@ int main(int argc, char **argv) {
       }
       std::cout << "Cleared contents of directory: " << outputDir << std::endl;
     }
-    auto assemblyGenerator = std::make_shared<codegen::AssembyGenerator>(
+    auto assemblyGenerator = std::make_shared<codegen::AssemblyGenerator>(
         codeGenLabels, registerAllocator, entry_method);
     assemblyGenerator->generateAssembly(tirBuilder->getCompUnits());
 

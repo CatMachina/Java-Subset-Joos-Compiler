@@ -22,13 +22,12 @@ static bool isSuperClass(std::shared_ptr<parsetree::ast::AstNode> super,
   auto superDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(super);
 
   for (auto &superClass : childDecl->getSuperClasses()) {
-    if (!superClass || !superClass->getResolvedDecl() ||
-        !superClass->getResolvedDecl())
+    if (!superClass || !superClass->getResolvedDecl().getAstNode())
       continue;
 
     // Cast to class
     auto superClassDecl = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-        superClass->getResolvedDecl()->getAstNode());
+        superClass->getResolvedDecl().getAstNode());
 
     if (superClassDecl == superDecl)
       return true;
@@ -107,7 +106,7 @@ void StaticResolver::isAccessible(StaticResolverData lhs,
     return;
 
   auto lhsClass = std::dynamic_pointer_cast<parsetree::ast::ClassDecl>(
-      lhsRef->getResolvedDecl()->getAstNode());
+      lhsRef->getResolvedDecl().getAstNode());
   if (!lhsClass)
     return;
 

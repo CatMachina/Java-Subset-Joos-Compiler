@@ -25,7 +25,7 @@ GetTypeAsDecl(std::shared_ptr<parsetree::ast::Type> type,
               std::shared_ptr<parsetree::ast::ASTManager> manager) {
   if (auto refType =
           std::dynamic_pointer_cast<parsetree::ast::ReferenceType>(type)) {
-    return refType->getResolvedDecl()->getAstNode();
+    return refType->getResolvedDecl().getAstNode();
   } else if (type->isString()) {
     return manager->java_lang.String;
   } else if (type->isArray()) {
@@ -140,7 +140,8 @@ private:
   void resolveAST(std::shared_ptr<parsetree::ast::AstNode> ast);
   std::vector<std::shared_ptr<parsetree::ast::ExprNode>>
   resolveExprNode(const exprResolveType node);
-  void evaluate(std::shared_ptr<parsetree::ast::Expr> expr);
+  std::shared_ptr<parsetree::ast::Type>
+  evaluate(std::shared_ptr<parsetree::ast::Expr> expr);
   exprResolveType
   evaluateList(std::vector<std::shared_ptr<parsetree::ast::ExprNode>> &list);
 

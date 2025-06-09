@@ -9,6 +9,10 @@
     #include "parseTree/sourceNode.hpp"
     #include "parser/myBisonParser.hpp"
 
+    // May need to increase this more
+    #define YYMAXDEPTH 100000
+    #define YYINITDEPTH 100000
+
     extern int yylex(YYSTYPE*, YYLTYPE*, myFlexLexer&);
     static void yyerror(YYLTYPE*, YYSTYPE*, myFlexLexer&, const char*);
 }

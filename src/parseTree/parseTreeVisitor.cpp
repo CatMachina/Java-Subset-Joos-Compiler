@@ -411,7 +411,6 @@ ParseTreeVisitor::visitForStatement(const NodePtr &node) {
 
   auto scope = envManager->EnterNewScope();
   if (auto initNode = node->child_at(0)) {
-    initNode->print(std::cout);
     if (initNode->get_node_type() == NodeType::LocalDeclStatement) {
       check_num_children(initNode, 1, 1);
       initNode = initNode->child_at(0);

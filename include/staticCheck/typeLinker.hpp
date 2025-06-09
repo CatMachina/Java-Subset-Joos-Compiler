@@ -42,9 +42,15 @@ public:
   resolveType(std::shared_ptr<parsetree::ast::Type> type,
               std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
 
+  std::shared_ptr<Decl> resolveTypeAgain(
+      std::shared_ptr<parsetree::ast::Type> type,
+      std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
+
   Package::packageChild resolveSimpleName(
       const std::string &simpleName,
       std::shared_ptr<parsetree::ast::ProgramDecl> program = nullptr);
+
+  Package::packageChild resolveClassName(const std::string &simpleName);
 
   Package::packageChild resolveQualifiedName(
       const std::vector<std::string> &identifiers,

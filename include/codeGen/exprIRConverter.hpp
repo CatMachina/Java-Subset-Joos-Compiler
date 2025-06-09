@@ -4,6 +4,7 @@
 #include "ast/astManager.hpp"
 #include "codeGen/codeGenLabels.hpp"
 #include "staticCheck/evaluator.hpp"
+#include "staticCheck/typeResolver.hpp"
 #include "tir/InsnMapsBuilder.hpp"
 #include "tir/TIR.hpp"
 
@@ -13,10 +14,22 @@ namespace tir {
 class TempTIR : public Expr {
 
 public:
-  enum class Type { MethodName, TypeNode, FieldAccess };
+  enum class Type { MethodName, TypeNode, FieldAccess, MethodCall };
 
   TempTIR(std::shared_ptr<parsetree::ast::ExprValue> astNode, Type type)
-      : astNode{astNode}, type{type} {}
+      : astNode{astNode}, type{type} {
+    if (type == Type::MethodCall) {
+      throw std::runtime_error("MethodCall should take in a pair of ExprIRs");
+    }
+  }
+
+  TempTIR(std::pair<std::shared_ptr<Expr>, std::shared_ptr<Expr>> methodCall,
+          Type type)
+      : type{type}, methodCall{methodCall} {
+    if (type != Type::MethodCall) {
+      throw std::runtime_error("Only MethodCall can take in a pair of ExprIRs");
+    }
+  }
 
   void visitChildren(InsnMapsBuilder &v) override { v.visit(nullptr); }
 
@@ -25,7 +38,9 @@ public:
     os << "(!!! TempTIR" << std::endl;
     printIndent(os, indent + 1);
     os << magic_enum::enum_name(type) << std::endl;
-    astNode->print(std::cout, indent + 1);
+    if (astNode) {
+      astNode->print(std::cout, indent + 1);
+    }
     printIndent(os, indent);
     os << "!!!)\n";
     return os;
@@ -33,6 +48,7 @@ public:
 
   Type type;
   std::shared_ptr<parsetree::ast::ExprValue> astNode;
+  std::pair<std::shared_ptr<Expr>, std::shared_ptr<Expr>> methodCall;
 };
 
 } // namespace tir
@@ -44,11 +60,18 @@ class ExprIRConverter final
 
 public:
   std::shared_ptr<CodeGenLabels> codeGenLabels;
+  std::shared_ptr<ExprIRConverter> innerExprConverter;
+  std::unordered_map<std::shared_ptr<tir::Expr>,
+                     std::shared_ptr<parsetree::ast::Type>>
+      realTypeMap;
 
-  ExprIRConverter(std::shared_ptr<parsetree::ast::ASTManager> astManager,
-                  std::shared_ptr<CodeGenLabels> codeGenLabels) {
+  ExprIRConverter(
+      std::shared_ptr<parsetree::ast::ASTManager> astManager,
+      std::shared_ptr<CodeGenLabels> codeGenLabels,
+      std::shared_ptr<ExprIRConverter> innerExprConverter = nullptr) {
     this->astManager = astManager;
     this->codeGenLabels = codeGenLabels;
+    this->innerExprConverter = innerExprConverter;
   }
 
   void
@@ -103,6 +126,13 @@ private:
 
   std::shared_ptr<tir::Expr>
   mapValue(std::shared_ptr<parsetree::ast::ExprValue> &value) override;
+
+  bool isArrayLength(std::shared_ptr<parsetree::ast::FieldDecl> fieldDecl);
+
+  std::shared_ptr<tir::Expr>
+  evalStringConcatenation(std::shared_ptr<parsetree::ast::BinOp> &op,
+                          const std::shared_ptr<tir::Expr> lhs,
+                          const std::shared_ptr<tir::Expr> rhs);
 
   std::shared_ptr<parsetree::ast::ASTManager> astManager;
   std::shared_ptr<parsetree::ast::ClassDecl> currentClass = nullptr;
